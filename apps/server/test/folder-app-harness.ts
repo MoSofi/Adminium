@@ -44,6 +44,10 @@ export interface FolderHarness {
   build: () => Promise<AppsBuild>;
   /** A reconciler over the same project in another mode, or with another `apps` block: a second server start. */
   restart: (change?: { mode?: 'dev' | 'server'; apps?: ProjectConfig['apps']; databases?: readonly string[] }) => ProjectApps;
+  /** The install service the reconciler runs over: what a route would call for a person. */
+  service: ReturnType<typeof createAppInstallService>;
+  /** The reconciler as it stands now. */
+  apps: () => ProjectApps;
   row: (key: string) => Promise<{ source: string; status: string; version: string; document: Record<string, unknown> } | null>;
   state: (key: string) => Promise<ProjectAppRow | null>;
   /** The audit lines about apps, oldest first. */
@@ -53,7 +57,7 @@ export interface FolderHarness {
 
 export async function folderHarness(
   dialect: Dialect,
-  opts: { mode: 'dev' | 'server'; apps?: ProjectConfig['apps']; superAdmin?: boolean; /** The add-on installer too, for an app that needs an add-on. */ addOns?: boolean; /** The Adminium the folder is built for, when not this checkout's own. */ version?: string } = { mode: 'dev' },
+  opts: { mode: 'dev' | 'server'; apps?: ProjectConfig['apps']; /** `person`: an operator project, where no config file says who may have public access. */ accessBy?: 'config' | 'person'; superAdmin?: boolean; /** The add-on installer too, for an app that needs an add-on. */ addOns?: boolean; /** The Adminium the folder is built for, when not this checkout's own. */ version?: string } = { mode: 'dev' },
 ): Promise<FolderHarness> {
   const root = tempProject('adminium-folder-app-');
   let built: AppsBuild | null = null;
@@ -71,6 +75,7 @@ export async function folderHarness(
       service,
       meta: harness.meta,
       apps,
+      ...(opts.accessBy === undefined ? {} : { accessBy: opts.accessBy }),
       databases,
       connectionFor: async () => harness.connectionId,
       log: (message) => lines.log.push(message),
@@ -109,6 +114,8 @@ export async function folderHarness(
     lines,
     changed,
     publicApi,
+    service,
+    apps: () => apps,
     newApp: async (...argv) => {
       const io = fakeIo({ interactive: false });
       const deps = fakeDeps({ cwd: root, env: {} });

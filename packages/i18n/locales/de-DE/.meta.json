@@ -27387,9 +27387,17 @@
     "status": "mt",
     "srcHash": "913b4cd389b0"
   },
+  "studio.appSettings.customerConfigDecides": {
+    "status": "mt",
+    "srcHash": "9e248b214c3e"
+  },
   "studio.appSettings.customerNoAccess": {
     "status": "mt",
     "srcHash": "96e3ef78a6d5"
+  },
+  "studio.appSettings.customerNotAllowed": {
+    "status": "mt",
+    "srcHash": "f724b0fc6f20"
   },
   "studio.appSettings.customerOffHelp": {
     "status": "mt",
@@ -30130,6 +30138,54 @@
   "studio.featurePage.title": {
     "status": "mt",
     "srcHash": "7dc0791a8c30"
+  },
+  "studio.folderAccess.allowHelp": {
+    "status": "mt",
+    "srcHash": "175329e7155f"
+  },
+  "studio.folderAccess.allowed": {
+    "status": "mt",
+    "srcHash": "e6372b0e8937"
+  },
+  "studio.folderAccess.changed": {
+    "status": "mt",
+    "srcHash": "fc20c68fcb08"
+  },
+  "studio.folderAccess.closedIntro": {
+    "status": "mt",
+    "srcHash": "6463638216df"
+  },
+  "studio.folderAccess.failed": {
+    "status": "mt",
+    "srcHash": "c091706626a5"
+  },
+  "studio.folderAccess.leftOut": {
+    "status": "mt",
+    "srcHash": "c5514ea7409a"
+  },
+  "studio.folderAccess.moreIntro": {
+    "status": "mt",
+    "srcHash": "5e08839b716f"
+  },
+  "studio.folderAccess.openIntro": {
+    "status": "mt",
+    "srcHash": "6b352b8904eb"
+  },
+  "studio.folderAccess.takeBack": {
+    "status": "mt",
+    "srcHash": "eb9bdeb44519"
+  },
+  "studio.folderAccess.takeBackHelp": {
+    "status": "mt",
+    "srcHash": "0fe445baf977"
+  },
+  "studio.folderAccess.takenBack": {
+    "status": "mt",
+    "srcHash": "f344b3379bf6"
+  },
+  "studio.folderAccess.widerIntro": {
+    "status": "mt",
+    "srcHash": "9649c57b4869"
   },
   "studio.generate.blankBody": {
     "status": "mt",

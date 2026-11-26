@@ -8,7 +8,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { createFirstSuperAdmin, pagesRepo, publicEndpointsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { createFirstSuperAdmin, pagesRepo, publicEndpointsRepo, publicKeysRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -60,7 +60,7 @@ export async function buildApps(dir: string): Promise<AppsBuild> {
   return apps;
 }
 
-async function boot(opts: { mode?: 'dev' | 'server'; apps?: ProjectConfig['apps']; pollMs?: number } = {}) {
+async function boot(opts: { mode?: 'dev' | 'server'; apps?: ProjectConfig['apps']; pollMs?: number; /** An operator project: no config file. */ operator?: boolean } = {}) {
   if (install === null) throw new Error('make the install first');
   const { meta } = install;
   const logs: string[] = [];
@@ -81,6 +81,7 @@ async function boot(opts: { mode?: 'dev' | 'server'; apps?: ProjectConfig['apps'
       warn: (line) => logs.push(`! ${line}`),
       databases: ['main'],
       ...(opts.apps === undefined ? {} : { apps: opts.apps }),
+      ...(opts.operator === true ? { operator: true } : {}),
     },
   });
   await composed.app.ready();
@@ -93,7 +94,11 @@ async function boot(opts: { mode?: 'dev' | 'server'; apps?: ProjectConfig['apps'
     const reply = await composed!.app.inject({ method: 'GET', url, headers: { cookie: cookie ?? '' } });
     return { status: reply.statusCode, body: reply.body, json: <T>() => JSON.parse(reply.body) as T, headers: reply.headers };
   };
-  return { app: composed.app, cookie: cookie ?? '', logs, get };
+  const post = async (url: string, payload: unknown) => {
+    const reply = await composed!.app.inject({ method: 'POST', url, headers: { cookie: cookie ?? '' }, payload: payload as Record<string, unknown> });
+    return { status: reply.statusCode, body: reply.body, json: <T>() => JSON.parse(reply.body) as T };
+  };
+  return { app: composed.app, cookie: cookie ?? '', logs, get, post };
 }
 
 /** The rows of the app's table, read straight from the project's database file. */
@@ -164,6 +169,92 @@ describe('a project’s apps in a running server', { timeout: 120_000 }, () => {
     expect(server.logs.join('\n')).toContain('App "repairs" is installed WITHOUT public access');
     expect(await publicEndpointsRepo(install.meta).listByConnection(install.mainId)).toEqual([]);
     expect((await server.get('/api/v1/apps')).json<Listed>().apps[0]).toMatchObject({ key: 'repairs', source: 'folder' });
+  });
+});
+
+interface AccessView {
+  decides: string;
+  publicAccess: { open: boolean; waiting: number; checksum: string; access: { canGrant: boolean; endpoints: { table: string; methods: string[]; onUpdate?: string }[] } } | null;
+}
+interface SettingsView {
+  publicAccess?: { apiOn: boolean; granted: boolean; decides?: string };
+}
+
+describe('a folder app’s public access on a server with no config file to say it (an operator project)', { timeout: 120_000 }, () => {
+  const ITEMS = { publicAccess: [{ table: 'items', methods: ['GET'], select: ['id', 'title', 'status'] }] };
+
+  it('is a signed-in person’s to allow on the app’s settings, and to take back', async () => {
+    install = await makeInstall();
+    asProject(install.dir);
+    // With a customer side where this checkout can build one: its page is what a stranger opens.
+    await newApp(install.dir, 'repairs', ...(canBuildSides ? ['--customer'] : []));
+    writeFileSync(join(install.dir, 'apps/repairs/manifest/access.json'), JSON.stringify(ITEMS));
+    await buildApps(install.dir);
+    const server = await boot({ mode: 'server', operator: true });
+    const meta = install.meta;
+    const liveKeys = async () => (await publicKeysRepo(meta).listManagedBy('repairs')).filter((key) => key.revokedAt === null);
+    const config = () => server.get('/apps/repairs/customer/surface-config.json');
+
+    // Installed with none, and nothing names a config file that does not exist.
+    expect(server.logs.join('\n')).toContain('App "repairs" is installed WITHOUT public access: nobody has allowed it yet');
+    expect(server.logs.join('\n')).not.toContain('adminium.config.ts');
+    expect(await publicEndpointsRepo(meta).listByConnection(install.mainId)).toEqual([]);
+    if (canBuildSides) expect((await config()).status).toBe(404);
+
+    // The settings page is told a person decides here; the list is the server's own reading of the manifest.
+    expect((await server.get('/api/v1/apps/repairs/settings')).json<SettingsView>().publicAccess).toMatchObject({ granted: false, decides: 'person' });
+    const shown = (await server.get('/api/v1/project/apps/repairs/public-access')).json<AccessView>();
+    expect(shown).toMatchObject({ decides: 'person', publicAccess: { open: false, waiting: 1, access: { canGrant: true, endpoints: [{ table: 'items', methods: ['GET'], onUpdate: 'granted' }] } } });
+
+    // A yes names the list it is for.
+    expect((await server.post('/api/v1/project/apps/repairs/public-access', { allow: true })).status).toBe(422);
+    const stale = await server.post('/api/v1/project/apps/repairs/public-access', { allow: true, checksum: 'not-this-list' });
+    expect(stale.status).toBe(409);
+    expect(await liveKeys()).toEqual([]);
+
+    const allowed = await server.post('/api/v1/project/apps/repairs/public-access', { allow: true, checksum: shown.publicAccess?.checksum });
+    expect(allowed.status, allowed.body).toBe(200);
+    expect(allowed.json<AccessView>()).toMatchObject({ decides: 'person', publicAccess: { open: true, waiting: 0, access: { endpoints: [{ onUpdate: 'held' }] } } });
+    expect(await liveKeys()).toHaveLength(1);
+    expect((await server.get('/api/v1/apps/repairs/settings')).json<SettingsView>().publicAccess).toMatchObject({ granted: true, decides: 'person' });
+    // The customer page gets its key: it is no longer "not open to customers yet".
+    if (canBuildSides) {
+      const served = await config();
+      expect(served.status, served.body).toBe(200);
+      expect(served.json<{ publishableKey?: string }>().publishableKey).toEqual(expect.any(String));
+    }
+
+    // The next start applies the same folder and leaves it open: the key is the yes it reads.
+    await composed?.app.close();
+    const again = await boot({ mode: 'server', operator: true });
+    expect(await liveKeys()).toHaveLength(1);
+    expect(again.logs.filter((line) => line.startsWith('!'))).toEqual([]);
+
+    // Taken back: the key stops, the endpoints go, the page is closed again.
+    const taken = await again.post('/api/v1/project/apps/repairs/public-access', { allow: false });
+    expect(taken.status, taken.body).toBe(200);
+    expect(taken.json<AccessView>()).toMatchObject({ publicAccess: { open: false, waiting: 1 } });
+    expect(await liveKeys()).toEqual([]);
+    expect(await publicEndpointsRepo(meta).listByConnection(install.mainId)).toEqual([]);
+    expect((await again.get('/api/v1/apps/repairs/settings')).json<SettingsView>().publicAccess).toMatchObject({ granted: false, decides: 'person' });
+    if (canBuildSides) expect((await again.get('/apps/repairs/customer/surface-config.json')).status).toBe(404);
+  });
+
+  it('leaves the say with adminium.config.ts in a project that has one', async () => {
+    install = await makeInstall();
+    asProject(install.dir);
+    await newApp(install.dir, 'repairs');
+    writeFileSync(join(install.dir, 'apps/repairs/manifest/access.json'), JSON.stringify(ITEMS));
+    await buildApps(install.dir);
+    const server = await boot({ mode: 'server' });
+
+    expect((await server.get('/api/v1/apps/repairs/settings')).json<SettingsView>().publicAccess).toMatchObject({ granted: false, decides: 'config' });
+    const shown = (await server.get('/api/v1/project/apps/repairs/public-access')).json<AccessView>();
+    expect(shown.decides).toBe('config');
+    const refused = await server.post('/api/v1/project/apps/repairs/public-access', { allow: true, checksum: shown.publicAccess?.checksum });
+    expect(refused.status).toBe(422);
+    expect(refused.body).toContain('set apps.repairs.publicAccess to true');
+    expect(await publicEndpointsRepo(install.meta).listByConnection(install.mainId)).toEqual([]);
   });
 });
 

@@ -3636,7 +3636,9 @@
     "phone": "Phone app",
     "phoneLine": "This app has a phone app for customers. Adminium serves it to nobody: it runs on a phone, and reaches what guests may reach with a key of its own. Switching the customer screens off stops it too.",
     "phoneBuild": "A phone app built for a store needs two things from this server: its address as a phone reaches it, and the app’s “phone app” key.",
-    "phoneKeys": "Open API keys"
+    "phoneKeys": "Open API keys",
+    "customerNotAllowed": "These pages open, but they cannot read or save anything: nobody has allowed the app’s public access yet. Allow it under “Public access” on this page.",
+    "customerConfigDecides": "These pages open, but they cannot read or save anything: this server’s adminium.config.ts does not allow the app’s public access. Set apps.{key}.publicAccess to true there, and restart."
   },
   "uninstall": {
     "files": "The app’s files",
@@ -7250,5 +7252,19 @@
       "summary": "{failed, plural, one {# could not be acted on} other {# could not be acted on}}, {holding, plural, one {# holds texts} other {# hold texts}}.",
       "retryAll": "Try all again"
     }
+  },
+  "folderAccess": {
+    "allowed": "Public access allowed.",
+    "takenBack": "Public access taken back.",
+    "changed": "The app changed since this list was shown. Check it again, then allow it.",
+    "openIntro": "Allowed. The app’s customer screens can:",
+    "moreIntro": "The app now asks for more. Until someone allows it, its customer screens go on with what was allowed. They would also:",
+    "closedIntro": "Nobody has allowed this yet, so the app’s customer screens open and can read or save nothing. They need to:",
+    "widerIntro": "And where they already can, they would see or do more:",
+    "failed": "Public access was not changed",
+    "leftOut": "Allowed, with this left out:",
+    "takeBack": "Take it back",
+    "takeBackHelp": "Taking it back closes the app’s customer screens to everyone at once. You can allow it again here.",
+    "allowHelp": "Anyone who can open the app’s customer screens can then do this, with no sign-in. You can take it back here."
   }
 }

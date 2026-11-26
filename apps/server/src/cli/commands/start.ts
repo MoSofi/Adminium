@@ -522,6 +522,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
         },
         ...(project.config.apps === undefined ? {} : { apps: project.config.apps }),
         databases: [...project.databases.ready.keys()],
+        ...(project.operator ? { operator: true } : {}),
       };
       // The user's own database: its row now, no dial; it is connected after the server listens.
       if (project.operator && env.ADMINIUM_YOUR_DATABASE !== undefined) {

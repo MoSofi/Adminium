@@ -38,11 +38,14 @@ let settings: Record<string, unknown>;
 let sample: Record<string, unknown>;
 let sectionStaff: AppSection['staff'] | undefined;
 let removePlan: Record<string, unknown>;
+/** The app runs from the project folder. */
+let fromFolder: boolean;
 
 beforeEach(async () => {
   await installTestI18n();
   calls = [];
   status = 'installed';
+  fromFolder = false;
   sectionStaff = undefined;
   sample = {
     offered: true,
@@ -123,7 +126,8 @@ function stubFetch() {
               {
                 key: 'pos',
                 version: '0.2.0',
-                source: 'file',
+                source: fromFolder ? 'folder' : 'file',
+                ...(fromFolder ? { folder: { state: 'here' } } : {}),
                 installedAt: 0,
                 connectionId: 'con_1',
                 missing: false,
@@ -189,6 +193,25 @@ function stubFetch() {
         sample = { ...sample, total: 2 };
         return Promise.resolve(jsonResponse(200, { removed: 29, kept: 2, byTable: { menu_items: 23, tickets: 6 } }));
       }
+      if (url === '/api/v1/project/apps/pos/public-access') {
+        return Promise.resolve(
+          jsonResponse(200, {
+            key: 'pos',
+            decides: 'person',
+            publicAccess: {
+              open: false,
+              waiting: 1,
+              wider: [],
+              checksum: 'sum-1',
+              access: {
+                endpoints: [{ ref: 'pos_menu_items', table: 'menu_items', methods: ['GET'], select: ['id'], writable: [], claim: null, kind: 'records', confirms: false, pending: false, issues: [], onUpdate: 'granted' }],
+                warnings: [],
+                canGrant: true,
+              },
+            },
+          }),
+        );
+      }
       if (url === '/api/v1/apps/pos/disable') return Promise.resolve(jsonResponse(200, { key: 'pos', status: 'disabled' }));
       if (url === '/api/v1/apps/pos/enable') return Promise.resolve(jsonResponse(200, { key: 'pos', status: 'installed' }));
       if (url === '/api/v1/apps/pos/domains') return Promise.resolve(jsonResponse(200, { domains: {} }));
@@ -213,6 +236,38 @@ async function renderPage() {
 }
 
 const sent = (method: string, url: string) => calls.filter((c) => c.method === method && c.url === url);
+
+describe('an app of the project folder whose customer side nobody has opened', () => {
+  it('says where its public access is allowed, and has the card to allow it, where a person decides', async () => {
+    fromFolder = true;
+    settings = { ...settings, publicAccess: { apiOn: true, granted: false, decides: 'person' } };
+    await renderPage();
+    // Not the dead end "Update the app and allow it": a folder app is never updated from here.
+    const trouble = within(screen.getByTestId('app-side-customer')).getByTestId('app-side-customer-trouble');
+    expect(trouble.textContent).toContain('Allow it under “Public access” on this page');
+    expect(trouble.textContent).not.toContain('Update the app');
+    const card = await screen.findByTestId('app-folder-access');
+    expect(within(card).getByText('Read menu items')).toBeTruthy();
+    expect(within(card).getByRole('button', { name: 'Allow this public access' })).toBeTruthy();
+  });
+
+  it('names adminium.config.ts, and has no card, where the committed config decides', async () => {
+    fromFolder = true;
+    settings = { ...settings, publicAccess: { apiOn: true, granted: false, decides: 'config' } };
+    await renderPage();
+    const trouble = within(screen.getByTestId('app-side-customer')).getByTestId('app-side-customer-trouble');
+    expect(trouble.textContent).toContain('Set apps.pos.publicAccess to true');
+    expect(screen.queryByTestId('app-folder-access')).toBeNull();
+    expect(sent('GET', '/api/v1/project/apps/pos/public-access')).toEqual([]);
+  });
+
+  it('keeps a package’s words, and no card, for an app installed from one', async () => {
+    settings = { ...settings, publicAccess: { apiOn: true, granted: false } };
+    await renderPage();
+    expect(screen.getByTestId('app-side-customer-trouble').textContent).toContain('Update the app and allow it');
+    expect(screen.queryByTestId('app-folder-access')).toBeNull();
+  });
+});
 
 describe('one app’s own page', () => {
   it('shows the app, its screens, its setting, its data and its activity', async () => {

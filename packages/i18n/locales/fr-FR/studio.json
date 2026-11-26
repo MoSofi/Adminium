@@ -3636,7 +3636,9 @@
     "phone": "Application mobile",
     "phoneLine": "Cette application a une application mobile pour les clients. Adminium ne la sert à personne : elle s’exécute sur un téléphone et atteint, avec une clé à elle, ce que les invités peuvent atteindre. Désactiver les écrans clients l’arrête aussi.",
     "phoneBuild": "Une application mobile construite pour un store a besoin de deux choses de ce serveur : son adresse telle qu’un téléphone l’atteint, et la clé « application mobile » de l’application.",
-    "phoneKeys": "Ouvrir les clés d’API"
+    "phoneKeys": "Ouvrir les clés d’API",
+    "customerNotAllowed": "Ces pages s’ouvrent, mais elles ne peuvent rien lire ni enregistrer : personne n’a encore autorisé l’accès public de l’application. Autorisez-le sur cette page, sous « Accès public ».",
+    "customerConfigDecides": "Ces pages s’ouvrent, mais elles ne peuvent rien lire ni enregistrer : le fichier adminium.config.ts de ce serveur n’autorise pas l’accès public de l’application. Mettez-y apps.{key}.publicAccess à true, puis redémarrez."
   },
   "uninstall": {
     "files": "Les fichiers de l’app",
@@ -7250,5 +7252,19 @@
       "summary": "{failed, plural, one {# n’a pas pu être traité} other {# n’ont pas pu être traités}}, {holding, plural, one {# retient des SMS} other {# retiennent des SMS}}.",
       "retryAll": "Tout réessayer"
     }
+  },
+  "folderAccess": {
+    "allowed": "Accès public autorisé.",
+    "takenBack": "Accès public retiré.",
+    "changed": "L’application a changé depuis l’affichage de cette liste. Vérifiez-la de nouveau, puis autorisez-la.",
+    "openIntro": "Autorisé. Les écrans clients de l’application peuvent :",
+    "moreIntro": "L’application demande maintenant davantage. Tant que personne ne l’autorise, ses écrans clients continuent avec ce qui était autorisé. Ils pourraient aussi :",
+    "closedIntro": "Personne ne l’a encore autorisé : les écrans clients de l’application s’ouvrent, mais ne peuvent rien lire ni enregistrer. Ils doivent pouvoir :",
+    "widerIntro": "Et là où ils le peuvent déjà, ils verraient ou feraient davantage :",
+    "failed": "L’accès public n’a pas été modifié",
+    "leftOut": "Autorisé, sauf ceci :",
+    "takeBack": "Le retirer",
+    "takeBackHelp": "Le retirer ferme aussitôt les écrans clients de l’application à tout le monde. Vous pourrez l’autoriser de nouveau ici.",
+    "allowHelp": "Toute personne qui peut ouvrir les écrans clients de l’application pourra alors le faire, sans se connecter. Vous pourrez le retirer ici."
   }
 }

@@ -163104,6 +163104,603 @@
         }
       }
     },
+    "/api/v1/project/apps/{key}/public-access": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "decides": {
+                      "type": "string",
+                      "enum": [
+                        "person",
+                        "config",
+                        "dev"
+                      ]
+                    },
+                    "publicAccess": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "open": {
+                              "type": "boolean"
+                            },
+                            "waiting": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "access": {
+                              "type": "object",
+                              "properties": {
+                                "endpoints": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "ref": {
+                                        "type": "string"
+                                      },
+                                      "table": {
+                                        "type": "string"
+                                      },
+                                      "methods": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "select": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "writable": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "claim": {
+                                        "anyOf": [
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "records",
+                                          "availability"
+                                        ]
+                                      },
+                                      "confirms": {
+                                        "type": "boolean"
+                                      },
+                                      "pending": {
+                                        "type": "boolean"
+                                      },
+                                      "issues": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "owner": {
+                                        "type": "string"
+                                      },
+                                      "onUpdate": {
+                                        "type": "string",
+                                        "enum": [
+                                          "held",
+                                          "granted",
+                                          "kept",
+                                          "withheld"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "ref",
+                                      "table",
+                                      "methods",
+                                      "select",
+                                      "writable",
+                                      "claim",
+                                      "kind",
+                                      "confirms",
+                                      "pending",
+                                      "issues"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "opensWithoutStaff": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "phoneKey": {
+                                  "type": "string",
+                                  "enum": [
+                                    "held",
+                                    "made",
+                                    "withheld"
+                                  ]
+                                },
+                                "warnings": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "code",
+                                      "message"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "canGrant": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "endpoints",
+                                "warnings",
+                                "canGrant"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "wider": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "ref": {
+                                    "type": "string"
+                                  },
+                                  "owner": {
+                                    "type": "string"
+                                  },
+                                  "columns": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "methods": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "rows": {
+                                    "type": "boolean"
+                                  },
+                                  "reasons": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "ref",
+                                  "owner",
+                                  "columns",
+                                  "methods",
+                                  "rows",
+                                  "reasons"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "checksum": {
+                              "type": "string"
+                            },
+                            "skipped": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "ref": {
+                                    "type": "string"
+                                  },
+                                  "reason": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "ref",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "open",
+                            "waiting",
+                            "access",
+                            "wider",
+                            "checksum"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "decides",
+                    "publicAccess"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "allow": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
+                      },
+                      "checksum": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "required": [
+                      "allow",
+                      "checksum"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "allow": {
+                        "type": "boolean",
+                        "enum": [
+                          false
+                        ]
+                      }
+                    },
+                    "required": [
+                      "allow"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "decides": {
+                      "type": "string",
+                      "enum": [
+                        "person",
+                        "config",
+                        "dev"
+                      ]
+                    },
+                    "publicAccess": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "open": {
+                              "type": "boolean"
+                            },
+                            "waiting": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "access": {
+                              "type": "object",
+                              "properties": {
+                                "endpoints": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "ref": {
+                                        "type": "string"
+                                      },
+                                      "table": {
+                                        "type": "string"
+                                      },
+                                      "methods": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "select": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "writable": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "claim": {
+                                        "anyOf": [
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "records",
+                                          "availability"
+                                        ]
+                                      },
+                                      "confirms": {
+                                        "type": "boolean"
+                                      },
+                                      "pending": {
+                                        "type": "boolean"
+                                      },
+                                      "issues": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "owner": {
+                                        "type": "string"
+                                      },
+                                      "onUpdate": {
+                                        "type": "string",
+                                        "enum": [
+                                          "held",
+                                          "granted",
+                                          "kept",
+                                          "withheld"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "ref",
+                                      "table",
+                                      "methods",
+                                      "select",
+                                      "writable",
+                                      "claim",
+                                      "kind",
+                                      "confirms",
+                                      "pending",
+                                      "issues"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "opensWithoutStaff": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "phoneKey": {
+                                  "type": "string",
+                                  "enum": [
+                                    "held",
+                                    "made",
+                                    "withheld"
+                                  ]
+                                },
+                                "warnings": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "code",
+                                      "message"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "canGrant": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "endpoints",
+                                "warnings",
+                                "canGrant"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "wider": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "ref": {
+                                    "type": "string"
+                                  },
+                                  "owner": {
+                                    "type": "string"
+                                  },
+                                  "columns": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "methods": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "rows": {
+                                    "type": "boolean"
+                                  },
+                                  "reasons": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "ref",
+                                  "owner",
+                                  "columns",
+                                  "methods",
+                                  "rows",
+                                  "reasons"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "checksum": {
+                              "type": "string"
+                            },
+                            "skipped": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "ref": {
+                                    "type": "string"
+                                  },
+                                  "reason": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "ref",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "open",
+                            "waiting",
+                            "access",
+                            "wider",
+                            "checksum"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "decides",
+                    "publicAccess"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/connections/{id}/shape-rules": {
       "get": {
         "parameters": [
@@ -164317,6 +164914,14 @@
                         },
                         "granted": {
                           "type": "boolean"
+                        },
+                        "decides": {
+                          "type": "string",
+                          "enum": [
+                            "person",
+                            "config",
+                            "dev"
+                          ]
                         }
                       },
                       "required": [
@@ -164931,6 +165536,14 @@
                         },
                         "granted": {
                           "type": "boolean"
+                        },
+                        "decides": {
+                          "type": "string",
+                          "enum": [
+                            "person",
+                            "config",
+                            "dev"
+                          ]
                         }
                       },
                       "required": [

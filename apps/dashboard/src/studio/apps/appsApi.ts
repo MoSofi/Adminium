@@ -50,6 +50,45 @@ export function answerAppRemoval(key: string, accept: boolean) {
   );
 }
 
+/**
+ * A folder app's public access where a person allows it (a server whose
+ * project has no config file): what the app asks for, what is open, and what
+ * waits for a yes. Mirrors `folderAccessReply`.
+ */
+export interface FolderAccessView {
+  key: string;
+  decides: 'person' | 'config' | 'dev';
+  /** Null for an app that asks the public API for nothing. */
+  publicAccess: {
+    /** A live key of the app's own serves it now. */
+    open: boolean;
+    /** How many things a yes would add now. */
+    waiting: number;
+    /** As an update's check lists it: an entry is `held` when it is open now, and waits otherwise. */
+    access: NonNullable<AppInstallPlan['publicAccess']>;
+    /** Entries open now that the app would show or take more through. */
+    wider: PublicWideningRow[];
+    /** Names this list: sent back with the yes. */
+    checksum: string;
+    /** After a yes: what the server still left out, each with why. */
+    skipped?: { ref: string; reason: string }[];
+  } | null;
+}
+
+export const folderAccessKey = (key: string) => ['app-folder-access', key] as const;
+
+export function folderAccessQuery(key: string) {
+  return queryOptions({
+    queryKey: folderAccessKey(key),
+    queryFn: () => api.get<FolderAccessView>(`/api/v1/project/apps/${encodeURIComponent(key)}/public-access`),
+  });
+}
+
+/** Allow the list `checksum` names, or take the app's public access back. */
+export function answerFolderAccess(key: string, answer: { allow: true; checksum: string } | { allow: false }) {
+  return api.post<FolderAccessView>(`/api/v1/project/apps/${encodeURIComponent(key)}/public-access`, answer);
+}
+
 export interface InstalledApp {
   key: string;
   version: string;
@@ -313,7 +352,18 @@ export interface AppSettingsView {
   /** The add-ons the app names, each with its state and source. Absent for an app that names none. */
   addOns?: AppAddOnRow[];
   /** For an app whose customer side calls the public API: whether it is on, and whether the install made the app's access. */
-  publicAccess?: { apiOn: boolean; granted: boolean };
+  publicAccess?: {
+    apiOn: boolean;
+    granted: boolean;
+    /**
+     * For an app of the project folder: who allows its public access on this
+     * server. `person`: someone who may manage API keys, on this page.
+     * `config`: `adminium.config.ts`. `dev`: `adminium dev` gives it as the
+     * folder declares it. Absent for an app installed from a package, and
+     * from an older server.
+     */
+    decides?: 'person' | 'config' | 'dev';
+  };
 }
 
 // ── The add-ons an app names ────────────────────────────────────────────────
