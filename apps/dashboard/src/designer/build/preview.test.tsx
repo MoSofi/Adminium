@@ -134,6 +134,7 @@ function turn(over: Partial<TurnView>): TurnView {
     changedFiles: false,
     pictures: [],
     operatorAi: null,
+    nextSteps: [],
     ...over,
   };
 }

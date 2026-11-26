@@ -277,3 +277,39 @@ describe('the pictures under a reply', () => {
     expect(turns[0]?.pictures.at(-1)).toEqual({ kind: 'undone', to: 2 });
   });
 });
+
+describe('what comes next, under a reply', () => {
+  it('keeps the steps the turn last said, and only the kinds this page draws', () => {
+    seq = 0;
+    const turns = foldTurns([
+      at(1, { kind: 'turn-started', text: 'A shop for what I make.' }),
+      at(1, { kind: 'next-steps', steps: [{ kind: 'ask', text: 'Add a page for orders' }] }),
+      at(1, {
+        kind: 'next-steps',
+        steps: [
+          { kind: 'rows', table: 'products', name: 'Products', path: '/p/shop-products' },
+          { kind: 'add-on', key: 'inventory', name: 'Inventory', text: 'Lower stock when an order is saved', installed: false },
+          // A kind a newer server may send: left out, never drawn as another.
+          { kind: 'elsewhere', text: 'x' } as never,
+        ],
+      }),
+      at(1, { kind: 'turn-finished', outcome: 'done' }),
+      at(2, { kind: 'turn-started', text: 'Thanks.' }),
+      at(2, { kind: 'turn-finished', outcome: 'done' }),
+    ]);
+    expect(turns[0]?.nextSteps).toEqual([
+      { kind: 'rows', table: 'products', name: 'Products', path: '/p/shop-products' },
+      { kind: 'add-on', key: 'inventory', name: 'Inventory', text: 'Lower stock when an order is saved', installed: false },
+    ]);
+    expect(turns[1]?.nextSteps).toEqual([]);
+  });
+
+  it('words the two tools’ steps', () => {
+    const row = (over: Partial<StepRow>): StepRow => ({ id: 's', tool: 'offer_app', label: 'x', state: 'done', ms: 1, detail: null, folded: 1, ...over });
+    expect(stepLine(row({ state: 'running' }))).toBe('Looking at the ready-made apps');
+    expect(stepLine(row({ outcome: 'added', subject: 'Maker Shop' })).replace('\u0001', 'Maker Shop')).toBe('You chose Maker Shop');
+    expect(stepLine(row({ outcome: 'declined' }))).toBe('Building your own');
+    expect(stepLine(row({ tool: 'suggest_next', count: 3 }))).toBe('Suggested what comes next');
+    expect(stepLine(row({ tool: 'suggest_next', count: 0 }))).toBe('Nothing suggested');
+  });
+});

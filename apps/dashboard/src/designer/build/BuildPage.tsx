@@ -28,16 +28,20 @@ import { designerApi, designerKeys, sessionQuery, versionsQuery, yourAppsQuery, 
 import { useDesignerModel } from '../models/useModel.js';
 import { useModelControl } from '../models/useModelControl.js';
 import { BuildComposer } from '../parts/BuildComposer.js';
+import { leaveTo } from '../parts/leaveTo.js';
 import {
   DesignerMessage,
   FailedNote,
   LimitNote,
   LookChip,
   NeedsCard,
+  NextSteps,
   PicturesCard,
   StyleChip,
   NotAppliedNote,
   AddOnCard,
+  AppOfferCard,
+  appsPagePath,
   PackageCard,
   RowsCard,
   PersonMessage,
@@ -536,6 +540,21 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
                 />
               );
             }
+            if (card.type === 'app') {
+              return (
+                <AppOfferCard
+                  key={card.id}
+                  card={card}
+                  answered={answered}
+                  closed={!live}
+                  accepted={yes}
+                  busy={busy}
+                  // The yes is kept first, so the turn ends on it; then the Apps page opens on the app, where it is installed.
+                  onUse={() => answer.mutate({ cardId: card.id, value: { accept: true } }, { onSuccess: () => leaveTo(appsPagePath(card.key)) })}
+                  onSkip={() => answer.mutate({ cardId: card.id, value: { accept: false } })}
+                />
+              );
+            }
             if (card.type === 'rows') {
               return (
                 <RowsCard
@@ -601,6 +620,8 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
             </div>
           )}
           {turn.style === null ? null : <StyleChip title={turn.style.title} fontsLater={turn.style.fonts.length > 0} />}
+          {/* Under the newest reply of a turn that applied: an older turn's steps are about an app that has moved on. */}
+          {last && turn.outcome === 'done' ? <NextSteps steps={turn.nextSteps} disabled={!actionable} onSay={(message) => start.mutate({ message, attachments: [] })} /> : null}
         </DesignerMessage>
         <PictureLines lines={turn.pictures} sessionId={sessionId} />
       </div>

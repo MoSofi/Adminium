@@ -9,11 +9,11 @@
  * context, option groups, a token hint) and the `assistant` words.
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { ArrowDown, Ban, Blocks, Camera, Check, ChevronDown, CircleAlert, CirclePause, CircleSlash2, CircleStop, CircleX, Copy, FileSpreadsheet, Gauge, GitCommitHorizontal, Globe, Image as ImageIcon, ImageMinus, Images, Info, ListChecks, LoaderCircle, MessageCircleQuestion, Minus, Package, Palette, Play, Plug, RotateCcw, RotateCw, Shapes, ShieldAlert, Sparkles, TriangleAlert, Type, Undo2, UserPlus, UsersRound, Wind } from 'lucide-react';
+import { ArrowDown, ArrowRight, Ban, Blocks, Camera, Check, ChevronDown, CircleAlert, CirclePause, CircleSlash2, CircleStop, CircleX, Copy, FileSpreadsheet, Gauge, GitCommitHorizontal, Globe, Image as ImageIcon, ImageMinus, Images, Info, LayoutGrid, ListChecks, ListPlus, LoaderCircle, MessageCircleQuestion, Minus, Package, Palette, Play, Plug, RotateCcw, RotateCw, Shapes, ShieldAlert, Sparkles, TriangleAlert, Type, Undo2, UserPlus, UsersRound, Wind } from 'lucide-react';
 import { AdminiumMark } from '@adminium/ui';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
-import { designerApi, LOOK_DIRECTIONS, type AccessChangeView, type DesignerCard, type LimitKind, type MakeJob, type NeedItem, type PictureShape, type PicturesMode, type SpendMark, type StyleChoice } from '../api.js';
+import { designerApi, LOOK_DIRECTIONS, type AccessChangeView, type DesignerCard, type LimitKind, type MakeJob, type NeedItem, type NextStep, type PictureShape, type PicturesMode, type SpendMark, type StyleChoice } from '../api.js';
 import { figmaPausedLine, SUBJECT, secondsOf, shortSubject, stepCost, stepLine } from '../build/stepLine.js';
 import type { PictureLine, StepRow } from '../build/turns.js';
 import { versionName } from '../build/versionName.js';
@@ -885,6 +885,134 @@ export function AddOnCard({
         </div>
       )}
     </CardShell>
+  );
+}
+
+/** Where the Apps page opens on one app of the list, as the Designer's home sends a person there too. */
+export const appsPagePath = (key: string): string => `/studio/apps#app=${encodeURIComponent(key)}`;
+
+/**
+ * A published app that already does what the person asked for, offered before one is built. Every word of it is the
+ * server's own: the model gave a key. A yes builds nothing here: the page goes to the Apps page, where it is installed.
+ */
+export function AppOfferCard({
+  card,
+  answered,
+  closed = false,
+  accepted,
+  busy,
+  onUse,
+  onSkip,
+}: {
+  card: Extract<DesignerCard, { type: 'app' }>;
+  answered: boolean;
+  /** The turn ended without an answer. */
+  closed?: boolean;
+  accepted?: boolean | undefined;
+  busy: boolean;
+  onUse: () => void;
+  onSkip: () => void;
+}): ReactNode {
+  return (
+    <CardShell cardId={card.id} icon={<LayoutGrid className="size-[15px]" />} title={t('designer:card.app', 'There is a ready-made app for this: {name}', { name: card.name })}>
+      {card.line === '' ? null : (
+        <p dir="auto" className="m-0 text-[12.5px] leading-normal text-fg">
+          {card.line}
+        </p>
+      )}
+      <p className="m-0 text-pretty text-[12.5px] leading-normal text-fg-muted">
+        {t('designer:card.appSends', 'It is a published app, whole and tested. You install it in Studio → Apps, where you choose its add-ons and sample data. Nothing is built here, so none of your AI is spent on it.')}
+        {card.copy === true ? ` ${t('designer:card.appCopy', 'To change it afterwards, copy it into this project from the Designer’s home (“Start with an app”).')}` : null}
+      </p>
+      {closed && !answered ? (
+        <p className="m-0 text-[12.5px] font-semibold text-fg-muted">{t('designer:card.noAnswer', 'No answer was given.')}</p>
+      ) : answered ? (
+        accepted === true ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="m-0 text-[12.5px] font-semibold text-fg-muted">{t('designer:card.appYes', 'You chose {name}.', { name: card.name })}</p>
+            <a href={appsPagePath(card.key)} className={SECONDARY}>
+              {t('designer:card.appOpen', 'Open Studio → Apps')}
+              <ArrowRight aria-hidden="true" className="size-[14px] rtl:-scale-x-100" />
+            </a>
+          </div>
+        ) : (
+          <p className="m-0 text-[12.5px] font-semibold text-fg-muted">{t('designer:card.appNo', 'Your own app is being built instead.')}</p>
+        )
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={busy} onClick={onUse} className={PRIMARY}>
+            {t('designer:card.appUse', 'Use {name}', { name: card.name })}
+          </button>
+          <button type="button" disabled={busy} onClick={onSkip} className={SECONDARY}>
+            {t('designer:card.appOwn', 'Build my own')}
+          </button>
+        </div>
+      )}
+    </CardShell>
+  );
+}
+
+/** What a press of an add-on's step sends the Designer: the add-on by the server's name, and what it is for. */
+export function addOnStepMessage(step: Extract<NextStep, { kind: 'add-on' }>): string {
+  return step.installed
+    ? t('designer:next.addOnUseMessage', 'Use the {name} add-on in this app: {what}', { name: step.name, what: step.text })
+    : t('designer:next.addOnMessage', 'Add the {name} add-on to this app: {what}', { name: step.name, what: step.text });
+}
+
+/**
+ * What the person can do next, as buttons under the newest reply. A request's button says the whole of what it sends.
+ * An add-on's button asks the Designer for it (the add-on's own card then asks before anything is installed). A table's
+ * button opens its page in the dashboard, where its rows are added.
+ */
+export function NextSteps({ steps, disabled, onSay }: { steps: readonly NextStep[]; disabled: boolean; onSay: (message: string) => void }): ReactNode {
+  const titleId = useId();
+  if (steps.length === 0) return null;
+  return (
+    <div role="group" aria-labelledby={titleId} data-part="next-steps" className="flex flex-col gap-2">
+      <span id={titleId} className="text-[11.5px] font-extrabold uppercase tracking-[0.04em] text-fg-muted">
+        {t('designer:next.title', 'What next?')}
+      </span>
+      <ul className="m-0 flex list-none flex-col gap-2 p-0">
+        {steps.map((step) => {
+          if (step.kind === 'rows') {
+            return (
+              <li key={`rows:${step.table}`}>
+                <a href={step.path} className={`${SECONDARY} max-w-full`}>
+                  <ListPlus aria-hidden="true" className="size-[15px] shrink-0" />
+                  <span dir="auto" className="min-w-0 text-start">
+                    {t('designer:next.rows', 'Add your {table}', { table: step.name })}
+                  </span>
+                  <ArrowRight aria-hidden="true" className="size-[14px] shrink-0 rtl:-scale-x-100" />
+                </a>
+              </li>
+            );
+          }
+          if (step.kind === 'add-on') {
+            return (
+              <li key={`add-on:${step.key}`} className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                <button type="button" disabled={disabled} onClick={() => onSay(addOnStepMessage(step))} className={`${SECONDARY} shrink-0`}>
+                  <Blocks aria-hidden="true" className="size-[15px] shrink-0" />
+                  {step.installed ? t('designer:next.addOnUse', 'Use {name}', { name: step.name }) : t('designer:next.addOn', 'Add {name}', { name: step.name })}
+                </button>
+                <span dir="auto" className="min-w-0 flex-1 basis-[160px] text-pretty text-[12.5px] leading-normal text-fg-muted">
+                  {step.text}
+                </span>
+              </li>
+            );
+          }
+          return (
+            <li key={`ask:${step.text}`}>
+              <button type="button" disabled={disabled} onClick={() => onSay(step.text)} className={`${SECONDARY} max-w-full`}>
+                <Sparkles aria-hidden="true" className="size-[15px] shrink-0" />
+                <span dir="auto" className="min-w-0 text-start">
+                  {step.text}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
