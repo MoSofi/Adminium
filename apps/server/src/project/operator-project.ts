@@ -15,7 +15,9 @@
  *    so a database the operator does not run never holds up the boot;
  *  - the folder is `<ADMINIUM_DATA_DIR>/project` (or `ADMINIUM_PROJECT_DIR`, which
  *    the archive and restore one-offs are given), and holds only `apps/` and
- *    `.adminium/`. It is made before the project is looked for;
+ *    `.adminium/`. It is made before the project is looked for. Once the Designer
+ *    adds packages for an app's screens it also holds a `package.json` the engine
+ *    wrote and their `node_modules` (`designer/ask-needs.ts`, `ensureProjectManifest`);
  *  - finding the project never looks for a config file there
  *    ({@link operatorProjectAt}): an `adminium.config.ts` written into the folder
  *    is never loaded, and every caller (`findProject`, the Designer's own lookups,

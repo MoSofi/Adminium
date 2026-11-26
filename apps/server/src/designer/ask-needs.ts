@@ -8,7 +8,7 @@
  * per package. What the person leaves out is kept with the app's look: an app
  * that does without Tailwind is not asked about Tailwind again.
  */
-import { existsSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { applyLook, missingFonts, readLook, type Look } from '../project/apps/look.js';
@@ -62,9 +62,30 @@ export type NeedsAsker = ((ctx: NeedsContext, appKey: string, wanted: readonly W
   preview(wanted: readonly Wanted[], signal?: AbortSignal): Promise<NeedItem[]>;
 };
 
+/**
+ * Give the project a `package.json` when it has none, so the packages go into the project itself.
+ *
+ * An operator project is made with none (`project/operator-project.ts`). A package manager then takes the nearest
+ * folder above that has one, or a `node_modules`, as the project and installs there. In the image that folder is
+ * `/`, where the build's esbuild is, and npm fails there with `Tracker "idealTree" already exists`.
+ *
+ * One that is there is never written over. Returns null, or why the file could not be written.
+ */
+export function ensureProjectManifest(root: string): string | null {
+  try {
+    writeFileSync(join(root, 'package.json'), `${JSON.stringify({ private: true }, null, 2)}\n`, { flag: 'wx' });
+    return null;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return null;
+    return `The project's package.json could not be written: ${error instanceof Error ? error.message : String(error)}`;
+  }
+}
+
 /** Add packages to the project, exact versions, no install scripts. */
 export function installer(root: string): NonNullable<NeedsDeps['install']> {
   return async (specs, signal) => {
+    const unwritten = ensureProjectManifest(root);
+    if (unwritten !== null) return unwritten;
     // The folder's own manager by its lockfile, else npm (never the one that happens to run this server: only the
     // desktop app's own name is read from the environment). In the desktop app, the npm it carries.
     const program = packageManagerProgram(root, { [DESKTOP_PROGRAMS_ENV]: process.env[DESKTOP_PROGRAMS_ENV] });
