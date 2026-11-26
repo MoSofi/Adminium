@@ -817,7 +817,7 @@ export const designerApi = {
   startTurn: (id: string, text: string, attachments: readonly string[] = [], sees = false, picked: DesignerPicked | null = null) =>
     api.post<{ turn: number }>(`${BASE}/sessions/${id}/turns`, { text, ...(attachments.length === 0 ? {} : { attachments }), ...(sees ? { sees: true } : {}), ...(picked === null ? {} : { picked }) }),
   /** What the preview saw of the app's screen, for the turn that built it. */
-  sendSight: (id: string, sight: { side: 'staff' | 'customer'; width: number; faults: Record<string, string | number>[]; picture?: string; path?: string }) => api.post<{ kept: boolean }>(`${BASE}/sessions/${id}/sight`, sight),
+  sendSight: (id: string, sight: { side: 'staff' | 'customer'; width: number; faults: Record<string, string | number>[]; picture?: string; path?: string; scheme?: 'light' | 'dark'; hidden?: true }) => api.post<{ kept: boolean }>(`${BASE}/sessions/${id}/sight`, sight),
   uploadAttachment,
   uploadSite,
   siteTemplates: () => api.get<SiteTemplates>(`${BASE}/site-templates`),
