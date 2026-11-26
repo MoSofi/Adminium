@@ -677,6 +677,8 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/project/apps/:key/removals': noRows('A project folder\'s files, its apps and what it would remove: no source row is read.'),
   'POST /api/v1/project/apps/:key/pack': noRows('A project app\'s folder packed into a file: its manifest, screens, sample file and source, no source row.'),
   'GET /api/v1/project/apps/:key/pack/:version': noRows('A project app\'s packed file, kept in the project folder: no source row is read.'),
+  'GET /api/v1/project/apps/:key/public-access': noRows('What a folder app asks of the public API and what of it is allowed, read off its manifest, its key and its entries: no source row.'),
+  'POST /api/v1/project/apps/:key/public-access': noRows('Allows or takes back a folder app\'s public access under the API-keys grant: its key and entries are made or removed, no source row is read or written.'),
   'GET /api/v1/apps/:key/editable': noRows('Whether an installed app\'s source can be copied into the project folder: files and installs, no source row.'),
   'POST /api/v1/apps/:key/editable': noRows('An installed app\'s source files copied into the project folder: no source row is read.'),
   'GET /api/v1/project/client/*': noRows('A project folder\'s files, its apps and what it would remove: no source row is read.'),
