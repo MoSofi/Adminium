@@ -64,6 +64,10 @@ export type DesignerEventBody =
   | { kind: 'style'; skill: string; title: string; fonts?: string[] }
   | { kind: 'limit'; which: LimitKind; value: number }
   | { kind: 'stopped' }
+  /**
+   * A turn failed. `provider` and `status` are a model call's; a failure with a `status` and no `provider` was on a
+   * connection the operator set, where the provider is not named (see {@link withoutProviderName}).
+   */
   | { kind: 'error'; code: string; message: string; provider?: string; status?: number }
   | { kind: 'turn-finished'; outcome: TurnOutcome }
   /** The Designer looked at the page it built, and what it saw went to the model: which side, and the page's own path. */
@@ -111,6 +115,14 @@ export type HoldKind = 'save' | 'style' | 'restore' | 'start' | 'pictures';
  * (a save, a style change, going back), and `turn` is then only the number of the session's last turn, 0 before the first.
  */
 export type DesignerEvent = DesignerEventBody & { seq: number; turn: number; at: number; by?: 'person' };
+
+/**
+ * A model call's failure words without the provider's name they open with (`ollama: HTTP 402 — …` → `HTTP 402 — …`),
+ * for a failure on a connection the operator set. The words after the name stay: what they say is the service's own.
+ */
+export function withoutProviderName(message: string, provider: string): string {
+  return message.startsWith(`${provider}: `) ? message.slice(provider.length + 2) : message;
+}
 
 export interface EventLog {
   /** `by: 'person'` marks an event of no turn: what a person did from the page. */

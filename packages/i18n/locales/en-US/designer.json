@@ -429,6 +429,7 @@
     "limitSteps": "This turn reached its limit of {value} steps.",
     "limitTurnTokens": "This turn reached its limit of {value} tokens.",
     "modelFailed": "The model stopped answering ({provider}, {status}). Nothing was lost.",
+    "modelFailedIncluded": "The included AI stopped answering ({status}). Nothing was lost.",
     "notApplied": "This turn’s changes were not applied: {message}",
     "putBack": "Put the files back",
     "putBackDone": "The files are back as they were.",

@@ -429,6 +429,7 @@
     "limitSteps": "Dieser Durchgang hat sein Limit von {value} Schritten erreicht.",
     "limitTurnTokens": "Dieser Durchgang hat sein Limit von {value} Tokens erreicht.",
     "modelFailed": "Das Modell hat nicht mehr geantwortet ({provider}, {status}). Es ging nichts verloren.",
+    "modelFailedIncluded": "Die enthaltene KI hat nicht mehr geantwortet ({status}). Es ging nichts verloren.",
     "notApplied": "Die Änderungen dieses Durchgangs wurden nicht übernommen: {message}",
     "putBack": "Dateien zurücksetzen",
     "putBackDone": "Die Dateien sind wieder wie vorher.",

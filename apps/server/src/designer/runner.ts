@@ -51,7 +51,7 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } f
 import { answerFor, noAnswer, type CardAnswer, type DesignerCard } from './cards.js';
 import { isOperatorAiUsedUp } from '../llm/operator-ai.js';
 import type { DesignerEvent, DesignerEventBody, EventLog, HoldKind, LimitKind, SpendMark, TurnOutcome } from './events.js';
-import { createEventLog } from './events.js';
+import { createEventLog, withoutProviderName } from './events.js';
 import type { DesignerSession, SessionStore } from './session-store.js';
 import type { Actor, DesignerTool, ToolContext, TurnHandle } from './tool-types.js';
 import { TurnStoppedError } from './tool-types.js';
@@ -148,6 +148,12 @@ export interface RunnerDeps {
    * way it asks for the card. Once anything was refused (`tripped`), the turn ends with the card.
    */
   operatorScope?(session: DesignerSession): Promise<{ tripped(): boolean; end(): void; tool: DesignerTool } | null>;
+  /**
+   * Whether the session's model runs on a connection the operator set: the AI the installation includes. A failed
+   * call there is told without the provider's name. Which service an operator buys is theirs to say, and the name
+   * is no use to a person who cannot change that connection.
+   */
+  operatorConnection?(session: DesignerSession): boolean;
   now?: () => number;
   /** How long a hold may last before its work is told to stop; `HOLD_CAP_MS` when left out. */
   holdCapMs?: number;
@@ -834,13 +840,16 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         log.emit(turn, { kind: 'stopped' });
       } else {
         outcome = 'failed';
-        failure = error instanceof ProviderError ? error.code : 'internal';
-        const provider = error instanceof ProviderError ? { provider: error.provider, ...(error.status === undefined ? {} : { status: error.status }) } : {};
+        const failed = error instanceof ProviderError ? error : null;
+        failure = failed?.code ?? 'internal';
+        // On the operator's connection the provider is not named: not in the event, and not at the head of its words.
+        const unnamed = failed !== null && deps.operatorConnection?.(session) === true;
         log.emit(turn, {
           kind: 'error',
-          code: error instanceof ProviderError ? error.code : 'internal',
-          message: error instanceof Error ? error.message : String(error),
-          ...provider,
+          code: failed?.code ?? 'internal',
+          message: failed !== null && unnamed ? withoutProviderName(failed.message, failed.provider) : error instanceof Error ? error.message : String(error),
+          ...(failed === null || unnamed ? {} : { provider: failed.provider }),
+          ...(failed?.status === undefined ? {} : { status: failed.status }),
         });
         if (!(error instanceof ProviderError)) deps.log?.('a Designer turn failed', error);
       }
