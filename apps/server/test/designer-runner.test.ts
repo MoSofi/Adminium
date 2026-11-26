@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DesignerEvent } from '../src/designer/events.js';
 import { createEventLog, TEXT_FLUSH_CHARS } from '../src/designer/events.js';
-import { createDesignerRunner, MAX_REPAIRS, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle, pictureBlocks } from '../src/designer/runner.js';
+import { createDesignerRunner, LOST_CALL_ASKS, MAX_REPAIRS, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle, pictureBlocks } from '../src/designer/runner.js';
 import { createSessionStore, type DesignerSession, type SessionStore } from '../src/designer/session-store.js';
 import { createAttachments, type Attachments } from '../src/designer/attachments.js';
 import type { PromptOpts } from '../src/designer/prompt.js';
@@ -199,6 +199,8 @@ interface Harness {
   published: DesignerEvent[];
   pipelineRuns: number;
   audits: string[];
+  /** What the runner wrote to the server's log. */
+  logs: string[];
 }
 
 function harness(
@@ -223,6 +225,7 @@ function harness(
     published: [],
     pipelineRuns: 0,
     audits: [],
+    logs: [],
     runner: undefined as unknown as DesignerRunner,
   };
   h.runner = createDesignerRunner({
@@ -248,6 +251,7 @@ function harness(
     ...(opts.attachments === undefined ? {} : { attachments: opts.attachments }),
     ...(opts.windowOf === undefined ? {} : { windowOf: opts.windowOf }),
     retryWaitsMs: [0, 0],
+    log: (line) => h.logs.push(line),
     publish: (event) => h.published.push(event),
     audit: async (action) => {
       h.audits.push(action);
@@ -775,6 +779,32 @@ describe('a Designer turn', () => {
     await stuck.runner.settled();
     expect(stuck.published.find((event) => event.kind === 'error')).toMatchObject({ code: 'empty', message: expect.stringContaining('without writing or doing anything') });
     expect(finished(stuck)).toMatchObject({ outcome: 'failed' });
+  });
+
+  it('asks again when the provider lost a tool call, and never takes the loss for "finished"', async () => {
+    // Seen 2026-11-26 on claude-sonnet-5-5: 3 replays of 10 of one request came back with stop_reason tool_use and no
+    // content at all. Twice in a row ended a first turn as "empty"; after work, it would have ended the turn half made.
+    const lost: RunResult = { blocks: [], stop: 'tool_calls', malformed: [], usage: { inputTokens: 100, outputTokens: 53 } };
+    const session = newSession();
+    const h = harness([calls('write_file'), lost, lost, calls('read_file'), says('Done.')]);
+    await h.runner.start(session.id, { text: 'go', by: { id: null, label: 'x' } });
+    await h.runner.settled();
+    expect(h.model.requests).toHaveLength(5);
+    // Nothing of a lost reply is stored: the asks after it are the same conversation.
+    expect(h.model.requests[2]?.messages).toEqual(h.model.requests[1]?.messages);
+    expect(h.model.requests[3]?.messages).toEqual(h.model.requests[1]?.messages);
+    expect(h.published.some((event) => event.kind === 'error')).toBe(false);
+    expect(finished(h)).toMatchObject({ outcome: 'done' });
+    expect(h.logs.filter((line) => line.includes('said it called a tool and no call came'))).toHaveLength(2);
+
+    // Lost on every ask: said plainly, after the first ask and LOST_CALL_ASKS more.
+    const other = newSession();
+    const gone = harness(Array.from({ length: LOST_CALL_ASKS + 2 }, () => lost));
+    await gone.runner.start(other.id, { text: 'go', by: { id: null, label: 'x' } });
+    await gone.runner.settled();
+    expect(gone.model.requests).toHaveLength(LOST_CALL_ASKS + 1);
+    expect(gone.published.find((event) => event.kind === 'error')).toMatchObject({ code: 'empty', message: expect.stringContaining(`lost the model's next step ${String(LOST_CALL_ASKS + 1)} times in a row`) });
+    expect(finished(gone)).toMatchObject({ outcome: 'failed' });
   });
 
   it('says so, and stores nothing, when the reply is empty a second time', async () => {

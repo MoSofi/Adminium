@@ -117,6 +117,7 @@ export const DESIGNER_TOOL_NAMES = [
   'read_attachment',
   'load_rows',
   'add_spots',
+  'remove_spots',
   'fill_spot',
   'use_pictures',
   'ask_person',

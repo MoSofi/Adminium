@@ -212,6 +212,21 @@ export function emptyPictureRows(root: string, key: string, version: string): { 
   return null;
 }
 
+/**
+ * How many sample rows of all the app's picture tables have no picture yet: the rows the Pictures button counts with
+ * the empty spots, so the words at the end of a turn give the same number as the button under them.
+ */
+export function emptyPictureRowCount(root: string, key: string, version: string): number {
+  const bundle = readBundle(root, key);
+  if (bundle === null) return 0;
+  let count = 0;
+  for (const table of pictureTables(root, key, version)) {
+    const rows = bundle.tables?.find((candidate) => candidate.ref === table.table)?.rows ?? [];
+    count += rows.filter((row) => row[table.column] === null || row[table.column] === undefined).length;
+  }
+  return count;
+}
+
 /** What the picture dialog draws, for an app: its spots, its tables' sample rows, and the pictures already in it. */
 export function picturesState(
   root: string,

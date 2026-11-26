@@ -61,11 +61,15 @@ export interface PageSight {
   picture?: string;
   /** The page the screen was on, tidied. Left out when the screen said none, or something that is no path. */
   path?: string;
+  /** Which of its looks the page was drawn in (the preview follows the Designer's light or dark). */
+  scheme?: 'light' | 'dark';
+  /** The page was out of sight (its tab in the background), so it sent no picture of itself. */
+  hidden?: true;
 }
 
 /** What a previewed screen posted, as a sight of the app's page; null when it is not one. */
 export function sightFrom(data: unknown, appKey: string): PageSight | null {
-  const said = data as { type?: unknown; app?: unknown; side?: unknown; width?: unknown; faults?: unknown; picture?: unknown; path?: unknown } | null;
+  const said = data as { type?: unknown; app?: unknown; side?: unknown; width?: unknown; faults?: unknown; picture?: unknown; path?: unknown; scheme?: unknown; hidden?: unknown } | null;
   if (said === null || typeof said !== 'object' || said.type !== 'adminium:side-sight' || said.app !== appKey) return null;
   if (said.side !== 'staff' && said.side !== 'customer') return null;
   if (typeof said.width !== 'number' || !Number.isInteger(said.width) || said.width < 200 || said.width > 6000) return null;
@@ -77,5 +81,14 @@ export function sightFrom(data: unknown, appKey: string): PageSight | null {
   const picture = typeof said.picture === 'string' && said.picture.startsWith('data:image/jpeg;base64,') && said.picture.length <= 1_000_000 ? said.picture : undefined;
   // Shown to the person in the chat ("Looked at /menu"), so it is held to a path's own shape here too.
   const path = typeof said.path === 'string' && said.path.startsWith('/') ? tidyPagePath(said.path) : null;
-  return { side: said.side, width: said.width, faults, ...(picture === undefined ? {} : { picture }), ...(path === null ? {} : { path }) };
+  const scheme = said.scheme === 'light' || said.scheme === 'dark' ? said.scheme : null;
+  return {
+    side: said.side,
+    width: said.width,
+    faults,
+    ...(picture === undefined ? {} : { picture }),
+    ...(path === null ? {} : { path }),
+    ...(scheme === null ? {} : { scheme }),
+    ...(said.hidden === true ? { hidden: true as const } : {}),
+  };
 }

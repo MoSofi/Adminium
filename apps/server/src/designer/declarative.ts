@@ -65,6 +65,7 @@ export const TOOL_REACH: Record<(typeof DESIGNER_TOOL_NAMES)[number], ToolReach>
   read_attachment: 'reads',
   load_rows: 'declarative',
   add_spots: 'declarative',
+  remove_spots: 'declarative',
   fill_spot: 'declarative',
   use_pictures: 'declarative',
   ask_person: 'reads',

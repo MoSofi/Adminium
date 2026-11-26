@@ -16015,6 +16015,18 @@
     "status": "mt",
     "srcHash": "f499a95176d6"
   },
+  "designer.step.spotsRemoveFailed": {
+    "status": "mt",
+    "srcHash": "6fbe38bec983"
+  },
+  "designer.step.spotsRemoved": {
+    "status": "mt",
+    "srcHash": "7f6a8a7e1e51"
+  },
+  "designer.step.spotsRemoving": {
+    "status": "mt",
+    "srcHash": "1eafe6371809"
+  },
   "designer.step.stopped": {
     "status": "mt",
     "srcHash": "51e9111b8711"

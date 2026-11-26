@@ -313,6 +313,10 @@ describe('the preview', () => {
     expect(sightFrom({ ...sight, path: 'menu' }, SESSION.appKey)).not.toHaveProperty('path');
     expect(sightFrom({ ...sight, path: 42 }, SESSION.appKey)).not.toHaveProperty('path');
     expect(sightFrom(sight, SESSION.appKey)).not.toHaveProperty('path');
+    // Which look it was drawn in, and that it was out of sight, go with it as the side said them; anything else is left out.
+    expect(sightFrom({ ...sight, scheme: 'dark', hidden: true }, SESSION.appKey)).toMatchObject({ scheme: 'dark', hidden: true });
+    expect(sightFrom({ ...sight, scheme: 'sepia', hidden: 'yes' }, SESSION.appKey)).not.toHaveProperty('scheme');
+    expect(sightFrom({ ...sight, scheme: 'sepia', hidden: 'yes' }, SESSION.appKey)).not.toHaveProperty('hidden');
     // It is no error of the screen: nothing is shown for it.
     expect(screen.queryByRole('alert')).toBeNull();
 

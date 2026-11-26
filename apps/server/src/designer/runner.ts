@@ -245,8 +245,10 @@ export const HOLD_CAP_MS = 60_000;
 export const TOOL_ALIASES: Readonly<Record<string, string>> = { set_look: 'set_style' };
 /** The waits before a provider that failed in passing (a 5xx, a 429, a dropped line) is asked again. */
 export const RETRY_WAITS_MS: readonly number[] = [2000, 6000];
+/** How many more times a reply whose tool call the provider lost is asked for: at the 3 in 10 seen, 4 asks fail together about once in 120. */
+export const LOST_CALL_ASKS = 3;
 /** The tools that change, check or apply the app. */
-const ACTING: ReadonlySet<string> = new Set(['write_file', 'edit_file', 'delete_file', 'check_app', 'build_sides', 'apply_app', 'add_side', 'build_on_shape', 'post_to_ledger', 'set_style', 'add_ui_part', 'add_spots', 'fill_spot', 'use_pictures', 'use_site']);
+const ACTING: ReadonlySet<string> = new Set(['write_file', 'edit_file', 'delete_file', 'check_app', 'build_sides', 'apply_app', 'add_side', 'build_on_shape', 'post_to_ledger', 'set_style', 'add_ui_part', 'add_spots', 'remove_spots', 'fill_spot', 'use_pictures', 'use_site']);
 const PASSING: ReadonlySet<string> = new Set(['server', 'rate_limit', 'network', 'timeout']);
 
 /** Wait, unless the turn is stopped first. */
@@ -467,6 +469,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
     let continued = false;
     /** Whether a reply that came back with nothing in it was already asked for again. */
     let widened = false;
+    /** How many replies in a row said they called a tool and brought no call (the provider lost it): asked again each time. */
+    let lostCalls = 0;
     let nudges = 0;
     let designRounds = 0;
     /** When this turn last built or applied the app, and whether the page was already looked at. */
@@ -606,6 +610,27 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         // A reply with nothing in it is never stored: a provider refuses a conversation that holds an empty message,
         // and every later request of the session would be refused with it (seen 2026-10-11, anthropic and openai).
         const empty = !result.blocks.some((block) => block.type !== 'text' || block.text.trim() !== '');
+        /*
+         * A reply that ended to call a tool and brought no call: the provider made the call and lost it, not the model
+         * that had nothing to say. Seen 2026-11-26 on claude-sonnet-5-5, 3 replays of 10 of one request (streamed or not):
+         * `stop_reason: tool_use`, ~53 tokens out, and no content at all. It comes and goes from one ask to the next and
+         * costs little to ask again (the prompt is read from the cache), so it is asked again a few times, and it is never
+         * taken for "finished": after work was done, that silence would have ended the turn with the work half made.
+         */
+        if (empty && result.stop === 'tool_calls') {
+          lostCalls += 1;
+          deps.log?.(`the Designer's model said it called a tool and no call came (${String(lostCalls)} in a row)${result.detail === undefined ? '' : `; ${result.detail}`}`);
+          if (lostCalls <= LOST_CALL_ASKS) continue;
+          log.emit(turn, {
+            kind: 'error',
+            code: 'empty',
+            message: `The model's service lost the model's next step ${String(lostCalls)} times in a row. What was made so far is kept: send your message again to go on.`,
+          });
+          outcome = 'failed';
+          failure = 'empty';
+          break;
+        }
+        if (!empty) lostCalls = 0;
         if (empty && result.stop !== 'refused') {
           // All of its room went on thinking, or it thought and then ended without a word or a call (seen 2026-10-11,
           // claude-haiku-5-5 on a first message with pictures): asked once more, with twice the room when room was what ran out.

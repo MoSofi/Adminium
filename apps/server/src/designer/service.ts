@@ -36,7 +36,7 @@ import { findProject } from '../project/locate.js';
 import { personLog, type DesignerEvent, type DesignerEventBody, type EventLog } from './events.js';
 import { appJsonProblem, groupFiles, hashOf, isAppJson, isLookFile, isText, listEditable, saveLabel, searchText, withLineEnds, FILES_SAVED_MAX, SEARCH_FILE_HITS_MAX, SEARCH_HITS_MAX, type FileGroup, type SearchHit, type SearchOptions } from './files.js';
 import { createJail, JailError, MAX_WRITE_BYTES } from './jail.js';
-import { APPLY_IDS_KEPT, emptyPictureRows, picturesState, prepareFills, targetOf, writeFills, type Fill, type FillResult } from './pictures-apply.js';
+import { APPLY_IDS_KEPT, emptyPictureRowCount, emptyPictureRows, picturesState, prepareFills, targetOf, writeFills, type Fill, type FillResult } from './pictures-apply.js';
 import type { PictureDialog } from './picture-dialog.js';
 import { UNSPLASH_HOST } from './pictures.js';
 import { readSpots, SPOTS_FILE, spotScreens, spotsFileProblem, type SpotScreen } from './spots.js';
@@ -764,9 +764,12 @@ export function createDesigner(host: DesignerHost): Designer {
         if (empty.length === 0 && rows === null) return [];
         return [{ kind: 'card', card: { id: `spots-${String(turn)}`, type: 'spots', spots: empty.map((spot) => ({ id: spot.id, label: spot.label, shape: spot.shape })), ...(rows === null ? {} : { rows }) } }];
       }
-      if (empty.length === 0) return [];
+      // Counted as the Pictures button counts: the empty spots and the sample rows with no picture (a note of 6 under a
+      // button saying 10 was seen on 2026-11-26).
+      const toFill = empty.length + emptyPictureRowCount(host.root, key, host.version);
+      if (toFill === 0) return [];
       // No choice was asked (no needs card was due): placeholders, said once with the turn that made them.
-      return [{ kind: 'pictures-note', note: tools.has('add_spots') && mode === undefined ? 'placeholders' : 'still-empty', count: empty.length }];
+      return [{ kind: 'pictures-note', note: tools.has('add_spots') && mode === undefined ? 'placeholders' : 'still-empty', count: toFill }];
     },
     // What the person is told when the turn ends and a file they attached is still in no table: the model said nothing of it, so the Designer does.
     closing: (session) =>

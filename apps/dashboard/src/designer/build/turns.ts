@@ -161,6 +161,11 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
   let held: FolderHold | null = null;
   /** The reply's "Saved as" before the last going back. */
   let savedBefore: { n: number; name: string } | null = null;
+  /**
+   * The turns whose model has finished a reply since its last words: its next words are a new reply, and begin a new
+   * paragraph. Run together, "…tell me if anything is off.The page is dark…" read as one sentence (seen 2026-11-26).
+   */
+  const replyEnded = new Set<number>();
   for (const event of events) {
     if (event.by === 'person') {
       /*
@@ -195,7 +200,10 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
         turn.startedAt = event.at;
         break;
       case 'text':
-        turn.reply += event.delta;
+        if (replyEnded.has(event.turn) && event.delta.trim() !== '') {
+          replyEnded.delete(event.turn);
+          turn.reply = turn.reply.trim() === '' ? event.delta.trimStart() : `${turn.reply.trimEnd()}\n\n${event.delta.trimStart()}`;
+        } else turn.reply += event.delta;
         break;
       case 'step': {
         const at = list.findIndex((row) => row.id === event.id);
@@ -224,6 +232,8 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
       }
       case 'usage':
         turn.usage = { step: event.step, tokens: event.turnTokens };
+        // A step's usage is told when the model's reply for that step is whole.
+        replyEnded.add(event.turn);
         break;
       case 'spend':
         if (!turn.spend.some((entry) => entry.which === event.which)) turn.spend.push({ which: event.which, mark: event.mark });

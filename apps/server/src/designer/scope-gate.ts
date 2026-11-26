@@ -59,6 +59,7 @@ export const SCOPE_REACH: Record<(typeof DESIGNER_TOOL_NAMES)[number], ScopeReac
   load_rows: 'dashboard',
   // A picture spot is a place on a screen's page: a dashboard has none.
   add_spots: 'door',
+  remove_spots: 'door',
   fill_spot: 'door',
   use_pictures: 'dashboard',
   ask_person: 'reads',
