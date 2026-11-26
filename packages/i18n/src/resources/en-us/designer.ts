@@ -291,7 +291,15 @@ export default {
     "rowsSkip": "Do not load",
     "rowsNo": "You said not to load them.",
     "addOnSwitchOn": "Switch the list on",
-    "typeBelow": "Type your answer below."
+    "typeBelow": "Type your answer below.",
+    "app": "There is a ready-made app for this: {name}",
+    "appSends": "It is a published app, whole and tested. You install it in Studio → Apps, where you choose its add-ons and sample data. Nothing is built here, so none of your AI is spent on it.",
+    "appCopy": "To change it afterwards, copy it into this project from the Designer’s home (“Start with an app”).",
+    "appYes": "You chose {name}.",
+    "appOpen": "Open Studio → Apps",
+    "appNo": "Your own app is being built instead.",
+    "appUse": "Use {name}",
+    "appOwn": "Build my own"
   },
   "step": {
     "addOns": "Looking at the add-ons",
@@ -401,7 +409,14 @@ export default {
     "spotFillFailed": "Your picture was not put in {subject}",
     "siteBuilding": "Building the screens from {subject}",
     "siteBuilt": "Built {count, plural, one {# screen} other {# screens}} from {subject}",
-    "siteFailed": "Did not build from the template"
+    "siteFailed": "Did not build from the template",
+    "appOffering": "Looking at the ready-made apps",
+    "appChosen": "You chose {subject}",
+    "appDeclined": "Building your own",
+    "appNone": "No ready-made app offered",
+    "nextWorking": "Working out what comes next",
+    "nextDone": "Suggested what comes next",
+    "nextNone": "Nothing suggested"
   },
   "steps": {
     "count": "{count, plural, one {# step} other {# steps}}",
@@ -1436,5 +1451,13 @@ export default {
     "addKey": "Add an AI key",
     "upgrade": "Upgrade",
     "step": "Needs your own AI key"
+  },
+  "next": {
+    "title": "What next?",
+    "rows": "Add your {table}",
+    "addOn": "Add {name}",
+    "addOnUse": "Use {name}",
+    "addOnMessage": "Add the {name} add-on to this app: {what}",
+    "addOnUseMessage": "Use the {name} add-on in this app: {what}"
   }
 } as const;

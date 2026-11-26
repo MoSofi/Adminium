@@ -281,7 +281,15 @@
     "rowsSkip": "Nenačítat",
     "rowsNo": "Řekli jste, že se nemají načíst.",
     "addOnSwitchOn": "Zapnout seznam",
-    "typeBelow": "Napište odpověď níže."
+    "typeBelow": "Napište odpověď níže.",
+    "app": "Na tohle existuje hotová aplikace: {name}",
+    "appSends": "Je to zveřejněná aplikace, úplná a otestovaná. Nainstalujete ji v Studio → Aplikace, kde vyberete její doplňky a ukázková data. Tady se nic nestaví, takže se na ni nespotřebuje nic z vaší AI.",
+    "appCopy": "Chcete-li ji potom změnit, zkopírujte ji do tohoto projektu z úvodní stránky Designeru („Začít s aplikací“).",
+    "appYes": "Vybrali jste {name}.",
+    "appOpen": "Otevřít Studio → Aplikace",
+    "appNo": "Místo toho se staví vaše vlastní aplikace.",
+    "appUse": "Použít {name}",
+    "appOwn": "Postavit vlastní"
   },
   "step": {
     "addOns": "Prohlíží doplňky",
@@ -391,7 +399,14 @@
     "spotFillFailed": "Váš obrázek nebyl vložen do {subject}",
     "siteBuilding": "Staví se obrazovky z {subject}",
     "siteBuilt": "Postaveno z {subject}: {count, plural, one {# obrazovka} few {# obrazovky} other {# obrazovek}}",
-    "siteFailed": "Ze šablony se nic nepostavilo"
+    "siteFailed": "Ze šablony se nic nepostavilo",
+    "appOffering": "Prohlíží hotové aplikace",
+    "appChosen": "Vybrali jste {subject}",
+    "appDeclined": "Staví vaši vlastní",
+    "appNone": "Žádná hotová aplikace nebyla nabídnuta",
+    "nextWorking": "Zvažuje, co dál",
+    "nextDone": "Navrhl, co dál",
+    "nextNone": "Nic nenavrženo"
   },
   "steps": {
     "count": "{count, plural, one {# krok} few {# kroky} many {# kroku} other {# kroků}}",
@@ -1426,5 +1441,13 @@
     "addKey": "Přidat klíč AI",
     "upgrade": "Upgradovat",
     "step": "Vyžaduje váš vlastní klíč AI"
+  },
+  "next": {
+    "title": "Co dál?",
+    "rows": "Přidat: {table}",
+    "addOn": "Přidat {name}",
+    "addOnUse": "Použít {name}",
+    "addOnMessage": "Přidej do této aplikace doplněk {name}: {what}",
+    "addOnUseMessage": "Použij v této aplikaci doplněk {name}: {what}"
   }
 }
