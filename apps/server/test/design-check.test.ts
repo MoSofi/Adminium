@@ -50,6 +50,16 @@ describe('reading the classes a screen uses', () => {
     expect(classesIn(source).sort()).toEqual(['big', 'btn', 'btn-primary', 'card', 'hero-wrap', 'is-on', 'is-open', 'lead', 'page', 'plain', 'tail']);
   });
 
+  it('passes over a row’s key, a value compared with and a method’s argument: they are no classes', () => {
+    // Seen 2026-11-26: "Seeds & bulbs" in a comparison was said to be four classes styled nowhere, and the model
+    // disguised the name with String.fromCharCode to quiet the check.
+    const source = `
+      <a className={kind['name'] === 'Seeds & bulbs' ? 'eg-kind eg-kind-amber' : 'eg-kind'} />
+      <a className={'Sold out' !== row["status"] ? 'card' : 'card muted'} />
+      <a className={tags.includes('sale') ? 'hot' : ''} />`;
+    expect(classesIn(source).sort()).toEqual(['card', 'eg-kind', 'eg-kind-amber', 'hot', 'muted']);
+  });
+
   it('passes over what it cannot read as a whole name: a piece beside ${…}, a variable, a comment', () => {
     const source = `
       // <div className="commented-out" />

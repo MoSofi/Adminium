@@ -121,8 +121,16 @@ export function classesIn(source: string): string[] {
   };
   for (const plain of text.matchAll(/\bclass(?:Name)?\s*=\s*"([^"]*)"/g)) take(plain[1] as string);
   for (const start of text.matchAll(/\bclass(?:Name)?\s*=\s*\{/g)) {
-    const inside = braced(text, start.index + start[0].length - 1);
-    if (inside === null) continue;
+    const braces = braced(text, start.index + start[0].length - 1);
+    if (braces === null) continue;
+    // A string that is no class: a key read from a row (`kind['name']`), a value compared with (`=== 'Seeds & bulbs'`) and
+    // what is asked of a method (`.includes('sale')`). Read as classes, they were said to be "styled nowhere", and a model
+    // hid a row's name from the check with String.fromCharCode to quiet it (seen 2026-11-26).
+    const inside = braces
+      .replace(/\[\s*(['"])[^'"\\\n]*\1\s*\]/g, '[]')
+      .replace(/[!=]==?\s*(['"])[^'"\\\n]*\1/g, '==')
+      .replace(/(['"])[^'"\\\n]*\1\s*[!=]==?/g, '==')
+      .replace(/\.\w+\(\s*(['"])[^'"\\\n]*\1/g, '.call(');
     for (const quoted of inside.matchAll(/'([^'\\\n]*)'|"([^"\\\n]*)"/g)) take((quoted[1] ?? quoted[2]) as string);
     for (const template of inside.matchAll(/`([^`]*)`/g)) {
       // The static stretches of a template; the word touching a `${…}` is a piece of a name, not a name.
