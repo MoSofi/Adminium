@@ -652,7 +652,8 @@ describe('the picture spots, as a turn that applied ends', { timeout: 180_000 },
     script = [addsSpot];
     expect((await app.call('POST', `/api/v1/designer/sessions/${app.id}/turns`, { text: 'Add a deals section.' })).status).toBe(202);
     const first = await turnEvents(app, 2);
-    expect(first.find((event) => event.kind === 'pictures-note')).toMatchObject({ note: 'placeholders', count: 4 });
+    // Counted as the Pictures button counts them: four empty spots and the two sample rows with no picture.
+    expect(first.find((event) => event.kind === 'pictures-note')).toMatchObject({ note: 'placeholders', count: 6 });
     expect(first.some((event) => event.kind === 'card')).toBe(false);
 
     // The person chose to pick pictures after each design.
@@ -669,7 +670,7 @@ describe('the picture spots, as a turn that applied ends', { timeout: 180_000 },
 
     // A turn that makes no spot, while some are empty: one line.
     expect((await app.call('POST', `/api/v1/designer/sessions/${app.id}/turns`, { text: 'Make the title bigger.' })).status).toBe(202);
-    expect((await turnEvents(app, 4)).find((event) => event.kind === 'pictures-note')).toMatchObject({ note: 'still-empty', count: 5 });
+    expect((await turnEvents(app, 4)).find((event) => event.kind === 'pictures-note')).toMatchObject({ note: 'still-empty', count: 7 });
   });
 });
 

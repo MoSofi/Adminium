@@ -19,7 +19,7 @@ import type { DesignerSession } from '../src/designer/session-store.js';
 import type { NeedItem } from '../src/designer/needs.js';
 import type { DesignerTool, ToolContext } from '../src/designer/tool-types.js';
 import { legacyPictures } from '../src/designer/pictures-apply.js';
-import { createDesignerTools, designSteps, DESIGNER_REACT_VERSION, DESIGNER_TOOL_NAMES, keepSamplePictures, missingScreenPackages } from '../src/designer/tools.js';
+import { createDesignerTools, designSteps, DESIGNER_REACT_VERSION, DESIGNER_TOOL_NAMES, keepSamplePictures, missingScreenPackages, withoutEntities } from '../src/designer/tools.js';
 import { runCli } from '../src/cli/run.js';
 import { addPhoneSide } from '../src/project/apps/scaffold-app.js';
 import { APP_VERSION } from '../src/version.js';
@@ -1281,6 +1281,19 @@ describe('what a design does with pictures', () => {
   });
 });
 
+describe('a name as a person writes it', () => {
+  it('reads the entities a model answering in HTML sends, once, and keeps what names no character', () => {
+    // Seen 2026-11-26 on claude-haiku-5-5: name_app got "Crumb &amp; Crust Cakes", and the key became crumb-amp-crust-cakes.
+    expect(withoutEntities('Crumb &amp; Crust Cakes')).toBe('Crumb & Crust Cakes');
+    expect(withoutEntities('Bob&#39;s Bikes &#x26; Co')).toBe("Bob's Bikes & Co");
+    expect(withoutEntities('&lt;Tea&gt; &quot;House&quot;')).toBe('<Tea> "House"');
+    // One pass only, and a name that is not one, or a code that is no letter, is left as it was written.
+    expect(withoutEntities('A &amp;amp; B')).toBe('A &amp; B');
+    expect(withoutEntities('Fish &chips; &#0; &#x110000;')).toBe('Fish &chips; &#0; &#x110000;');
+    expect(withoutEntities('Plain Name')).toBe('Plain Name');
+  });
+});
+
 describe('picture spots, named by the Designer and filled by the person', () => {
   const spotsFile = (): string => join(root, 'apps', 'repairs', 'assets', 'pictures', 'spots.json');
   const spots = (): Record<string, { label: string; shape: string; file: string | null; alt: string }> => JSON.parse(readFileSync(spotsFile(), 'utf8')) as never;
@@ -1303,6 +1316,25 @@ describe('picture spots, named by the Designer and filled by the person', () => 
     expect(again.content).toContain('"Bad Id" is not a spot\'s id');
     expect(again.content).toContain('"kitchen": give a "label" and a "shape" (wide, tall or square).');
     expect(spots()).toEqual(filled);
+  });
+
+  it('takes away a spot the pages no longer need, and never one a screen draws or the person filled', async () => {
+    // Seen 2026-11-26: four spots the model no longer drew could not be taken away; they were counted "to fill" and the
+    // check asked for them to be drawn again.
+    await run('add_spots', { spots: ['hero', 'team', 'kitchen', 'shop'].map((id) => ({ id, label: id, shape: 'wide' })) });
+    writeFileSync(spotsFile(), JSON.stringify({ ...spots(), shop: { ...spots()['shop'], file: 'shop-1234abcd.jpg', alt: 'The shop' } }));
+    mkdirSync(join(root, 'apps', 'repairs', 'customer', 'src'), { recursive: true });
+    writeFileSync(join(root, 'apps', 'repairs', 'customer', 'src', 'App.tsx'), 'export function App() { return <Picture spot="hero" />; }\n');
+    const gone = await run('remove_spots', { ids: ['team', 'kitchen', 'hero', 'shop', 'nowhere'] });
+    expect(gone).toMatchObject({ label: 'Took away 2 picture spots', facts: { count: 2 } });
+    expect(gone.content).toContain('Took away 2 spot(s): "team" (team), "kitchen" (kitchen).');
+    expect(gone.content).toContain('"hero" is still drawn (customer/src/App.tsx)');
+    expect(gone.content).toContain('"shop" (shop) shows a picture the person chose');
+    expect(gone.content).toContain('"nowhere" is no spot of this app');
+    expect(Object.keys(spots()).sort()).toEqual(['hero', 'shop']);
+    // Nothing that may be taken away: refused, and the file is as it was.
+    expect(await run('remove_spots', { ids: ['hero'] })).toMatchObject({ isError: true, facts: { outcome: 'refused' } });
+    expect(Object.keys(spots()).sort()).toEqual(['hero', 'shop']);
   });
 
   it('puts a picture the person attached to this message in a spot, and nothing they sent before', async () => {

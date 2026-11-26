@@ -177,6 +177,10 @@ export const designerSightBody = z.object({
   picture: z.string().max(1_000_000).optional(),
   /** The page's own path on that side, as the screen said it. The server tidies it, and reads anything that is no path as the first page. */
   path: z.string().max(1000).optional(),
+  /** Which look the page was drawn in: the preview follows the Designer's light or dark. */
+  scheme: z.enum(['light', 'dark']).optional(),
+  /** The page was out of sight (its tab in the background) and sent no picture of itself. */
+  hidden: z.literal(true).optional(),
 });
 export const designerSightReply = z.object({ kept: z.boolean() });
 

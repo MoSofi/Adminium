@@ -121,8 +121,16 @@ export function classesIn(source: string): string[] {
   };
   for (const plain of text.matchAll(/\bclass(?:Name)?\s*=\s*"([^"]*)"/g)) take(plain[1] as string);
   for (const start of text.matchAll(/\bclass(?:Name)?\s*=\s*\{/g)) {
-    const inside = braced(text, start.index + start[0].length - 1);
-    if (inside === null) continue;
+    const braces = braced(text, start.index + start[0].length - 1);
+    if (braces === null) continue;
+    // A string that is no class: a key read from a row (`kind['name']`), a value compared with (`=== 'Seeds & bulbs'`) and
+    // what is asked of a method (`.includes('sale')`). Read as classes, they were said to be "styled nowhere", and a model
+    // hid a row's name from the check with String.fromCharCode to quiet it (seen 2026-11-26).
+    const inside = braces
+      .replace(/\[\s*(['"])[^'"\\\n]*\1\s*\]/g, '[]')
+      .replace(/[!=]==?\s*(['"])[^'"\\\n]*\1/g, '==')
+      .replace(/(['"])[^'"\\\n]*\1\s*[!=]==?/g, '==')
+      .replace(/\.\w+\(\s*(['"])[^'"\\\n]*\1/g, '.call(');
     for (const quoted of inside.matchAll(/'([^'\\\n]*)'|"([^"\\\n]*)"/g)) take((quoted[1] ?? quoted[2]) as string);
     for (const template of inside.matchAll(/`([^`]*)`/g)) {
       // The static stretches of a template; the word touching a `${…}` is a piece of a name, not a name.
@@ -429,7 +437,12 @@ function spotIssues(root: string, key: string, sides: readonly AppSide[]): Desig
     issues.push({ kind: 'spots', line: `- ${(where[0] as SpotScreen).file === '' ? key : appPath(key, (where[0] as SpotScreen).file)} draws the spot "${id}", which was never named, so it shows an empty frame: name it with add_spots (its label, shape and what it shows)${named.length === 0 ? '' : `, or draw a spot that is there (${named.map((spot) => spot.id).slice(0, 8).join(', ')})`}.` });
   }
   for (const spot of named) {
-    if (!drawn.has(spot.id)) issues.push({ kind: 'spots', line: `- The spot "${spot.id}" (${spot.label}) is named and no screen draws it: draw it with <Picture spot="${spot.id}" /> where it belongs.` });
+    if (!drawn.has(spot.id)) {
+      issues.push({
+        kind: 'spots',
+        line: `- The spot "${spot.id}" (${spot.label}) is named and no screen draws it: draw it with <Picture spot="${spot.id}" /> where it belongs${spot.file === null ? ', or take it away with remove_spots when the page no longer needs it' : ''}.`,
+      });
+    }
     // The person's words, which the model cannot write: it can only ask for them.
     if (spot.file !== null && !spot.decorative && spot.alt.trim() === '') {
       issues.push({ kind: 'spots', line: `- The spot "${spot.id}" (${spot.label}) shows a picture with no words for people who cannot see it: ask the person to describe it in Pictures, or to tick "Decorative" there.` });

@@ -83,6 +83,11 @@ export function stepLine(row: StepRow): string {
     case 'add_spots':
       if (running) return t('designer:step.spotsNaming', 'Making picture spots');
       return row.outcome === 'added' ? t('designer:step.spotsNamed', '{count, plural, one {# picture spot made} other {# picture spots made}}', { count: row.count ?? 0 }) : t('designer:step.spotsFailed', 'No picture spots made');
+    case 'remove_spots':
+      if (running) return t('designer:step.spotsRemoving', 'Taking away picture spots');
+      return row.state === 'failed' || row.outcome === 'refused'
+        ? t('designer:step.spotsRemoveFailed', 'No picture spots taken away')
+        : t('designer:step.spotsRemoved', '{count, plural, one {# picture spot taken away} other {# picture spots taken away}}', { count: row.count ?? 0 });
     case 'use_site':
       if (running) return t('designer:step.siteBuilding', 'Building the screens from {subject}', S);
       return row.state === 'failed' || row.outcome === 'refused' ? t('designer:step.siteFailed', 'Did not build from the template') : t('designer:step.siteBuilt', 'Built {count, plural, one {# screen} other {# screens}} from {subject}', { count: row.count ?? 0, ...S });

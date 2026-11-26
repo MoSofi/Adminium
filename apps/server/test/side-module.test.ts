@@ -26,6 +26,7 @@ import {
   shootForFrame,
   ruleText,
   areaWithin,
+  colourScheme,
   SideError,
 } from '../src/side/index.js';
 
@@ -572,6 +573,67 @@ describe('what is measurably broken on a page as it shows', () => {
       await vi.advanceTimersByTimeAsync(100);
       expect(sights().slice(1).map((message) => message['faults'])).toEqual([[{ kind: 'error', error: 'The menu could not be read' }], [{ kind: 'error', error: 'The menu could not be read' }]]);
       expect(sights().slice(1).every((message) => !('picture' in message))).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('says which look it is drawn in, as its own stylesheet asks', async () => {
+    vi.useFakeTimers();
+    try {
+      const customer = await bundled('repairs', 'customer');
+      const posted: Record<string, unknown>[] = [];
+      const doc = { ...page({}), readyState: 'complete', addEventListener: () => undefined };
+      const asked: string[] = [];
+      const matchMedia = (query: string) => (asked.push(query), { matches: true }) as MediaQueryList;
+      const target = { ...view, matchMedia, innerHeight: 800, document: doc, location: { pathname: '/apps/repairs/customer/' }, addEventListener: () => undefined, parent: { postMessage: (message: Record<string, unknown>) => void posted.push(message) } };
+      customer.reportSightToFrame(target as unknown as Window, true);
+      await vi.advanceTimersByTimeAsync(8000);
+      expect(asked).toEqual(['(prefers-color-scheme: dark)']);
+      expect(posted).toEqual([expect.objectContaining({ type: 'adminium:side-sight', scheme: 'dark' })]);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(colourScheme({ matchMedia: () => ({ matches: false }) } as unknown as Window)).toBe('light');
+    expect(colourScheme({ matchMedia: () => { throw new Error('no'); } } as unknown as Window)).toBeNull();
+    expect(colourScheme(undefined)).toBeNull();
+  });
+
+  it('waits for a page out of sight to be shown, and goes without a picture, saying so, when it is not', async () => {
+    vi.useFakeTimers();
+    try {
+      const customer = await bundled('repairs', 'customer');
+      const posted: Record<string, unknown>[] = [];
+      const listeners = new Map<string, () => void>();
+      const doc = {
+        ...page({}),
+        readyState: 'complete',
+        visibilityState: 'hidden',
+        addEventListener: (name: string, run: () => void) => void listeners.set(name, run),
+        removeEventListener: (name: string) => void listeners.delete(name),
+      };
+      const target = { ...view, innerHeight: 800, document: doc, location: { pathname: '/apps/repairs/customer/' }, addEventListener: () => undefined, parent: { postMessage: (message: Record<string, unknown>) => void posted.push(message) } };
+      customer.reportSightToFrame(target as unknown as Window, true);
+      // Settled, but out of sight: the look waits for the person to come back to the tab.
+      await vi.advanceTimersByTimeAsync(8000);
+      expect(posted).toEqual([]);
+      await vi.advanceTimersByTimeAsync(customer.HIDDEN_WAIT_MS);
+      expect(posted).toEqual([expect.objectContaining({ type: 'adminium:side-sight', hidden: true, faults: [] })]);
+      expect(posted[0]).not.toHaveProperty('picture');
+      expect(listeners.has('visibilitychange')).toBe(false);
+
+      // Shown again in time: the look goes on as a whole one.
+      const again: Record<string, unknown>[] = [];
+      const back = { ...doc, visibilityState: 'hidden' };
+      const heard = new Map<string, () => void>();
+      back.addEventListener = (name: string, run: () => void) => void heard.set(name, run);
+      customer.reportSightToFrame({ ...target, document: back, parent: { postMessage: (message: Record<string, unknown>) => void again.push(message) } } as unknown as Window, true);
+      await vi.advanceTimersByTimeAsync(3000);
+      back.visibilityState = 'visible';
+      heard.get('visibilitychange')?.();
+      await vi.advanceTimersByTimeAsync(7000);
+      expect(again).toHaveLength(1);
+      expect(again[0]).not.toHaveProperty('hidden');
     } finally {
       vi.useRealTimers();
     }

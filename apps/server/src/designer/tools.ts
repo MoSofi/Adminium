@@ -54,7 +54,7 @@ import type { AppSide } from '../project/apps/read-app.js';
 import { hasOwnBuild } from '../project/apps/own-build.js';
 import { declaredLedgers, ledgerParts } from '../project/apps/ledger-parts.js';
 import { adoptParts, shapeParts, spelledOut } from '../project/apps/shape-parts.js';
-import { cleanSpot, plainWords, readPictureFile, readSpots, serverOwned, SPOT_ID, SPOTS_MAX, spotVersion, writeSpots, type SpotEntry } from './spots.js';
+import { cleanSpot, plainWords, readPictureFile, readSpots, serverOwned, SPOT_ID, SPOTS_MAX, spotScreens, spotVersion, writeSpots, type SpotEntry } from './spots.js';
 import { addsBuildCommand, createTurnReads, isBuildFile, needsCard, phoneFileRefusal, renamesTables } from './write-guard.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
 import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictures.js';
@@ -250,6 +250,17 @@ export function jsonProblem(path: string, content: string): string | null {
 const SHOWN_ON_MISS = 4000;
 
 /** The pieces of `text` that are `piece` but for their spacing: spaces and line ends may differ anywhere. */
+/** The HTML a few words name by entity, in one pass: `&amp;` is `&`, `&#39;` is `'`. A code that is no character stays as written. */
+export function withoutEntities(text: string): string {
+  const named: Readonly<Record<string, string>> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+  return text.replace(/&(?:([a-z]{2,4})|#(\d{1,7})|#x([0-9a-f]{1,6}));/gi, (all, name: string | undefined, decimal: string | undefined, hex: string | undefined) => {
+    if (name !== undefined) return named[name.toLowerCase()] ?? all;
+    const code = decimal !== undefined ? Number(decimal) : Number.parseInt(hex as string, 16);
+    // A control character or a code past the last one is no letter of a name.
+    return code >= 32 && code <= 0x10ffff && !(code >= 0x7f && code < 0xa0) && !(code >= 0xd800 && code <= 0xdfff) ? String.fromCodePoint(code) : all;
+  });
+}
+
 export function looseMatches(text: string, piece: string): string[] {
   const marks = [...piece].filter((mark) => !/\s/.test(mark));
   if (marks.length < 4 || marks.length > 4000) return [];
@@ -1259,7 +1270,10 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
       inputSchema: { type: 'object', properties: { name: { type: 'string', description: 'Two or three words, e.g. Crispy Bites' } }, required: ['name'], additionalProperties: false },
       running: (input) => `Naming the app ${String(input['name'] ?? '').slice(0, 40)}`,
       run: async (input, ctx) => {
-        const name = (str(input, 'name') ?? '').replace(/\s+/g, ' ').trim();
+        // As a person writes it: a model that answers in HTML sent "Crumb &amp; Crust Cakes", and the key became crumb-amp-crust-cakes.
+        const name = withoutEntities(str(input, 'name') ?? '')
+          .replace(/\s+/g, ' ')
+          .trim();
         if (deps.designer().needsName?.(ctx.session) !== true) {
           return text(`The app already has its name and its folder, apps/${appKey}/: its key stays as it is. To change the name people read, set "name" in apps/${appKey}/manifest/app.json and leave "key" alone.`, 'The app is already named');
         }
@@ -2161,6 +2175,49 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
             .join('\n\n'),
           made.length === 0 ? 'Kept the picture spots' : `Named ${String(made.length)} picture spots`,
           { facts: { outcome: 'added', count: made.length } },
+        );
+      },
+    },
+    {
+      // spots.json is the server's (the person's choices live in it), so a spot the page no longer needs could only be left
+      // behind: four stranded spots were counted "to fill" and the check asked for them to be drawn again (seen 2026-11-26).
+      name: 'remove_spots',
+      description:
+        'Take away picture spots the pages no longer need, all in ONE call: "ids" (their ids). Only a spot no screen draws (take its <Picture spot="…" /> out first) and the person has not filled: a filled one is theirs, so ask them to remove it in Pictures.',
+      inputSchema: {
+        type: 'object',
+        properties: { ids: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'string' } } },
+        required: ['ids'],
+        additionalProperties: false,
+      },
+      running: () => 'Taking away picture spots',
+      run: async (input, ctx) => {
+        const none = (content: string): ToolOutcome => ({ ...refused(content, 'No spots taken away'), facts: { outcome: 'refused' } });
+        const nameless = unnamed(ctx);
+        if (nameless !== null) return nameless;
+        if (hasOwnBuild(deps.root, appKey)) return none('This app is a copy of a published one and keeps its own pictures in src/.');
+        const asked = [...new Set((Array.isArray(input['ids']) ? (input['ids'] as unknown[]) : []).filter((id): id is string => typeof id === 'string').map((id) => id.trim()))].slice(0, 12);
+        const spots = readSpots(deps.root, appKey);
+        const drawn = spotScreens(deps.root, appKey);
+        const gone: SpotEntry[] = [];
+        const problems: string[] = [];
+        for (const id of asked) {
+          const spot = spots.find((candidate) => candidate.id === id);
+          if (spot === undefined) problems.push(`"${id.slice(0, 40)}" is no spot of this app.${spots.length === 0 ? '' : ` Its spots: ${spots.map((one) => one.id).slice(0, 12).join(', ')}.`}`);
+          else if (drawn.has(id)) problems.push(`"${id}" is still drawn (${(drawn.get(id) ?? []).map((where) => where.file).filter((file) => file !== '').slice(0, 3).join(', ') || 'a screen'}): take its <Picture spot="${id}" /> out first, or keep it.`);
+          else if (spot.file !== null) problems.push(`"${id}" (${spot.label}) shows a picture the person chose: it is theirs. Ask them to remove it in Pictures, or draw it again.`);
+          else gone.push(spot);
+        }
+        if (gone.length === 0) return none(problems.join('\n') || 'Give "ids": the spots to take away.');
+        writeSpots(
+          deps.root,
+          appKey,
+          spots.filter((spot) => !gone.includes(spot)),
+        );
+        return text(
+          [`Took away ${String(gone.length)} spot(s): ${gone.map((spot) => `"${spot.id}" (${spot.label})`).join(', ')}.`, problems.length === 0 ? null : `Kept:\n${problems.join('\n')}`].filter((part): part is string => part !== null).join('\n\n'),
+          `Took away ${String(gone.length)} picture spots`,
+          { facts: { count: gone.length } },
         );
       },
     },

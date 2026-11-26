@@ -460,6 +460,8 @@ export async function pagePicture(doc: Document = document, view: Window = windo
     context.fillRect(0, 0, canvas.width, canvas.height);
     if (part === null) context.drawImage(drawn, 0, 0, canvas.width, canvas.height);
     else context.drawImage(drawn, part.left, part.top, part.width, part.height, 0, 0, canvas.width, canvas.height);
+    // A page with words on it drawn as one flat colour was not painted: no picture is better than an empty one.
+    if (part === null && drawnFlat(canvas, doc)) return null;
     for (const quality of part === null ? [0.72, 0.5, 0.35] : [0.9, 0.75, 0.5]) {
       const picture = canvas.toDataURL('image/jpeg', quality);
       if (picture.length <= (part === null ? 900_000 : SHOT_MAX_LENGTH)) return picture;
@@ -467,6 +469,66 @@ export async function pagePicture(doc: Document = document, view: Window = windo
     return null;
   } catch {
     return null;
+  }
+}
+
+/** How long a look waits for a page in a tab in the background to be shown again before it goes without a picture. */
+export const HIDDEN_WAIT_MS = 10_000;
+
+/** Whether the page is out of sight: its tab or window in the background, where a browser paints nothing of it. */
+export function isHidden(doc: Pick<Document, 'visibilityState'>): boolean {
+  return doc.visibilityState === 'hidden';
+}
+
+/** Resolves once the page is shown again, or after `ms`, whichever comes first. */
+export function shownAgain(doc: Pick<Document, 'visibilityState' | 'addEventListener' | 'removeEventListener'>, view: Pick<Window, 'setTimeout' | 'clearTimeout'> | undefined, ms: number): Promise<void> {
+  const timers = typeof view?.setTimeout === 'function' ? view : globalThis;
+  return new Promise((resolve) => {
+    const done = (): void => {
+      timers.clearTimeout(timer);
+      doc.removeEventListener('visibilitychange', changed);
+      resolve();
+    };
+    const changed = (): void => {
+      if (!isHidden(doc)) done();
+    };
+    const timer = timers.setTimeout(done, ms);
+    doc.addEventListener('visibilitychange', changed);
+  });
+}
+
+/** Which look the page is drawn in, by the same question its stylesheet asks; null where the window cannot say. */
+export function colourScheme(view: Pick<Window, 'matchMedia'> | undefined): 'light' | 'dark' | null {
+  if (view === undefined || typeof view.matchMedia !== 'function') return null;
+  try {
+    return view.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether a picture drawn of a page with words on it came out as one colour
+ * from edge to edge: a drawing the browser did not paint (a tab in the
+ * background, a page it would not lay out), not a picture of the page.
+ * Read from a 24 by 24 copy, so a tall page costs nothing to ask.
+ */
+export function drawnFlat(canvas: HTMLCanvasElement, doc: Document): boolean {
+  try {
+    if ((doc.body?.innerText ?? '').trim() === '') return false;
+    const small = doc.createElement('canvas');
+    small.width = 24;
+    small.height = 24;
+    const context = small.getContext('2d');
+    if (context === null) return false;
+    context.drawImage(canvas, 0, 0, 24, 24);
+    const data = context.getImageData(0, 0, 24, 24).data;
+    for (let at = 4; at < data.length; at += 4) {
+      for (let channel = 0; channel < 3; channel += 1) if (Math.abs((data[at + channel] as number) - (data[channel] as number)) > 6) return false;
+    }
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -487,12 +549,28 @@ export function reportSightToFrame(target: Window | undefined = framed(), dev: b
     sent = true;
     try {
       await (doc.fonts?.ready ?? Promise.resolve());
+      // A tab in the background draws no picture of itself, only an empty one: a model shown that takes the page for blank.
+      // The look waits a while for the person to come back to it; if they do not, it goes with no picture and says why.
+      if (!late && isHidden(doc)) await shownAgain(doc, target, HIDDEN_WAIT_MS);
+      const hidden = isHidden(doc);
       const faults = pageFaults(doc, target);
       // The picture is worth a few seconds and no more: what was measured goes whether or not the browser draws it.
       // A late look carries none: it is sent to say the page stopped, and that must not wait on a drawing.
-      const picture = late ? null : await Promise.race([pagePicture(doc, target), new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000))]);
+      const picture = late || hidden ? null : await Promise.race([pagePicture(doc, target), new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000))]);
+      // Which of its two looks the page is drawn in: a dark picture held to a light brief is not a fault of the page.
+      const scheme = colourScheme(target);
       target.parent.postMessage(
-        { type: 'adminium:side-sight', app: APP_KEY, side: SIDE, path: pagePath(target.location.pathname), width: doc.documentElement.clientWidth, faults, ...(picture === null ? {} : { picture }) },
+        {
+          type: 'adminium:side-sight',
+          app: APP_KEY,
+          side: SIDE,
+          path: pagePath(target.location.pathname),
+          width: doc.documentElement.clientWidth,
+          faults,
+          ...(picture === null ? {} : { picture }),
+          ...(scheme === null ? {} : { scheme }),
+          ...(hidden ? { hidden: true } : {}),
+        },
         '*',
       );
     } catch {
