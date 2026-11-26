@@ -1154,9 +1154,12 @@ export function SpendNotice({ warnings, onNewSession }: { warnings: readonly { w
   );
 }
 
-/** What a provider said, out of "provider: HTTP 402 — {"error":"…"}": the sentence alone, cut short. */
+/**
+ * What a provider said, out of "provider: HTTP 402 — {"error":"…"}": the sentence alone, cut short. On the operator's
+ * connection the server leaves the provider's name out, and the words open with "HTTP 402 — ".
+ */
 export function providerWords(message: string): string {
-  const after = message.replace(/^[a-z0-9-]+: HTTP \d+\s*[—-]\s*/i, '').trim();
+  const after = message.replace(/^(?:[a-z0-9-]+: )?HTTP \d+\s*[—-]\s*/i, '').trim();
   let words = after;
   try {
     const parsed = JSON.parse(after) as { error?: unknown; message?: unknown };
@@ -1169,12 +1172,15 @@ export function providerWords(message: string): string {
 }
 
 export function FailedNote({ error, onRetry, busy }: { error: { code: string; message: string; provider?: string | undefined; status?: number | undefined }; onRetry?: (() => void) | undefined; busy: boolean }): ReactNode {
+  // A status with no provider: the call ran on the connection the operator set, and the server did not name the provider.
   const said =
-    error.provider !== undefined && error.status !== undefined
-      ? withMono(t('designer:turn.modelFailed', 'The model stopped answering ({provider}, {status}). Nothing was lost.', { provider: error.provider, status: M1 }), [M1], [String(error.status)])
-      : t('designer:turn.failed', 'The turn failed: {message} Nothing was lost.', { message: error.message });
+    error.status === undefined
+      ? t('designer:turn.failed', 'The turn failed: {message} Nothing was lost.', { message: error.message })
+      : error.provider === undefined
+        ? withMono(t('designer:turn.modelFailedIncluded', 'The included AI stopped answering ({status}). Nothing was lost.', { status: M1 }), [M1], [String(error.status)])
+        : withMono(t('designer:turn.modelFailed', 'The model stopped answering ({provider}, {status}). Nothing was lost.', { provider: error.provider, status: M1 }), [M1], [String(error.status)]);
   // The provider's own words, when it gave a reason a person can act on ("add usage credits"): shown as text, never as a link.
-  const theirs = error.provider !== undefined && error.status !== undefined && error.status >= 400 && error.status < 500 ? providerWords(error.message) : '';
+  const theirs = error.status !== undefined && error.status >= 400 && error.status < 500 ? providerWords(error.message) : '';
   return (
     <div role="alert" className="flex flex-col gap-[11px] rounded-xl border border-danger/30 bg-danger-soft px-3.5 py-[13px]">
       <p className="m-0 flex items-start gap-[9px] text-[13px] font-semibold leading-normal text-danger">

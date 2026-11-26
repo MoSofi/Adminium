@@ -442,6 +442,7 @@ export default {
     "limitSteps": "Denne runde har nået sin grænse på {value} trin.",
     "limitTurnTokens": "Denne runde har nået sin grænse på {value} tokens.",
     "modelFailed": "Modellen holdt op med at svare ({provider}, {status}). Intet gik tabt.",
+    "modelFailedIncluded": "Den AI, der følger med, holdt op med at svare ({status}). Intet gik tabt.",
     "notApplied": "Rundens ændringer blev ikke anvendt: {message}",
     "putBack": "Sæt filerne tilbage",
     "putBackDone": "Filerne er tilbage, som de var.",

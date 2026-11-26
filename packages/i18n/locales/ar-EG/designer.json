@@ -432,6 +432,7 @@
     "limitSteps": "بلغ هذا الدور حده البالغ {value} خطوة.",
     "limitTurnTokens": "بلغ هذا الدور حده البالغ {value} رمزًا.",
     "modelFailed": "توقف النموذج عن الإجابة ({provider}، {status}). لم يُفقد شيء.",
+    "modelFailedIncluded": "توقف الذكاء الاصطناعي المضمَّن عن الإجابة ({status}). لم يُفقد شيء.",
     "notApplied": "لم تُطبّق تغييرات هذا الدور: {message}",
     "putBack": "أعِد الملفات",
     "putBackDone": "عادت الملفات كما كانت.",

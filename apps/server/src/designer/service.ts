@@ -799,6 +799,7 @@ export function createDesigner(host: DesignerHost): Designer {
       if (session.target !== 'dashboard') store.update(session.id, { target: 'dashboard' });
       return { ...enterScope(host.root, session.appKey), tool: needsOwnKeyTool(host.root) };
     },
+    operatorConnection: (session) => host.connections.isOperator(session.connectionId),
     limits: () => host.limits(),
     publish: (event) => {
       host.publish(event);

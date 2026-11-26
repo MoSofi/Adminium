@@ -442,6 +442,7 @@ export default {
     "limitSteps": "Ce tour a atteint sa limite de {value} étapes.",
     "limitTurnTokens": "Ce tour a atteint sa limite de {value} jetons.",
     "modelFailed": "Le modèle a cessé de répondre ({provider}, {status}). Rien n’a été perdu.",
+    "modelFailedIncluded": "L’IA incluse a cessé de répondre ({status}). Rien n’a été perdu.",
     "notApplied": "Les modifications de ce tour n’ont pas été appliquées : {message}",
     "putBack": "Remettre les fichiers",
     "putBackDone": "Les fichiers sont revenus à leur état précédent.",

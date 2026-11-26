@@ -432,6 +432,7 @@
     "limitSteps": "本輪已達到 {value} 步的上限。",
     "limitTurnTokens": "本輪已達到 {value} 個詞元的上限。",
     "modelFailed": "模型停止了回應（{provider}，{status}）。沒有遺失任何內容。",
+    "modelFailedIncluded": "內含的 AI 停止了回應（{status}）。沒有遺失任何內容。",
     "notApplied": "本輪的變更未被套用：{message}",
     "putBack": "還原檔案",
     "putBackDone": "檔案已恢復原樣。",
