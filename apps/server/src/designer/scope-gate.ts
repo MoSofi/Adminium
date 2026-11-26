@@ -43,6 +43,8 @@ export const SCOPE_REACH: Record<(typeof DESIGNER_TOOL_NAMES)[number], ScopeReac
   read_reference: 'reads',
   list_add_ons: 'reads',
   get_add_on: 'dashboard',
+  // It asks, and a yes sends the person to the Apps page: nothing is built or installed by the turn.
+  offer_app: 'reads',
   name_app: 'dashboard',
   // A staff side is people who sign in; a customer side and the phone app are the public's.
   add_side: (input) => (input['side'] === 'staff' ? 'jail' : 'door'),
@@ -60,6 +62,8 @@ export const SCOPE_REACH: Record<(typeof DESIGNER_TOOL_NAMES)[number], ScopeReac
   fill_spot: 'door',
   use_pictures: 'dashboard',
   ask_person: 'reads',
+  // Buttons under the reply: a press is the person's own next message, held to this scope like any other.
+  suggest_next: 'reads',
   request_package: 'code',
   make_pictures: 'door',
   read_figma: 'reads',

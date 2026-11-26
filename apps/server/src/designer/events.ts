@@ -87,7 +87,21 @@ export type DesignerEventBody =
    * customer-facing screens, which that connection does not build; `used-up`, the AI included with the instance is
    * spent. The page words it, with "Add an AI key" and (where the operator set one) "Upgrade".
    */
-  | { kind: 'operator-ai'; card: 'scope' | 'used-up' };
+  | { kind: 'operator-ai'; card: 'scope' | 'used-up' }
+  /**
+   * What the person can do next, as the buttons under the turn's reply (`next-steps.ts`): the last one of a turn
+   * stands, and an empty one takes the buttons away.
+   */
+  | { kind: 'next-steps'; steps: NextStep[] };
+
+/**
+ * A button under a reply, as `next-steps.ts` lets it stand: a request the person sends with a press; an add-on by the
+ * server's own name; a table the person fills, with its page in the dashboard.
+ */
+export type NextStep =
+  | { kind: 'ask'; text: string }
+  | { kind: 'add-on'; key: string; name: string; /** What it would do for this app, in the model's words: said beside the button, and sent with the press. */ text: string; /** Installed here already: the press only builds on it. */ installed: boolean }
+  | { kind: 'rows'; table: string; /** The table as the person reads it ("Products"). */ name: string; /** The dashboard page that lists it, as the dashboard addresses it: `/p/<page>`. */ path: string };
 
 /** What writes the app's folder outside a turn: a hand save, a style change, going back, a copy of a published app, pictures from the dialog. */
 export type HoldKind = 'save' | 'style' | 'restore' | 'start' | 'pictures';
