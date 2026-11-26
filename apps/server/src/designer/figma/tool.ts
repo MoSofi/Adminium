@@ -96,7 +96,8 @@ export function readFigmaTool(deps: ReadFigmaDeps, sessionId: string): DesignerT
       required: ['node'],
       additionalProperties: false,
     },
-    running: (input) => `Reading ${nameOf(input)} from Figma`,
+    // Named as the finished line names it: the part, found in the kept document with the person's own key, not its node id.
+    running: (input, ctx) => `Reading ${nameOf(input, ctx?.handle.by.id ?? null)} from Figma`,
     subject: (input, ctx) => nameOf(input, ctx.handle.by.id),
     run: async (input, ctx) => {
       const node = typeof input['node'] === 'string' ? input['node'].trim().replace(/-/g, ':') : '';

@@ -765,7 +765,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           const started = now();
           const subject = safeLabel(() => tool.subject?.(call.input, context)?.slice(0, 200) ?? '', '') || stepSubject(call.input);
           const about = subject === undefined ? {} : { subject };
-          log.emit(turn, { kind: 'step', id: stepId, tool: tool.name, label: safeLabel(() => tool.running(call.input), tool.name), state: 'running', ...about });
+          log.emit(turn, { kind: 'step', id: stepId, tool: tool.name, label: safeLabel(() => tool.running(call.input, context), tool.name), state: 'running', ...about });
           try {
             const done = await tool.run(call.input, context);
             log.emit(turn, {

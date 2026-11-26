@@ -94,6 +94,8 @@ describe('read_figma', () => {
     await imported();
     const before = tier1();
     const read = tool() as NonNullable<ReturnType<typeof tool>>;
+    // While it runs, the line names the part as the finished line will, not its node id; without the turn, the id is all there is.
+    expect(read.running({ node: '1:5' }, ctx())).toBe('Reading Pay from Figma');
     expect(read.running({ node: '1:5' })).toBe('Reading 1:5 from Figma');
     expect(read.subject?.({ node: '1:5' }, ctx())).toBe('Pay');
     const free = await read.run({ node: '1:5' }, ctx());
