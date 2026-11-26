@@ -151,6 +151,8 @@ export interface RunnerDeps {
   now?: () => number;
   /** How long a hold may last before its work is told to stop; `HOLD_CAP_MS` when left out. */
   holdCapMs?: number;
+  /** How long the start prompt's run waits on the offer of a published app; `APP_OFFER_WAIT_MS` when left out. */
+  appOfferWaitMs?: number;
 }
 
 /** What has the folder: a turn, or one of the things a person does from the page. */
@@ -232,6 +234,11 @@ export const MAX_NUDGES = 2;
 export const MAX_DESIGN_ROUNDS = 2;
 /** How often a turn looks at the page it built: once, and then only for a page that stopped (blank, or an error) after what was built since. */
 export const MAX_LOOKS = 3;
+/**
+ * How long a run nobody started by hand (the start prompt's) waits on the offer of a published app before it takes
+ * "no" and builds: the person is on their way to the page as the run begins, and may never arrive.
+ */
+export const APP_OFFER_WAIT_MS = 10 * 60_000;
 /** The longest a hand save, a style change or going back may hold the folder before its work is told to stop. */
 export const HOLD_CAP_MS = 60_000;
 /** A tool an older session called by another name: a transcript that names it still runs. */
@@ -405,15 +412,21 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         // Not guessable: a page that is not the Designer's cannot name the card it would answer.
         const full = { ...card, id: `card_${String(turn)}_${String(cardSeq)}_${randomBytes(8).toString('hex')}` } as DesignerCard;
         // A run nobody watches (the start prompt's): every question is answered no, at once, and shown answered.
+        // All but one: a published app offered in place of the build (`offer-app.ts`) is asked before anything is
+        // written, and waits a while for the person, who is arriving at this page as the run begins.
+        // (A run started by nobody, at boot, has nobody who could answer: it is answered no like the rest.)
+        const offer = full.type === 'app' && run.by.id !== null;
         const no = run.defaultNo ? noAnswer(full) : null;
-        if (no !== null) {
+        if (no !== null && !offer) {
           log.emit(turn, { kind: 'card', card: full });
           log.emit(turn, { kind: 'card-answered', id: full.id, value: no });
           return Promise.resolve(no);
         }
         return new Promise<CardAnswer>((resolve, reject) => {
+          let timer: ReturnType<typeof setTimeout> | undefined;
           // Stop answers the card at once: the tool waiting on it must not hold the turn open.
           const onStop = (): void => {
+            if (timer !== undefined) clearTimeout(timer);
             run.cards.delete(full.id);
             reject(new TurnStoppedError());
           };
@@ -421,12 +434,24 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           run.cards.set(full.id, {
             card: full,
             resolve: (answer) => {
+              if (timer !== undefined) clearTimeout(timer);
               signal.removeEventListener('abort', onStop);
               resolve(answer);
             },
             reject,
           });
           log.emit(turn, { kind: 'card', card: full });
+          if (no !== null) {
+            // Nobody came: the card is answered no, shown answered, and the build goes on.
+            timer = setTimeout(() => {
+              const waiting = run.cards.get(full.id);
+              if (waiting === undefined) return;
+              run.cards.delete(full.id);
+              log.emit(turn, { kind: 'card-answered', id: full.id, value: no });
+              waiting.resolve(no);
+            }, deps.appOfferWaitMs ?? APP_OFFER_WAIT_MS);
+            timer.unref?.();
+          }
         });
       },
     };
@@ -939,6 +964,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           ...(card.type === 'package' ? { name: card.name, version: card.version } : {}),
           ...(card.type === 'rows' ? { attachment: card.attachment, table: card.table, rows: card.rows, left: card.left } : {}),
           ...(card.type === 'add-on' ? { key: card.key, version: card.version, ...(card.listOff === true ? { switchesListOn: true } : {}) } : {}),
+          ...(card.type === 'app' ? { key: card.key, version: card.version } : {}),
           ...(card.type === 'question' ? { question: card.question.slice(0, 300) } : {}),
           answer: answer.type === 'question' ? answer.text.slice(0, 300) : answer,
         })

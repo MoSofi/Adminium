@@ -252,6 +252,8 @@ export type DesignerCard =
   | { id: string; type: 'package'; name: string; version: string; why: string; also?: { name: string; version: string }[] }
   /** An add-on the app needs and this server lacks. `listOff`: a yes switches the list of adminium.dev on first. `here`: it is in this server's store, so nothing is fetched. */
   | { id: string; type: 'add-on'; key: string; name: string; version: string | null; line: string; listOff?: true; here?: true; tables?: number }
+  /** A published app that already does what was asked for, offered before one is built. A yes opens the Apps page on it. `copy`: this server can also copy it into the project to be changed. */
+  | { id: string; type: 'app'; key: string; name: string; version: string; line: string; copy?: true }
   | {
       id: string;
       type: 'removal';
@@ -564,7 +566,18 @@ export type DesignerEventBody =
   /** A make of pictures with AI: the dialog's progress (by the person), or what the chat's make_pictures made (in its turn). */
   | { kind: 'picture-make'; job: MakeJob }
   /** The fixed card a turn on the operator's AI ends with: the request needs customer-facing screens (`scope`), or the AI included is spent (`used-up`). */
-  | { kind: 'operator-ai'; card: OperatorAiCard };
+  | { kind: 'operator-ai'; card: OperatorAiCard }
+  /** What the person can do next, as buttons under the turn's reply: the last one of a turn stands. */
+  | { kind: 'next-steps'; steps: NextStep[] };
+
+/**
+ * A button under a reply. `ask`: its words are sent as the person's next message. `add-on`: an add-on by the
+ * server's own name, asked for with a press. `rows`: a table the person fills, and its page in the dashboard.
+ */
+export type NextStep =
+  | { kind: 'ask'; text: string }
+  | { kind: 'add-on'; key: string; name: string; text: string; installed: boolean }
+  | { kind: 'rows'; table: string; name: string; path: string };
 
 /** Which fixed card a turn on the operator's AI ended with. */
 export type OperatorAiCard = 'scope' | 'used-up';

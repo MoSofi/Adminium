@@ -206,6 +206,7 @@ import { projectBundlerManifest, rebuildApps } from './project/build.js';
 import { addOnLines, readAddOnManifest } from './designer/add-on-lines.js';
 import { createAttachments } from './designer/attachments.js';
 import { createAddOnGetter } from './designer/get-add-on.js';
+import { appLines } from './designer/offer-app.js';
 import { createRowLoader } from './designer/load-rows.js';
 import { createSkills } from './designer/skills.js';
 import { createPrompt } from './designer/prompt.js';
@@ -3576,6 +3577,23 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             return designerOpts.mode === 'live' ? set.superAdmin : permissionSetAllows(set, 'system:manifests:manage');
           },
         });
+        // The published apps a new session may offer before it builds one: the cached list, read from disk, less what is installed.
+        const designerApps = (): ReturnType<typeof appLines> =>
+          appLines({
+            store: appStore,
+            catalogEnabled: () => appCatalog.isEnabled(),
+            installedKeys: async () => (await manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET)).list('app')).map((installed) => installed.row.manifestKey),
+            // A server that never read the list (a trial's first start asks for nothing): the page's own refresh job, waited for briefly.
+            fetchOnce: async () => {
+              const job = await enqueueAppCatalogRefresh(meta);
+              const until = Date.now() + 8000;
+              for (;;) {
+                const now = await jobsRepo(meta).findById(job.id);
+                if (now === null || now.status === 'succeeded' || now.status === 'failed' || now.status === 'cancelled' || Date.now() > until) return;
+                await new Promise((resolve) => setTimeout(resolve, 250));
+              }
+            },
+          });
         // What people attach to a message, and loading an attached CSV's rows: the dashboard's own Import, for one of the app's tables.
         const designerAttachments = createAttachments(root);
         // A site being staged when the server stopped: older than an hour, it is taken away.
@@ -3811,6 +3829,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             // A model that could not be asked is sent no picture: a request refused for one would end the turn.
             readsImages: (session) => aiConnections.readsImages(session.connectionId as Parameters<typeof aiConnections.readsImages>[0], session.model).catch(() => null),
             needsName: (session) => designer?.needsName(session) === true,
+            listApps: designerApps,
           }),
           attachments: designerAttachments,
           windowOf: async (session) => ASSISTANT_INPUT_TOKEN_LIMIT[(await aiConnections.find(session.connectionId))?.provider ?? 'openai-compatible'],
@@ -3832,6 +3851,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                     catalogEnabled: () => addOnCatalog.isEnabled(),
                   }),
                 mode: designerOpts.mode,
+                listApps: designerApps,
                 addOnGetter: designerAddOns,
                 attachments: designerAttachments,
                 rowLoader: designerRows,

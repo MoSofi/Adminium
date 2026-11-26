@@ -52,6 +52,8 @@ export const TOOL_REACH: Record<(typeof DESIGNER_TOOL_NAMES)[number], ToolReach>
   read_reference: 'reads',
   list_add_ons: 'reads',
   get_add_on: 'catalogue',
+  // It asks; the app is installed from the catalogue by the person, on the Apps page.
+  offer_app: 'reads',
   name_app: 'declarative',
   add_side: (input) => (input['side'] === 'mobile' ? 'ownBuilds' : null),
   add_ui_part: 'declarative',
@@ -66,6 +68,7 @@ export const TOOL_REACH: Record<(typeof DESIGNER_TOOL_NAMES)[number], ToolReach>
   fill_spot: 'declarative',
   use_pictures: 'declarative',
   ask_person: 'reads',
+  suggest_next: 'reads',
   // npm packages the model names, added to the project.
   request_package: 'requestPackage',
   make_pictures: 'declarative',

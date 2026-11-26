@@ -23,6 +23,7 @@ import { ASSISTANT_INPUT_TOKEN_LIMIT, estimateTokens, ProviderError, type Provid
 import { namedAddOns, type Posting, type PostingMapping, type PostingPoint } from '@adminium/manifest';
 
 import { legacyPictures } from './pictures-apply.js';
+import { OFFER_APP, readyMadeSection, type AppLine } from './offer-app.js';
 import { checkApp, accessInWords } from '../project/apps/check-app.js';
 import { builtInStylesDir, skillGuidance } from '../project/apps/design-skills.js';
 import { missingFonts, readLook, resolveLook, sidesWithScreens } from '../project/apps/look.js';
@@ -80,7 +81,8 @@ How it works:
 - When the person says a screen stopped with an error, a clean check_app does not show it is mended: the check reads the files, and the error happens when the page runs. Say it is fixed only when the page was looked at after your change and nothing was reported. Otherwise say what you changed and why, and ask them to open the page and tell you what they see.
 - When the person says they see no change ("nothing changed", "I still see it"), they mean the change you made in the turn before this one: go back to that part of the screen, not to an older request. The preview opens the page again by itself after every build, so never tell them to refresh, reload or clear anything. Read the file: when your change is there, it was too small to see, or another rule decides how that part looks. Make a change a person sees at a glance, and say in one sentence what looks different now.
 
-End every turn the same way: check_app, fix every error it names, apply_app, then tell the person in a few plain sentences what you built and what they can do next. Do not list files, and use no words of the trade ("rung", "CRUD", "manifest", "endpoint"): say what they can now do, in their words.`;
+End every turn the same way: check_app, fix every error it names, apply_app, then tell the person in a few plain sentences what you built. Do not list files, and use no words of the trade ("rung", "CRUD", "manifest", "endpoint"): say what they can now do, in their words.
+- What they can do next is not said in words: in a turn that built or changed the app, call suggest_next in the same reply as apply_app, and the person gets a button for each step. Give the steps this person would want next, the most useful first: a table they fill themselves before the app is of use (their products, their services, their rooms) as a "table" step; an add-on that would do more for them (taking card payments, stock that counts itself down, receipts) as an "add_on" step, with a key list_add_ons gave you; the next part worth building as a "say" step, written as they would ask for it. Never end a reply with a list of next steps or of add-ons in your own words.`;
 
 /** How a screen of the app's own is started: said to every turn but one on the operator's AI that builds dashboards only. */
 const SIDES_LINE = `- For a screen of the app's own, call add_side ("staff" or "customer") first: it writes a working starter screen, chooses a style, and asks the person once for what the screens need. Then write its src/App.tsx again for this app's tables. A screen that shows nothing real is not finished: a customer page lists what customers may read and has the form they send.{{addresses}}`;
@@ -118,6 +120,8 @@ export interface PromptDeps {
   stylesDir?: string | null;
   /** Whether the session's app still waits for its name. */
   needsName?: (session: DesignerSession) => boolean;
+  /** The published apps this server could install: shown to the model while a new app has no name, so one can be offered before it is built. */
+  listApps?: () => Promise<AppLine[]>;
 }
 
 /** A skill file, or nothing. */
@@ -557,9 +561,12 @@ export function createPrompt(deps: PromptDeps) {
     const design = designs ? designSection(deps.root, session.appKey, deps.skills, stylesDir) : '';
     // A design document outlives the message it came with: named in every request, since that message is folded away in a long session.
     const designDocs = designs && deps.attachments !== undefined ? designDocsLine(deps.attachments, session.id) : '';
+    // The published apps, while one can still be offered: the app has no name yet, the turn's tools hold the offer, and none was made.
+    const offers = deps.needsName?.(session) === true && (opts.tools ?? []).some((tool) => tool.name === OFFER_APP) && !messages.some((message) => message.content.some((block) => block.type === 'tool_call' && block.name === OFFER_APP));
+    const readyMade = offers && deps.listApps !== undefined ? readyMadeSection(await deps.listApps().catch(() => [])) : '';
     const scoped = opts.operatorScope === true;
     const preamble = PREAMBLE.replace('{{sides}}', scoped ? OPERATOR_SCOPE_LINE : SIDES_LINE).replace('{{addresses}}', names.includes('adminium-surface/SKILL.md') ? '' : ` ${ADDRESSES}`);
-    const system = `${preamble}\n\n${VERBS}\n\n${ownCodeAllows('designerCode').allowed && !scoped ? '' : `${DECLARATIVE_ONLY}\n\n`}${target}${names.map((name) => skill(deps.skills, name)).join('')}${design === '' ? '' : `\n\n${design}`}${designDocs === '' ? '' : `\n\n${designDocs}`}${ownRow === '' ? '' : `\n\nThis request is about a person seeing their own row. Do it exactly as this page says, and no other way:${ownRow}`}\n\n${taskGuides(deps.skills)}\n\n===== The app now =====\n${app.text}${app.empty ? `\n\n${partExamples(session.appKey, deps.version)}` : ''}`;
+    const system = `${preamble}\n\n${VERBS}\n\n${ownCodeAllows('designerCode').allowed && !scoped ? '' : `${DECLARATIVE_ONLY}\n\n`}${target}${names.map((name) => skill(deps.skills, name)).join('')}${design === '' ? '' : `\n\n${design}`}${designDocs === '' ? '' : `\n\n${designDocs}`}${ownRow === '' ? '' : `\n\nThis request is about a person seeing their own row. Do it exactly as this page says, and no other way:${ownRow}`}\n\n${taskGuides(deps.skills)}${readyMade === '' ? '' : `\n\n${readyMade}`}\n\n===== The app now =====\n${app.text}${app.empty ? `\n\n${partExamples(session.appKey, deps.version)}` : ''}`;
 
     // The limit is what a request may carry; the reply has its own room beyond it. The tools go with every request.
     const limit = ASSISTANT_INPUT_TOKEN_LIMIT[provider];

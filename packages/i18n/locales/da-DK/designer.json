@@ -281,7 +281,15 @@
     "rowsSkip": "Indlæs ikke",
     "rowsNo": "Du sagde, at de ikke skulle indlæses.",
     "addOnSwitchOn": "Slå listen til",
-    "typeBelow": "Skriv dit svar nedenfor."
+    "typeBelow": "Skriv dit svar nedenfor.",
+    "app": "Der findes en færdig app til dette: {name}",
+    "appSends": "Det er en udgivet app, hel og testet. Du installerer den i Studio → Apps, hvor du vælger dens tilføjelser og eksempeldata. Intet bygges her, så der bruges intet af din AI på den.",
+    "appCopy": "Vil du ændre den bagefter, så kopiér den ind i dette projekt fra Designerens forside (“Start med en app”).",
+    "appYes": "Du valgte {name}.",
+    "appOpen": "Åbn Studio → Apps",
+    "appNo": "Din egen app bygges i stedet.",
+    "appUse": "Brug {name}",
+    "appOwn": "Byg min egen"
   },
   "step": {
     "addOns": "Ser på tilføjelserne",
@@ -391,7 +399,14 @@
     "spotFillFailed": "Dit billede blev ikke sat i {subject}",
     "siteBuilding": "Bygger skærmene ud fra {subject}",
     "siteBuilt": "Byggede {count, plural, one {# skærm} other {# skærme}} ud fra {subject}",
-    "siteFailed": "Byggede ikke ud fra skabelonen"
+    "siteFailed": "Byggede ikke ud fra skabelonen",
+    "appOffering": "Ser på de færdige apps",
+    "appChosen": "Du valgte {subject}",
+    "appDeclined": "Bygger din egen",
+    "appNone": "Ingen færdig app tilbudt",
+    "nextWorking": "Finder ud af, hvad der kommer nu",
+    "nextDone": "Foreslog, hvad der kommer nu",
+    "nextNone": "Intet foreslået"
   },
   "steps": {
     "count": "{count, plural, one {# trin} other {# trin}}",
@@ -1426,5 +1441,13 @@
     "addKey": "Tilføj en AI-nøgle",
     "upgrade": "Opgrader",
     "step": "Kræver din egen AI-nøgle"
+  },
+  "next": {
+    "title": "Hvad nu?",
+    "rows": "Tilføj {table}",
+    "addOn": "Tilføj {name}",
+    "addOnUse": "Brug {name}",
+    "addOnMessage": "Føj tilføjelsen {name} til denne app: {what}",
+    "addOnUseMessage": "Brug tilføjelsen {name} i denne app: {what}"
   }
 }

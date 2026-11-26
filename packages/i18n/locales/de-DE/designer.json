@@ -281,7 +281,15 @@
     "rowsSkip": "Nicht laden",
     "rowsNo": "Du hast gesagt, sie nicht zu laden.",
     "addOnSwitchOn": "Liste einschalten",
-    "typeBelow": "Gib deine Antwort unten ein."
+    "typeBelow": "Gib deine Antwort unten ein.",
+    "app": "Dafür gibt es eine fertige App: {name}",
+    "appSends": "Sie ist eine veröffentlichte App, vollständig und getestet. Sie installieren sie unter Studio → Apps und wählen dort ihre Add-ons und Beispieldaten. Hier wird nichts gebaut, also wird dafür nichts von Ihrer KI verbraucht.",
+    "appCopy": "Um sie danach zu ändern, kopieren Sie sie auf der Startseite des Designers in dieses Projekt („Mit einer App beginnen“).",
+    "appYes": "Sie haben {name} gewählt.",
+    "appOpen": "Studio → Apps öffnen",
+    "appNo": "Stattdessen wird Ihre eigene App gebaut.",
+    "appUse": "{name} verwenden",
+    "appOwn": "Eigene App bauen"
   },
   "step": {
     "addOns": "Sieht sich die Add-ons an",
@@ -391,7 +399,14 @@
     "spotFillFailed": "Ihr Bild wurde nicht in {subject} eingesetzt",
     "siteBuilding": "Bildschirme aus {subject} werden gebaut",
     "siteBuilt": "{count, plural, one {# Bildschirm} other {# Bildschirme}} aus {subject} gebaut",
-    "siteFailed": "Nicht aus der Vorlage gebaut"
+    "siteFailed": "Nicht aus der Vorlage gebaut",
+    "appOffering": "Sieht sich die fertigen Apps an",
+    "appChosen": "Sie haben {subject} gewählt",
+    "appDeclined": "Baut Ihre eigene App",
+    "appNone": "Keine fertige App angeboten",
+    "nextWorking": "Überlegt, was als Nächstes kommt",
+    "nextDone": "Nächste Schritte vorgeschlagen",
+    "nextNone": "Nichts vorgeschlagen"
   },
   "steps": {
     "count": "{count, plural, one {# Schritt} other {# Schritte}}",
@@ -1426,5 +1441,13 @@
     "addKey": "KI-Schlüssel hinzufügen",
     "upgrade": "Upgrade",
     "step": "Braucht Ihren eigenen KI-Schlüssel"
+  },
+  "next": {
+    "title": "Was nun?",
+    "rows": "{table} hinzufügen",
+    "addOn": "{name} hinzufügen",
+    "addOnUse": "{name} verwenden",
+    "addOnMessage": "Füge dieser App das Add-on {name} hinzu: {what}",
+    "addOnUseMessage": "Verwende das Add-on {name} in dieser App: {what}"
   }
 }

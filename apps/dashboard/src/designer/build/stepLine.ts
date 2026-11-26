@@ -117,6 +117,12 @@ export function stepLine(row: StepRow): string {
       return row.state === 'failed' ? t('designer:step.shapeFailed', 'Could not build on the add-on') : t('designer:step.shapeDone', 'Built on an add-on');
     case 'ask_person':
       return running ? t('designer:step.asking', 'Asking you') : t('designer:step.answered', 'You answered');
+    case 'offer_app':
+      if (running) return t('designer:step.appOffering', 'Looking at the ready-made apps');
+      if (row.outcome === 'added') return t('designer:step.appChosen', 'You chose {subject}', S);
+      return row.outcome === 'declined' ? t('designer:step.appDeclined', 'Building your own') : t('designer:step.appNone', 'No ready-made app offered');
+    case 'suggest_next':
+      return running ? t('designer:step.nextWorking', 'Working out what comes next') : (row.count ?? 0) > 0 ? t('designer:step.nextDone', 'Suggested what comes next') : t('designer:step.nextNone', 'Nothing suggested');
     case 'read_attachment':
       return running ? t('designer:step.fileReading', 'Reading the attached file') : row.state === 'failed' ? t('designer:step.fileNotRead', 'Could not read the attached file') : t('designer:step.fileRead', 'Read the attached file');
     case 'load_rows':

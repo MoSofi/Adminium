@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 
 import { installTestI18n } from '../../i18n/testing.js';
 import type { StepRow } from '../build/turns.js';
-import { KeepSpotCard, NeedsCard, PictureLines, PictureNote, PicturesButton, PicturesChip, PersonMessage, SavedChip, SpotsCard, StepsBlock, StyleChip } from './chat.js';
+import { addOnStepMessage, AppOfferCard, appsPagePath, KeepSpotCard, NeedsCard, NextSteps, PictureLines, PictureNote, PicturesButton, PicturesChip, PersonMessage, SavedChip, SpotsCard, StepsBlock, StyleChip } from './chat.js';
 
 let restore: () => void;
 beforeAll(() => {
@@ -201,5 +201,79 @@ describe('the spots card, the keep-it card and the lines', () => {
     cleanup();
     render(<PictureNote lines={[{ kind: 'note', note: 'placeholders', count: 3 }]} />);
     expect(screen.getByText(/placeholders/).textContent).toBe('The pictures are placeholders. Choose pictures from Pictures under this message.');
+  });
+});
+
+describe('a published app offered before one is built', () => {
+  const card = { id: 'card_1', type: 'app' as const, key: 'maker-shop', name: 'Maker Shop', version: '1.2.0', line: 'A made-to-order shop and its studio.' };
+
+  it('says the app in the server’s words, and takes a yes or a no', () => {
+    const onUse = vi.fn();
+    const onSkip = vi.fn();
+    render(<AppOfferCard card={card} answered={false} busy={false} onUse={onUse} onSkip={onSkip} />);
+    expect(screen.getByRole('group', { name: 'There is a ready-made app for this: Maker Shop' })).not.toBeNull();
+    expect(screen.getByText('A made-to-order shop and its studio.')).not.toBeNull();
+    // Only where this server can copy an app into the project is that said.
+    expect(screen.queryByText(/copy it into this project/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Use Maker Shop' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Build my own' }));
+    expect([onUse.mock.calls.length, onSkip.mock.calls.length]).toEqual([1, 1]);
+    cleanup();
+    render(<AppOfferCard card={{ ...card, copy: true }} answered={false} busy={false} onUse={onUse} onSkip={onSkip} />);
+    expect(screen.getByText(/copy it into this project/)).not.toBeNull();
+  });
+
+  it('answered yes, keeps the way to the Apps page; answered no or never, has no button left', () => {
+    render(<AppOfferCard card={card} answered accepted busy={false} onUse={vi.fn()} onSkip={vi.fn()} />);
+    expect(screen.getByText('You chose Maker Shop.')).not.toBeNull();
+    expect(screen.getByRole('link', { name: 'Open Studio → Apps' }).getAttribute('href')).toBe('/studio/apps#app=maker-shop');
+    expect(screen.queryByRole('button')).toBeNull();
+    cleanup();
+    render(<AppOfferCard card={card} answered accepted={false} busy={false} onUse={vi.fn()} onSkip={vi.fn()} />);
+    expect(screen.getByText('Your own app is being built instead.')).not.toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+    cleanup();
+    render(<AppOfferCard card={card} answered={false} closed busy={false} onUse={vi.fn()} onSkip={vi.fn()} />);
+    expect(screen.getByText('No answer was given.')).not.toBeNull();
+    expect(appsPagePath('a b')).toBe('/studio/apps#app=a%20b');
+  });
+});
+
+describe('what comes next, as buttons', () => {
+  const steps = [
+    { kind: 'rows' as const, table: 'products', name: 'Products', path: '/p/shop-products' },
+    { kind: 'add-on' as const, key: 'inventory', name: 'Inventory', text: 'Lower stock when an order is saved', installed: false },
+    { kind: 'add-on' as const, key: 'invoices', name: 'Invoices & Receipts', text: 'Send a receipt for each order', installed: true },
+    { kind: 'ask' as const, text: 'Add a page where customers order online' },
+  ];
+
+  it('sends what a button says, asks for an add-on by the server’s name, and opens a table’s page', () => {
+    const said: string[] = [];
+    render(<NextSteps steps={steps} disabled={false} onSay={(message) => void said.push(message)} />);
+    expect(screen.getByRole('group', { name: 'What next?' })).not.toBeNull();
+    expect(screen.getByRole('link', { name: 'Add your Products' }).getAttribute('href')).toBe('/p/shop-products');
+    fireEvent.click(screen.getByRole('button', { name: 'Add Inventory' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use Invoices & Receipts' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add a page where customers order online' }));
+    expect(said).toEqual([
+      'Add the Inventory add-on to this app: Lower stock when an order is saved',
+      'Use the Invoices & Receipts add-on in this app: Send a receipt for each order',
+      'Add a page where customers order online',
+    ]);
+    // What an add-on's step is for is said beside its button.
+    expect(screen.getByText('Lower stock when an order is saved')).not.toBeNull();
+    expect(addOnStepMessage(steps[1] as Extract<(typeof steps)[number], { kind: 'add-on' }>)).toBe(said[0]);
+  });
+
+  it('sends nothing while the Designer works, and draws nothing with no step', () => {
+    const onSay = vi.fn();
+    const { container } = render(<NextSteps steps={steps} disabled onSay={onSay} />);
+    for (const button of screen.getAllByRole('button')) fireEvent.click(button);
+    expect(onSay).not.toHaveBeenCalled();
+    // A table's page is a link: it opens whatever the Designer is doing.
+    expect(screen.getByRole('link', { name: 'Add your Products' })).not.toBeNull();
+    cleanup();
+    expect(render(<NextSteps steps={[]} disabled={false} onSay={onSay} />).container.textContent).toBe('');
+    expect(container).not.toBeNull();
   });
 });

@@ -10,7 +10,7 @@
  * files"); the header still counts every step. The end-of-turn check, build
  * and apply join the list as rows of their own.
  */
-import type { DesignerAttachment, DesignerCard, DesignerPicked, DesignerEvent, FolderHold, LimitKind, MakeJob, OperatorAiCard, SpendMark, StepFacts, TurnOutcome } from '../api.js';
+import type { DesignerAttachment, DesignerCard, DesignerPicked, DesignerEvent, FolderHold, LimitKind, MakeJob, NextStep, OperatorAiCard, SpendMark, StepFacts, TurnOutcome } from '../api.js';
 
 export interface StepRow extends StepFacts {
   id: string;
@@ -80,6 +80,8 @@ export interface TurnView {
   pictures: PictureLine[];
   /** The fixed card the turn ended with on the operator's AI, in place of the Designer's own words about it. */
   operatorAi: OperatorAiCard | null;
+  /** What the person can do next, as the Designer last said it in this turn: the buttons under the reply. */
+  nextSteps: NextStep[];
 }
 
 const FILE_TOOLS = new Set(['write_file', 'edit_file', 'delete_file']);
@@ -110,6 +112,7 @@ function blank(turn: number, at: number): TurnView {
     changedFiles: false,
     pictures: [],
     operatorAi: null,
+    nextSteps: [],
   };
 }
 
@@ -302,6 +305,10 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
         break;
       case 'operator-ai':
         turn.operatorAi = event.card;
+        break;
+      case 'next-steps':
+        // Only what this page knows how to draw: a newer server's kind of step is left out, never drawn as another.
+        turn.nextSteps = (Array.isArray(event.steps) ? event.steps : []).filter((step) => step.kind === 'ask' || step.kind === 'add-on' || step.kind === 'rows');
         break;
       case 'stopped':
         break;
