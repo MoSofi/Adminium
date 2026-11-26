@@ -50,7 +50,7 @@ import type { AppSide } from '../project/apps/read-app.js';
 import { hasOwnBuild } from '../project/apps/own-build.js';
 import { declaredLedgers, ledgerParts } from '../project/apps/ledger-parts.js';
 import { adoptParts, shapeParts, spelledOut } from '../project/apps/shape-parts.js';
-import { cleanSpot, plainWords, readPictureFile, readSpots, serverOwned, SPOT_ID, SPOTS_MAX, spotVersion, writeSpots, type SpotEntry } from './spots.js';
+import { cleanSpot, plainWords, readPictureFile, readSpots, serverOwned, SPOT_ID, SPOTS_MAX, spotScreens, spotVersion, writeSpots, type SpotEntry } from './spots.js';
 import { addsBuildCommand, createTurnReads, isBuildFile, needsCard, phoneFileRefusal, renamesTables } from './write-guard.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
 import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictures.js';
@@ -2141,6 +2141,49 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
             .join('\n\n'),
           made.length === 0 ? 'Kept the picture spots' : `Named ${String(made.length)} picture spots`,
           { facts: { outcome: 'added', count: made.length } },
+        );
+      },
+    },
+    {
+      // spots.json is the server's (the person's choices live in it), so a spot the page no longer needs could only be left
+      // behind: four stranded spots were counted "to fill" and the check asked for them to be drawn again (seen 2026-11-26).
+      name: 'remove_spots',
+      description:
+        'Take away picture spots the pages no longer need, all in ONE call: "ids" (their ids). Only a spot no screen draws (take its <Picture spot="…" /> out first) and the person has not filled: a filled one is theirs, so ask them to remove it in Pictures.',
+      inputSchema: {
+        type: 'object',
+        properties: { ids: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'string' } } },
+        required: ['ids'],
+        additionalProperties: false,
+      },
+      running: () => 'Taking away picture spots',
+      run: async (input, ctx) => {
+        const none = (content: string): ToolOutcome => ({ ...refused(content, 'No spots taken away'), facts: { outcome: 'refused' } });
+        const nameless = unnamed(ctx);
+        if (nameless !== null) return nameless;
+        if (hasOwnBuild(deps.root, appKey)) return none('This app is a copy of a published one and keeps its own pictures in src/.');
+        const asked = [...new Set((Array.isArray(input['ids']) ? (input['ids'] as unknown[]) : []).filter((id): id is string => typeof id === 'string').map((id) => id.trim()))].slice(0, 12);
+        const spots = readSpots(deps.root, appKey);
+        const drawn = spotScreens(deps.root, appKey);
+        const gone: SpotEntry[] = [];
+        const problems: string[] = [];
+        for (const id of asked) {
+          const spot = spots.find((candidate) => candidate.id === id);
+          if (spot === undefined) problems.push(`"${id.slice(0, 40)}" is no spot of this app.${spots.length === 0 ? '' : ` Its spots: ${spots.map((one) => one.id).slice(0, 12).join(', ')}.`}`);
+          else if (drawn.has(id)) problems.push(`"${id}" is still drawn (${(drawn.get(id) ?? []).map((where) => where.file).filter((file) => file !== '').slice(0, 3).join(', ') || 'a screen'}): take its <Picture spot="${id}" /> out first, or keep it.`);
+          else if (spot.file !== null) problems.push(`"${id}" (${spot.label}) shows a picture the person chose: it is theirs. Ask them to remove it in Pictures, or draw it again.`);
+          else gone.push(spot);
+        }
+        if (gone.length === 0) return none(problems.join('\n') || 'Give "ids": the spots to take away.');
+        writeSpots(
+          deps.root,
+          appKey,
+          spots.filter((spot) => !gone.includes(spot)),
+        );
+        return text(
+          [`Took away ${String(gone.length)} spot(s): ${gone.map((spot) => `"${spot.id}" (${spot.label})`).join(', ')}.`, problems.length === 0 ? null : `Kept:\n${problems.join('\n')}`].filter((part): part is string => part !== null).join('\n\n'),
+          `Took away ${String(gone.length)} picture spots`,
+          { facts: { count: gone.length } },
         );
       },
     },

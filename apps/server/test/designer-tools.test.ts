@@ -1317,6 +1317,25 @@ describe('picture spots, named by the Designer and filled by the person', () => 
     expect(spots()).toEqual(filled);
   });
 
+  it('takes away a spot the pages no longer need, and never one a screen draws or the person filled', async () => {
+    // Seen 2026-11-26: four spots the model no longer drew could not be taken away; they were counted "to fill" and the
+    // check asked for them to be drawn again.
+    await run('add_spots', { spots: ['hero', 'team', 'kitchen', 'shop'].map((id) => ({ id, label: id, shape: 'wide' })) });
+    writeFileSync(spotsFile(), JSON.stringify({ ...spots(), shop: { ...spots()['shop'], file: 'shop-1234abcd.jpg', alt: 'The shop' } }));
+    mkdirSync(join(root, 'apps', 'repairs', 'customer', 'src'), { recursive: true });
+    writeFileSync(join(root, 'apps', 'repairs', 'customer', 'src', 'App.tsx'), 'export function App() { return <Picture spot="hero" />; }\n');
+    const gone = await run('remove_spots', { ids: ['team', 'kitchen', 'hero', 'shop', 'nowhere'] });
+    expect(gone).toMatchObject({ label: 'Took away 2 picture spots', facts: { count: 2 } });
+    expect(gone.content).toContain('Took away 2 spot(s): "team" (team), "kitchen" (kitchen).');
+    expect(gone.content).toContain('"hero" is still drawn (customer/src/App.tsx)');
+    expect(gone.content).toContain('"shop" (shop) shows a picture the person chose');
+    expect(gone.content).toContain('"nowhere" is no spot of this app');
+    expect(Object.keys(spots()).sort()).toEqual(['hero', 'shop']);
+    // Nothing that may be taken away: refused, and the file is as it was.
+    expect(await run('remove_spots', { ids: ['hero'] })).toMatchObject({ isError: true, facts: { outcome: 'refused' } });
+    expect(Object.keys(spots()).sort()).toEqual(['hero', 'shop']);
+  });
+
   it('puts a picture the person attached to this message in a spot, and nothing they sent before', async () => {
     await run('add_spots', { spots: [{ id: 'hero', label: 'Hero', shape: 'wide' }] });
     const attachments = createAttachments(root);

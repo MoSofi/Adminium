@@ -337,7 +337,7 @@ describe('picture spots', () => {
     write('customer/src/App.tsx', drawn('<Picture spot="hero" /><Picture spot="kitchen" />'));
     expect(await lines()).toEqual([
       '- apps/cakes/customer/src/App.tsx draws the spot "kitchen", which was never named, so it shows an empty frame: name it with add_spots (its label, shape and what it shows), or draw a spot that is there (hero, team).',
-      '- The spot "team" (Team) is named and no screen draws it: draw it with <Picture spot="team" /> where it belongs.',
+      '- The spot "team" (Team) is named and no screen draws it: draw it with <Picture spot="team" /> where it belongs, or take it away with remove_spots when the page no longer needs it.',
     ]);
     write('customer/src/App.tsx', drawn('<Picture spot="hero" /><Picture spot={\'team\'} />'));
     expect(await lines()).toEqual([]);
