@@ -3,7 +3,8 @@
  * The preview's own sign-in.
  *
  * The staff side and the dashboard need a signed-in session to show
- * anything, and the preview runs on its own name (`localhost:<port>`), where
+ * anything, and the preview runs on its own name (`localhost:<port>` under
+ * `adminium design`, the operator's preview address on a server people reach), where
  * the owner's session is not sent. It is given a session of its own — and a
  * LOW one: a user that holds only the roles of the app being built, so code
  * the model wrote, running in the preview, can do what the app's own staff
@@ -17,14 +18,13 @@
 import { randomBytes } from 'node:crypto';
 
 import { rolesRepo, usersRepo, type MetaDb, type User } from '@adminium/meta';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import { createSession, sessionCookieNameOf } from '../auth/sessions.js';
-import { hostRole } from './design-mode.js';
+import { PREVIEW_USER_EMAIL } from './preview-user.js';
 
-/** Who the preview signs in as. `.localhost` is a name nobody can own. */
-export const PREVIEW_USER_EMAIL = 'preview@adminium.localhost';
+export { PREVIEW_USER_EMAIL };
 /** How long a ticket waits to be spent. */
 export const PREVIEW_TICKET_MS = 60_000;
 /** A preview session lasts as long as the owner's. */
@@ -59,11 +59,15 @@ export function safeTarget(to: string, appKey: string): string | null {
   return to;
 }
 
-export function registerPreview(app: FastifyInstance, deps: { meta: MetaDb; port: number }): PreviewTickets {
+/**
+ * `onPreview` says whether a request came in on the preview's name: `localhost` under `adminium design`
+ * (`design-mode.ts`), the operator's preview address on a server people reach (`live-preview.ts`).
+ */
+export function registerPreview(app: FastifyInstance, deps: { meta: MetaDb; onPreview: (request: FastifyRequest) => boolean }): PreviewTickets {
   const tickets = new Map<string, { appKey: string; expires: number }>();
 
   app.get('/designer-preview/enter', { config: { rateLimitBucket: 'designer' } }, async (request, reply) => {
-    if (hostRole(request.headers.host, deps.port) !== 'preview') {
+    if (!deps.onPreview(request)) {
       return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Not found.' } });
     }
     const parsed = enterQuery.safeParse(request.query);

@@ -31,6 +31,10 @@
  *    (`surfaces.domains`, `surfaces.pageHosts`) must be one of the listed
  *    domains, and not the one links point at ({@link mayMapHost}).
  *
+ * A third variable, `ADMINIUM_PREVIEW_ORIGIN`, adds one more host the instance
+ * answers on: the Designer's preview (`designer/live-preview.ts`). It needs
+ * the public origin, and is none of the things above.
+ *
  * Without either, nothing here runs and the server answers every name, as it
  * always has.
  */
@@ -61,12 +65,15 @@ export interface OperatorHosts {
 /** The paths that answer on every host. */
 export const ANY_HOST_PATHS: ReadonlySet<string> = new Set(['/api/v1/healthz', '/api/v1/readyz']);
 
-export function operatorHostsOf(env: Pick<Env, 'ADMINIUM_PUBLIC_ORIGIN' | 'ADMINIUM_OPERATOR_DOMAINS'>): OperatorHosts | null {
+export function operatorHostsOf(env: Pick<Env, 'ADMINIUM_PUBLIC_ORIGIN' | 'ADMINIUM_OPERATOR_DOMAINS' | 'ADMINIUM_PREVIEW_ORIGIN'>): OperatorHosts | null {
   const domains = env.ADMINIUM_OPERATOR_DOMAINS ?? [];
   const publicOrigin = env.ADMINIUM_PUBLIC_ORIGIN;
   if (publicOrigin === undefined && domains.length === 0) return null;
   const hosts = new Set(domains);
   if (publicOrigin !== undefined) hosts.add(new URL(publicOrigin).hostname);
+  // The Designer's preview has an address of its own (`designer/live-preview.ts`): answered on, and nothing more. It is
+  // never where links point, never a domain a side can be mapped to, and never a website that may frame a form.
+  if (env.ADMINIUM_PREVIEW_ORIGIN !== undefined) hosts.add(new URL(env.ADMINIUM_PREVIEW_ORIGIN).hostname);
   const first = domains[0];
   return { origin: first === undefined ? publicOrigin! : `https://${first}`, domains, hosts, publicOrigin: publicOrigin ?? null };
 }

@@ -350,10 +350,11 @@ describe('implied values are enforced, never defaults', () => {
 describe('the operator-decided list', () => {
   it('names every trial and operator variable the schema validates', () => {
     const pattern =
-      /^ADMINIUM_(TRIAL_|HOSTED_MODE$|PUBLIC_ORIGIN$|DATABASE_HOSTS$|LOCAL_DATABASES$|NETWORK_POLICY$|SQLITE_DIRS$|STORAGE_DIRS$|SETUP_TOKEN$|DEPLOY_LINK$|OPERATOR_|AI_OPERATOR_|SUPABASE_CONNECT_URL$|DESIGNER_START_PROMPT|YOUR_DATABASE$|DATABASE_USER_HOST$|DATABASE_DENY_ADDRESSES$|AI_BUILD_API_KEY$)/;
+      /^ADMINIUM_(TRIAL_|HOSTED_MODE$|PUBLIC_ORIGIN$|PREVIEW_ORIGIN$|DATABASE_HOSTS$|LOCAL_DATABASES$|NETWORK_POLICY$|SQLITE_DIRS$|STORAGE_DIRS$|SETUP_TOKEN$|DEPLOY_LINK$|OPERATOR_|AI_OPERATOR_|SUPABASE_CONNECT_URL$|DESIGNER_START_PROMPT|YOUR_DATABASE$|DATABASE_USER_HOST$|DATABASE_DENY_ADDRESSES$|AI_BUILD_API_KEY$)/;
     const fromSchema = Object.keys(envSchema.shape).filter((name) => pattern.test(name)).sort();
     expect([...OPERATOR_DECIDED_ENV].sort()).toEqual(fromSchema);
-    // 33, and the build box's five: the operator project, the user's database, its host, the deny list, the build key.
-    expect(fromSchema.length).toBe(38);
+    // 33, the build box's five (the operator project, the user's database, its host, the deny list, the build key), and
+    // the Designer's preview address.
+    expect(fromSchema.length).toBe(39);
   });
 });

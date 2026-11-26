@@ -222,6 +222,9 @@
                         "link": {
                           "type": "boolean"
                         },
+                        "preview": {
+                          "type": "boolean"
+                        },
                         "startPrompt": {
                           "type": "boolean"
                         },
@@ -235,6 +238,7 @@
                       "required": [
                         "mode",
                         "link",
+                        "preview",
                         "startPrompt",
                         "startPromptWaitsUntil"
                       ],

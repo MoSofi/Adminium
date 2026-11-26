@@ -32,6 +32,7 @@ import {
   resolveSessionByToken,
 } from '../auth/sessions.js';
 import { totpEncryptionKey } from '../auth/totp.js';
+import { sessionBelongsHere } from '../designer/live-preview.js';
 import { API_KEY_PREFIX } from '../rbac/api-keys.js';
 import { signedInGuard } from '../security/route-audience.js';
 
@@ -175,6 +176,8 @@ export const authPlugin = fp<AuthPluginOptions>(
 
       const user = await usersRepo(context.meta).findById(resolution.session.userId);
       if (user === null || user.status !== 'active') return;
+      // The preview's address signs in the preview user and nobody else, and that user is signed in nowhere else.
+      if (!sessionBelongsHere(app.hasDecorator('livePreview') ? app.livePreview : null, request, user)) return;
 
       request.user = user;
       request.session = resolution.session;
