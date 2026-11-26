@@ -27,6 +27,8 @@ import {
   ruleText,
   areaWithin,
   colourScheme,
+  seeThrough,
+  smallCopy,
   SideError,
 } from '../src/side/index.js';
 
@@ -1275,5 +1277,52 @@ describe('a picture in its spot', () => {
     hooks.set = false;
     side.Picture({ spot: 'plain' });
     expect(side.creditsLine()).toEqual([]);
+  });
+});
+
+describe('a picture on the page, as the page picture holds it', () => {
+  /** A canvas whose pixels are what the test says, and that records the type it was asked for. */
+  const docWith = (alpha: number[], opts: { tainted?: boolean } = {}) => {
+    const asked: string[] = [];
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        drawImage: () => undefined,
+        getImageData: () => {
+          if (opts.tainted === true) throw new Error('SecurityError');
+          return { data: Uint8ClampedArray.from(alpha.flatMap((a) => [10, 20, 30, a])) };
+        },
+      }),
+      toDataURL: (type: string) => {
+        asked.push(type);
+        return `data:${type};base64,AAAA`;
+      },
+    };
+    return { doc: { createElement: () => canvas } as unknown as Document, canvas, asked };
+  };
+  const shown = (width: number, height: number) => ({ naturalWidth: width, naturalHeight: height }) as HTMLImageElement;
+
+  it('tells a picture that can be seen through from a solid one', () => {
+    expect(seeThrough([1, 2, 3, 255, 4, 5, 6, 255])).toBe(false);
+    expect(seeThrough([1, 2, 3, 255, 0, 0, 0, 0])).toBe(true);
+    expect(seeThrough([1, 2, 3, 254])).toBe(true);
+    expect(seeThrough([])).toBe(false);
+  });
+
+  it('keeps a see-through picture see-through (PNG): a JPEG would put it on a black box the page does not show', () => {
+    const clear = docWith([255, 0, 128, 255]);
+    expect(smallCopy(shown(640, 480), clear.doc)).toBe('data:image/png;base64,AAAA');
+    expect(clear.asked).toEqual(['image/png']);
+    expect([clear.canvas.width, clear.canvas.height]).toEqual([480, 360]);
+    const solid = docWith([255, 255, 255, 255]);
+    expect(smallCopy(shown(200, 100), solid.doc)).toBe('data:image/jpeg;base64,AAAA');
+    expect([solid.canvas.width, solid.canvas.height]).toEqual([200, 100]);
+  });
+
+  it('leaves a picture it may not read (another site’s) out', () => {
+    const other = docWith([255], { tainted: true });
+    expect(smallCopy(shown(100, 100), other.doc)).toBeNull();
+    expect(other.asked).toEqual([]);
   });
 });
