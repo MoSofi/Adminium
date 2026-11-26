@@ -63,11 +63,10 @@ export interface LivePreview {
 }
 
 /** The preview's address, when the operator gave one and the instance's own addresses are known. */
-export function livePreviewOf(env: Pick<Env, 'ADMINIUM_PREVIEW_ORIGIN'>, hosts: Pick<OperatorHosts, 'publicOrigin' | 'domains'> | null): LivePreview | null {
+export function livePreviewOf(env: Pick<Env, 'ADMINIUM_PREVIEW_ORIGIN'>, hosts: Pick<OperatorHosts, 'origins'> | null): LivePreview | null {
   const origin = env.ADMINIUM_PREVIEW_ORIGIN;
   if (origin === undefined || hosts === null) return null;
-  const framers = [...new Set([...(hosts.publicOrigin === null ? [] : [hosts.publicOrigin]), ...hosts.domains.map((domain) => `https://${domain}`)])];
-  return { origin, host: hostNameOf(new URL(origin).host), framers };
+  return { origin, host: hostNameOf(new URL(origin).host), framers: hosts.origins };
 }
 
 /** Whether a request came in on the preview's address. The host is the proxy's `X-Forwarded-Host` where the proxy is trusted. */

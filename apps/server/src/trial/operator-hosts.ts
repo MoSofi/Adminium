@@ -60,6 +60,11 @@ export interface OperatorHosts {
   hosts: ReadonlySet<string>;
   /** `ADMINIUM_PUBLIC_ORIGIN`, when set. */
   publicOrigin: string | null;
+  /**
+   * The origins the instance's own pages are on: the public origin, then `https://` and each listed domain. What may
+   * frame the Designer's preview (`designer/live-preview.ts`). Never the preview's own address.
+   */
+  origins: readonly string[];
 }
 
 /** The paths that answer on every host. */
@@ -75,7 +80,8 @@ export function operatorHostsOf(env: Pick<Env, 'ADMINIUM_PUBLIC_ORIGIN' | 'ADMIN
   // never where links point, never a domain a side can be mapped to, and never a website that may frame a form.
   if (env.ADMINIUM_PREVIEW_ORIGIN !== undefined) hosts.add(new URL(env.ADMINIUM_PREVIEW_ORIGIN).hostname);
   const first = domains[0];
-  return { origin: first === undefined ? publicOrigin! : `https://${first}`, domains, hosts, publicOrigin: publicOrigin ?? null };
+  const origins = [...new Set([...(publicOrigin === undefined ? [] : [publicOrigin]), ...domains.map((name) => `https://${name}`)])];
+  return { origin: first === undefined ? publicOrigin! : `https://${first}`, domains, hosts, publicOrigin: publicOrigin ?? null, origins };
 }
 
 /**
