@@ -432,6 +432,7 @@
     "limitSteps": "本轮已达到 {value} 步的上限。",
     "limitTurnTokens": "本轮已达到 {value} 个令牌的上限。",
     "modelFailed": "模型停止了响应（{provider}，{status}）。没有丢失任何内容。",
+    "modelFailedIncluded": "附带的 AI 停止了响应（{status}）。没有丢失任何内容。",
     "notApplied": "本轮的更改未被应用：{message}",
     "putBack": "还原文件",
     "putBackDone": "文件已恢复原样。",

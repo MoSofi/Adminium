@@ -217,6 +217,8 @@ function harness(
     onPrompt?: (opts: PromptOpts | undefined) => void;
     attachments?: Attachments;
     windowOf?: (session: DesignerSession) => Promise<number>;
+    /** The session's model runs on the connection the operator set. */
+    operatorConnection?: boolean;
   } = {},
 ): Harness {
   const model = scripted(steps);
@@ -250,6 +252,7 @@ function harness(
     ...(opts.appOfferWaitMs === undefined ? {} : { appOfferWaitMs: opts.appOfferWaitMs }),
     ...(opts.attachments === undefined ? {} : { attachments: opts.attachments }),
     ...(opts.windowOf === undefined ? {} : { windowOf: opts.windowOf }),
+    ...(opts.operatorConnection === undefined ? {} : { operatorConnection: () => opts.operatorConnection === true }),
     retryWaitsMs: [0, 0],
     log: (line) => h.logs.push(line),
     publish: (event) => h.published.push(event),
@@ -543,6 +546,36 @@ describe('a Designer turn', () => {
     await h.runner.settled();
     expect(h.published.find((event) => event.kind === 'error')).toMatchObject({ code: 'auth', provider: 'anthropic', status: 401 });
     expect(finished(h)).toMatchObject({ outcome: 'failed' });
+  });
+
+  it('on the connection the operator set, a failed model is not named: its status and its own words only', async () => {
+    const refused = (): ProviderError =>
+      new ProviderError({ provider: 'openai-compatible', code: 'rate_limit', status: 429, message: 'openai-compatible: HTTP 429 — {"error":{"message":"The AI included here is used up."}}' });
+    const session = newSession();
+    const h = harness([refused(), refused(), refused()], { operatorConnection: true });
+    await h.runner.start(session.id, { text: 'go', by: { id: null, label: 'x' } });
+    await h.runner.settled();
+    const error = h.published.find((event) => event.kind === 'error');
+    expect(error).toMatchObject({ code: 'rate_limit', status: 429, message: 'HTTP 429 — {"error":{"message":"The AI included here is used up."}}' });
+    expect(error).not.toHaveProperty('provider');
+    expect(JSON.stringify(h.published)).not.toContain('openai-compatible');
+    expect(finished(h)).toMatchObject({ outcome: 'failed' });
+
+    // A failure with no status (the connection could not be reached) is not named either.
+    const second = newSession();
+    const offline = harness([new ProviderError({ provider: 'ollama', code: 'config', message: 'ollama: no model is set' })], { operatorConnection: true });
+    await offline.runner.start(second.id, { text: 'go', by: { id: null, label: 'x' } });
+    await offline.runner.settled();
+    const plain = offline.published.find((event) => event.kind === 'error');
+    expect(plain).toMatchObject({ code: 'config', message: 'no model is set' });
+    expect(plain).not.toHaveProperty('provider');
+
+    // A person's own connection is named, as before.
+    const third = newSession();
+    const own = harness([new ProviderError({ provider: 'ollama', code: 'http', status: 402, message: 'ollama: HTTP 402 — add usage credits' })], { operatorConnection: false });
+    await own.runner.start(third.id, { text: 'go', by: { id: null, label: 'x' } });
+    await own.runner.settled();
+    expect(own.published.find((event) => event.kind === 'error')).toMatchObject({ provider: 'ollama', status: 402, message: 'ollama: HTTP 402 — add usage credits' });
   });
 
   it('asks a provider again after a failure in passing, and gives up after the last wait', async () => {

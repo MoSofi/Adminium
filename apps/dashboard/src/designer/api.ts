@@ -550,6 +550,7 @@ export type DesignerEventBody =
   | { kind: 'style'; skill: string; title: string; fonts?: string[] }
   | { kind: 'limit'; which: LimitKind; value: number }
   | { kind: 'stopped' }
+  /** A status with no provider: a model call on the connection the operator set, whose provider the server does not name. */
   | { kind: 'error'; code: string; message: string; provider?: string; status?: number }
   | { kind: 'turn-finished'; outcome: TurnOutcome }
   /** The app's folder taken, and handed back, by something a person did from a page: no turn runs. */

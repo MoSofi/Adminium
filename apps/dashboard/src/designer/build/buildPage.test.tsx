@@ -531,6 +531,21 @@ describe('the build page', () => {
     expect(note.querySelector('a')).toBeNull();
   });
 
+  it('does not name the provider of the AI the installation includes', async () => {
+    // A status with no provider: the call ran on the connection the operator set.
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'A bakery.' }),
+      ev(1, { kind: 'error', code: 'rate_limit', message: 'HTTP 429 — {"error":{"message":"The AI included here is used up. Add your own AI key to continue.","code":"insufficient_quota"}}', status: 429 }),
+      ev(1, { kind: 'turn-finished', outcome: 'failed' }),
+    ];
+    await open();
+    const note = await screen.findByRole('alert');
+    expect(note.textContent).toContain('The included AI stopped answering (429). Nothing was lost.');
+    expect(note.textContent).toContain('The AI included here is used up. Add your own AI key to continue.');
+    expect(note.textContent).not.toContain('HTTP 429');
+    expect(note.textContent).not.toContain('insufficient_quota');
+  });
+
   it('asks before data is removed, and before a package is added', async () => {
     stored = [
       ev(1, { kind: 'turn-started', text: 'Drop notes.' }),

@@ -432,6 +432,7 @@
     "limitSteps": "Toto kolo dosáhlo limitu {value} kroků.",
     "limitTurnTokens": "Toto kolo dosáhlo limitu {value} tokenů.",
     "modelFailed": "Model přestal odpovídat ({provider}, {status}). Nic se neztratilo.",
+    "modelFailedIncluded": "Zahrnutá AI přestala odpovídat ({status}). Nic se neztratilo.",
     "notApplied": "Změny z tohoto kola nebyly použity: {message}",
     "putBack": "Vrátit soubory zpět",
     "putBackDone": "Soubory jsou zpět, jak byly.",
