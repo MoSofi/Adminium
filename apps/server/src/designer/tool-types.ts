@@ -66,8 +66,8 @@ export interface DesignerTool {
   description: string;
   /** A JSON Schema of type `object`. */
   inputSchema: Record<string, unknown>;
-  /** What the step says while it runs: "Writing tables/jobs.json". */
-  running(input: Record<string, unknown>): string;
+  /** What the step says while it runs: "Writing tables/jobs.json". The turn is there for a name only it can find. */
+  running(input: Record<string, unknown>, ctx?: ToolContext): string;
   /** What the step is about, for its line, when the input does not say it in a path or a name. */
   subject?(input: Record<string, unknown>, ctx: ToolContext): string | undefined;
   run(input: Record<string, unknown>, ctx: ToolContext): Promise<ToolOutcome>;

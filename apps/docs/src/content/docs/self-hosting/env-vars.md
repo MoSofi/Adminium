@@ -68,6 +68,7 @@ half-configured and fail later.
 | `ADMINIUM_DATABASE_USER_HOST` | No | *(unset)* | Trial or hosted mode: the one `host:port` of the user's own database, outside `ADMINIUM_DATABASE_HOSTS`. Public addresses only; the port is required, 1024 or above, and not a known non-database service. With `ADMINIUM_YOUR_DATABASE` it must be that database's host and port. |
 | `ADMINIUM_DATABASE_DENY_ADDRESSES` | No | *(unset)* | CSV of IP addresses and CIDR ranges (v4 or v6) no source database may resolve to, on top of the private and reserved ranges. |
 | `ADMINIUM_OPERATOR_DOMAINS` | No | *(unset)* | CSV of the user's own verified domains: plain lower-case host names, `shop.example.com`. No wildcard, address, port or path. Honoured with or without trial mode: the instance answers on these and `ADMINIUM_PUBLIC_ORIGIN`'s host, links in email point at `https://` and the first one, and only these can be mapped to an app's side or the add-on pages. |
+| `ADMINIUM_PREVIEW_ORIGIN` | No | *(unset)* | The address the Designer's preview is served on, `https://shop.preview-example.com`: a second name for this instance, on a different site from `ADMINIUM_PUBLIC_ORIGIN` (another registrable domain, not a subdomain beside it). Needs `ADMINIUM_PUBLIC_ORIGIN`. Unset, the Designer on a server people reach has no preview. See [The Designer's preview address](#the-designers-preview-address). |
 | `ADMINIUM_OPERATOR_TOKEN` | No | *(unset)* | The [operator endpoint](/self-hosting/operator-endpoint/)'s bearer token, and the key [instance events](#adminium_operator_events_url) are signed with: 32 random bytes or more (`openssl rand -hex 32`), one per instance. Needs `ADMINIUM_OPERATOR_LISTEN`, `ADMINIUM_OPERATOR_EVENTS_URL` or both. A secret: takes `_FILE`. |
 | `ADMINIUM_OPERATOR_LISTEN` | No | *(unset)* | `address:port` the [operator endpoint](/self-hosting/operator-endpoint/) listens on, on your own network: `10.0.0.2:4601`. Never `0.0.0.0`, a name, or `PORT`. Needs `ADMINIUM_OPERATOR_TOKEN`. The public listener never serves `/api/v1/operator/*`. |
 | `ADMINIUM_OPERATOR_EVENTS_URL` | No | *(unset)* | Where [signed instance events](#adminium_operator_events_url) go: `https://…`, or `http://` to a private address. Needs `ADMINIUM_OPERATOR_TOKEN`. |
@@ -1259,6 +1260,43 @@ With `ADMINIUM_PUBLIC_ORIGIN` or `ADMINIUM_OPERATOR_DOMAINS` set, on any server:
   A mapping saved before is not answered.
   Under trial mode and the hosted profile, the websites that may show a form in
   a frame must be listed domains too.
+
+### The Designer's preview address
+
+Under `adminium design` the Designer and its preview are two names of one
+computer (`127.0.0.1` and `localhost`): two sites to a browser, so an app's
+screens, which a model wrote, are shown without ever being sent your session.
+A server people reach has one name, so there the Designer's Preview tab says
+"The preview is off on a live server."
+
+`ADMINIUM_PREVIEW_ORIGIN` gives the instance its second name. Point the host
+at the same server as the instance (your proxy passes it through like any
+other name) and set the variable. Then:
+
+- the instance answers on that host too;
+- everything that acts for a person is refused there (403, reason
+  `PREVIEW_HOST`): the Designer's own routes, every way to sign in, setup, the
+  models, users, roles, API keys and settings;
+- the only user ever signed in there is the preview user, who holds the roles
+  of the app being built and nothing else, through a one-use ticket the
+  Designer asks for. A person's own session is not read on the preview's
+  address, and the preview user's is read nowhere else;
+- the instance's own addresses may frame the preview (`ADMINIUM_PUBLIC_ORIGIN`
+  and the listed domains), and nothing else may.
+
+**It must be on a different site.** Use another registrable domain:
+`shop.example-preview.com` beside `shop.example.com`, not
+`preview.shop.example.com` or `shop-preview.example.com`. A name under the
+same registrable domain is the same site to a browser: it is sent
+`SameSite=Lax` cookies and can write cookies over its parent's. Adminium
+refuses an address the instance already answers on, and cannot check the rest.
+If you host many instances, give each its own host under one preview domain
+(`<name>.example-preview.com`), and consider asking for that domain to be put
+on the [Public Suffix List](https://publicsuffix.org/), so one instance's
+preview is a different site from another's.
+
+The preview shows the app as it is applied. An app's screens stay served at
+their own address on the instance's name, as on any server.
 
 ### The hosted profile
 

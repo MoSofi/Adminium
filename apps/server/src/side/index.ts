@@ -369,6 +369,33 @@ export function ruleText(rule: SheetRule, windowHeight: number): string {
   return rule.cssText;
 }
 
+/** Whether any pixel of a picture can be seen through (RGBA, four numbers a pixel). */
+export function seeThrough(pixels: ArrayLike<number>): boolean {
+  for (let at = 3; at < pixels.length; at += 4) if ((pixels[at] as number) < 255) return true;
+  return false;
+}
+
+/**
+ * A picture of the page as a small copy of itself, at most 480 wide, for the
+ * page's picture. A JPEG when it is solid (small); a PNG when it can be seen
+ * through, since a JPEG has no see-through and would put it on a black box
+ * the page does not show. Null when it cannot be read (another site's).
+ */
+export function smallCopy(shown: HTMLImageElement, doc: Document): string | null {
+  try {
+    const scale = Math.min(1, 480 / shown.naturalWidth);
+    const canvas = doc.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(shown.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(shown.naturalHeight * scale));
+    const context = canvas.getContext('2d');
+    if (context === null) return null;
+    context.drawImage(shown, 0, 0, canvas.width, canvas.height);
+    return seeThrough(context.getImageData(0, 0, canvas.width, canvas.height).data) ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.6);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * A picture of the page as it shows, drawn in the page itself: its own
  * markup and styles laid into an SVG and painted on a canvas. Nothing is
@@ -423,16 +450,8 @@ export async function pagePicture(doc: Document = document, view: Window = windo
       img.removeAttribute('loading');
       img.removeAttribute('src');
       if (shown === undefined || !shown.complete || shown.naturalWidth === 0) return;
-      try {
-        const scale = Math.min(1, 480 / shown.naturalWidth);
-        const canvas = doc.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(shown.naturalWidth * scale));
-        canvas.height = Math.max(1, Math.round(shown.naturalHeight * scale));
-        canvas.getContext('2d')?.drawImage(shown, 0, 0, canvas.width, canvas.height);
-        img.setAttribute('src', canvas.toDataURL('image/jpeg', 0.6));
-      } catch {
-        // Left empty.
-      }
+      const small = smallCopy(shown, doc);
+      if (small !== null) img.setAttribute('src', small);
     });
     // What was typed into a control is not part of the picture.
     for (const el of [...copy.querySelectorAll('input, textarea')]) el.removeAttribute('value');

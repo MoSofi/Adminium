@@ -38,7 +38,7 @@ export type PreviewWidth = 'desktop' | 'tablet' | 'phone';
 const installedKey = ['designer', 'installed'] as const;
 
 export interface PreviewModel {
-  /** A live server has one name, so model-written screens have no second one to be shown on. */
+  /** A live server with one name only: model-written screens have no second one to be shown on. False where its operator gave it a preview address. */
   noPreview: boolean;
   /** The app as the engine applied it; null before the first build. */
   app: InstalledApp | null;
@@ -113,7 +113,10 @@ export interface PreviewSpots {
 export function usePreview(session: DesignerSession, turns: readonly TurnView[], onPicked?: (picked: DesignerPicked) => void, spots?: PreviewSpots): PreviewModel {
   const queryClient = useQueryClient();
   const info = useQuery(systemInfoQuery());
-  const noPreview = info.data?.designer?.mode === 'live';
+  const live = info.data?.designer?.mode === 'live';
+  // A server people reach shows the app in a preview only where its operator gave it an address of its own for that
+  // (the server's `designer/live-preview.ts`); without one the app's screens would run beside the person's own session.
+  const noPreview = live && info.data?.designer?.preview !== true;
   const installed = useQuery({ queryKey: installedKey, queryFn: () => api.get<{ apps: InstalledApp[] }>('/api/v1/apps') });
   const app = installed.data?.apps.find((entry) => entry.key === session.appKey) ?? null;
   // The phone side: asked of the server that builds it (`adminium design`, the desktop app); a live server has none.
@@ -128,7 +131,7 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[],
         throw error;
       }
     },
-    enabled: !info.isPending && !noPreview,
+    enabled: !info.isPending && !live,
     // While something is under way it is watched closely; an open door is looked at now and then (a phone connects, it closes).
     refetchInterval: (query) => {
       const now = query.state.data ?? null;

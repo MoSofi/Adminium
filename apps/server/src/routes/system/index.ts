@@ -75,6 +75,7 @@ export const systemRoutes = ({ env }: SystemRoutesDeps): FastifyPluginAsyncZod =
         meta: app.authContext?.meta ?? null,
         designer: app.hasDecorator('designerMode') ? (app as unknown as { designerMode: 'local' | 'live' | 'off' }).designerMode : 'off',
         designerLink: app.hasDecorator('designerLink') && (app as unknown as { designerLink: boolean }).designerLink,
+        designerPreview: app.hasDecorator('designerPreview') && (app as unknown as { designerPreview: boolean }).designerPreview,
         // The user's own database, where this server has one (an operator project's `yours`).
         ownDatabase: env.ADMINIUM_OPERATOR_PROJECT && env.ADMINIUM_YOUR_DATABASE !== undefined ? () => YOUR_DATABASE_STATUS.current() : undefined,
         // A model for the start prompt: the default connection and model, not refused (`designer/start-prompt.ts` asks the same).

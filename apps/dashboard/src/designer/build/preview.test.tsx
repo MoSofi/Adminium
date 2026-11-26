@@ -55,6 +55,8 @@ let tickets: string[];
 let sides: { side: string; prefix: string; navAvailable: boolean }[];
 let installed: boolean;
 let live: boolean;
+/** A live server whose operator gave it a preview address. */
+let liveHasPreview: boolean;
 const notices = vi.fn<(text: string) => void>();
 
 beforeEach(() => {
@@ -62,6 +64,7 @@ beforeEach(() => {
   installed = true;
   notices.mockClear();
   live = false;
+  liveHasPreview = false;
   sides = [
     { side: 'staff', prefix: '/apps/repairs/staff', navAvailable: true },
     { side: 'customer', prefix: '/apps/repairs/customer', navAvailable: true },
@@ -72,7 +75,7 @@ beforeEach(() => {
     'fetch',
     vi.fn((input: unknown, init?: RequestInit) => {
       const url = String(input);
-      if (url === '/api/v1/system/info') return Promise.resolve(jsonResponse(200, { designer: { mode: live ? 'live' : 'local', link: false } }));
+      if (url === '/api/v1/system/info') return Promise.resolve(jsonResponse(200, { designer: { mode: live ? 'live' : 'local', link: false, ...(live ? { preview: liveHasPreview } : {}) } }));
       if (url === '/api/v1/apps') return Promise.resolve(jsonResponse(200, { apps: installed ? [{ key: 'repairs', version: '0.1.0', sides }] : [], staged: [] }));
       if (url.endsWith('/preview-ticket')) {
         const { to } = JSON.parse(String(init?.body)) as { to: string };
@@ -239,6 +242,18 @@ describe('the preview', () => {
     expect(screen.queryByRole('button', { name: 'Reload the preview' })).toBeNull();
     expect(screen.getAllByRole('tab').map((entry) => entry.textContent)).toEqual(['Preview', 'Architecture', 'Code']);
     expect(tickets).toEqual([]);
+  });
+
+  it('shows the preview on a live server whose operator gave it a preview address', async () => {
+    live = true;
+    liveHasPreview = true;
+    mount();
+    await waitFor(() => expect(frame()).not.toBeNull());
+    expect(screen.queryByText('The preview is off on a live server. Open the app from the dashboard once it is applied.')).toBeNull();
+    expect(within(screen.getByRole('radiogroup', { name: 'Side' })).getAllByRole('radio').map((button) => button.textContent)).toEqual(['Dashboard', 'Staff', 'Customer']);
+    // The app's own side opens by a ticket, on the preview's address.
+    expect(tickets).toEqual(['/apps/repairs/staff/']);
+    expect(frame().src).toContain('ticket=t1');
   });
 
   it('says a side is building while the turn builds it', async () => {

@@ -407,6 +407,7 @@ export const OPERATOR_DECIDED_ENV = [
   'ADMINIUM_SETUP_TOKEN',
   'ADMINIUM_DEPLOY_LINK',
   'ADMINIUM_OPERATOR_DOMAINS',
+  'ADMINIUM_PREVIEW_ORIGIN',
   'ADMINIUM_OPERATOR_TOKEN',
   'ADMINIUM_OPERATOR_LISTEN',
   'ADMINIUM_OPERATOR_EVENTS_URL',
@@ -1436,6 +1437,28 @@ export const envSchema = z.object({
         return [...new Set(entries)];
       }),
   ),
+  /*
+   * The Designer's preview on a server people reach (`designer/live-preview.ts`):
+   * a second address for this instance, on a different site from the one the
+   * dashboard is on, where the app being built is shown. One origin; http only
+   * for this machine. Needs ADMINIUM_PUBLIC_ORIGIN.
+   */
+  ADMINIUM_PREVIEW_ORIGIN: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(500)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const origin = parseServerOrigin(value);
+        if (origin === null) {
+          ctx.addIssue({ code: 'custom', message: 'must be one https:// origin with no path, e.g. https://shop.preview-example.com (http:// only for this machine)' });
+          return z.NEVER;
+        }
+        return origin;
+      }),
+  ),
   /* The operator endpoint's bearer token: 32 random bytes or more, per instance. A secret. */
   ADMINIUM_OPERATOR_TOKEN: z.preprocess(
     emptyToUndefined,
@@ -1594,6 +1617,17 @@ export const envSchema = z.object({
         namesNoLogin(env.ADMINIUM_SOURCE_URL),
         'ADMINIUM_SOURCE_URL',
         `must name a user and a database in ${which}: on the operator's database host this installation may use only the login this URL names, e.g. postgres://trial_7f3a:password@pg-trials:5432/trial_7f3a`,
+      );
+    }
+    if (env.ADMINIUM_PREVIEW_ORIGIN !== undefined) {
+      // The preview's pages may be framed by this instance's own addresses and nothing else, so those must be known.
+      need(env.ADMINIUM_PUBLIC_ORIGIN === undefined, 'ADMINIUM_PREVIEW_ORIGIN', 'is set, but ADMINIUM_PUBLIC_ORIGIN is not: the preview is framed by the instance\'s own address, e.g. https://shop.example.com');
+      const preview = new URL(env.ADMINIUM_PREVIEW_ORIGIN).hostname;
+      const own = [...(env.ADMINIUM_PUBLIC_ORIGIN === undefined ? [] : [new URL(env.ADMINIUM_PUBLIC_ORIGIN).hostname]), ...(env.ADMINIUM_OPERATOR_DOMAINS ?? [])];
+      need(
+        own.includes(preview),
+        'ADMINIUM_PREVIEW_ORIGIN',
+        `is ${preview}, an address this instance already answers on. The preview needs a host of its own, on a different site (another registrable domain), so that what runs in it cannot use a signed-in person's session.`,
       );
     }
     if (env.ADMINIUM_OPERATOR_PROJECT) {
@@ -1884,6 +1918,7 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_OPERATOR_EMAIL_MAX_PER_DAY: 'mail people write, a day, through ADMINIUM_OPERATOR_SMTP_URL (default 500; account mail is not counted)',
   ADMINIUM_HOSTED_MODE: `one of ${BOOLEANISH.join(', ')} (default off; on runs a paid installation on the operator's server: needs ADMINIUM_PUBLIC_ORIGIN and ADMINIUM_DATABASE_HOSTS)`,
   ADMINIUM_OPERATOR_DOMAINS: 'CSV of the user\'s own verified domains: plain lower-case host names, e.g. shop.example.com',
+  ADMINIUM_PREVIEW_ORIGIN: 'the address the Designer\'s preview is served on, on a different site from ADMINIUM_PUBLIC_ORIGIN, e.g. https://shop.preview-example.com (needs ADMINIUM_PUBLIC_ORIGIN)',
   ADMINIUM_OPERATOR_TOKEN: 'the operator endpoint\'s bearer token and the key instance events are signed with, 32 random bytes or more, e.g. `openssl rand -hex 32` (needs ADMINIUM_OPERATOR_LISTEN or ADMINIUM_OPERATOR_EVENTS_URL)',
   ADMINIUM_OPERATOR_LISTEN: 'address:port of the operator listener on the operator network, e.g. 10.0.0.2:4601 (needs ADMINIUM_OPERATOR_TOKEN)',
   ADMINIUM_OPERATOR_EVENTS_URL: 'where signed instance events go: https://…, or http:// to a private address (needs ADMINIUM_OPERATOR_TOKEN)',
