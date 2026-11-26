@@ -19,7 +19,7 @@ import type { DesignerSession } from '../src/designer/session-store.js';
 import type { NeedItem } from '../src/designer/needs.js';
 import type { DesignerTool, ToolContext } from '../src/designer/tool-types.js';
 import { legacyPictures } from '../src/designer/pictures-apply.js';
-import { createDesignerTools, designSteps, DESIGNER_REACT_VERSION, DESIGNER_TOOL_NAMES, keepSamplePictures, missingScreenPackages } from '../src/designer/tools.js';
+import { createDesignerTools, designSteps, DESIGNER_REACT_VERSION, DESIGNER_TOOL_NAMES, keepSamplePictures, missingScreenPackages, withoutEntities } from '../src/designer/tools.js';
 import { runCli } from '../src/cli/run.js';
 import { addPhoneSide } from '../src/project/apps/scaffold-app.js';
 import { APP_VERSION } from '../src/version.js';
@@ -1277,6 +1277,19 @@ describe('what a design does with pictures', () => {
     expect(JSON.parse(readFileSync(lookFile, 'utf8'))).toMatchObject({ skill: 'warm', pictures: 'choose', templateSides: ['customer'] });
     expect((await run('set_style', { accent: '#225588' })).isError).toBeUndefined();
     expect(JSON.parse(readFileSync(lookFile, 'utf8'))).toMatchObject({ accent: '#225588', pictures: 'choose' });
+  });
+});
+
+describe('a name as a person writes it', () => {
+  it('reads the entities a model answering in HTML sends, once, and keeps what names no character', () => {
+    // Seen 2026-11-26 on claude-haiku-5-5: name_app got "Crumb &amp; Crust Cakes", and the key became crumb-amp-crust-cakes.
+    expect(withoutEntities('Crumb &amp; Crust Cakes')).toBe('Crumb & Crust Cakes');
+    expect(withoutEntities('Bob&#39;s Bikes &#x26; Co')).toBe("Bob's Bikes & Co");
+    expect(withoutEntities('&lt;Tea&gt; &quot;House&quot;')).toBe('<Tea> "House"');
+    // One pass only, and a name that is not one, or a code that is no letter, is left as it was written.
+    expect(withoutEntities('A &amp;amp; B')).toBe('A &amp; B');
+    expect(withoutEntities('Fish &chips; &#0; &#x110000;')).toBe('Fish &chips; &#0; &#x110000;');
+    expect(withoutEntities('Plain Name')).toBe('Plain Name');
   });
 });
 

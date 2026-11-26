@@ -244,6 +244,17 @@ export function jsonProblem(path: string, content: string): string | null {
 const SHOWN_ON_MISS = 4000;
 
 /** The pieces of `text` that are `piece` but for their spacing: spaces and line ends may differ anywhere. */
+/** The HTML a few words name by entity, in one pass: `&amp;` is `&`, `&#39;` is `'`. A code that is no character stays as written. */
+export function withoutEntities(text: string): string {
+  const named: Readonly<Record<string, string>> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+  return text.replace(/&(?:([a-z]{2,4})|#(\d{1,7})|#x([0-9a-f]{1,6}));/gi, (all, name: string | undefined, decimal: string | undefined, hex: string | undefined) => {
+    if (name !== undefined) return named[name.toLowerCase()] ?? all;
+    const code = decimal !== undefined ? Number(decimal) : Number.parseInt(hex as string, 16);
+    // A control character or a code past the last one is no letter of a name.
+    return code >= 32 && code <= 0x10ffff && !(code >= 0x7f && code < 0xa0) && !(code >= 0xd800 && code <= 0xdfff) ? String.fromCodePoint(code) : all;
+  });
+}
+
 export function looseMatches(text: string, piece: string): string[] {
   const marks = [...piece].filter((mark) => !/\s/.test(mark));
   if (marks.length < 4 || marks.length > 4000) return [];
@@ -1225,7 +1236,10 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
       inputSchema: { type: 'object', properties: { name: { type: 'string', description: 'Two or three words, e.g. Crispy Bites' } }, required: ['name'], additionalProperties: false },
       running: (input) => `Naming the app ${String(input['name'] ?? '').slice(0, 40)}`,
       run: async (input, ctx) => {
-        const name = (str(input, 'name') ?? '').replace(/\s+/g, ' ').trim();
+        // As a person writes it: a model that answers in HTML sent "Crumb &amp; Crust Cakes", and the key became crumb-amp-crust-cakes.
+        const name = withoutEntities(str(input, 'name') ?? '')
+          .replace(/\s+/g, ' ')
+          .trim();
         if (deps.designer().needsName?.(ctx.session) !== true) {
           return text(`The app already has its name and its folder, apps/${appKey}/: its key stays as it is. To change the name people read, set "name" in apps/${appKey}/manifest/app.json and leave "key" alone.`, 'The app is already named');
         }
