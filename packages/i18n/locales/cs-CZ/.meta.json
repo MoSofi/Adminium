@@ -12275,6 +12275,38 @@
     "status": "mt",
     "srcHash": "254c14a35735"
   },
+  "designer.card.app": {
+    "status": "mt",
+    "srcHash": "726d67f799e5"
+  },
+  "designer.card.appCopy": {
+    "status": "mt",
+    "srcHash": "d1920fafd59b"
+  },
+  "designer.card.appNo": {
+    "status": "mt",
+    "srcHash": "06922b70b876"
+  },
+  "designer.card.appOpen": {
+    "status": "mt",
+    "srcHash": "7cc723789891"
+  },
+  "designer.card.appOwn": {
+    "status": "mt",
+    "srcHash": "f029a32e4082"
+  },
+  "designer.card.appSends": {
+    "status": "mt",
+    "srcHash": "ade762ed6f1e"
+  },
+  "designer.card.appUse": {
+    "status": "mt",
+    "srcHash": "9b8fc2ab4889"
+  },
+  "designer.card.appYes": {
+    "status": "mt",
+    "srcHash": "d8769064e2b4"
+  },
   "designer.card.doWithout": {
     "status": "mt",
     "srcHash": "d399dba4c617"
@@ -13574,6 +13606,30 @@
   "designer.needs.unknownLead": {
     "status": "mt",
     "srcHash": "8b6f147aacf1"
+  },
+  "designer.next.addOn": {
+    "status": "mt",
+    "srcHash": "3796d1b1809f"
+  },
+  "designer.next.addOnMessage": {
+    "status": "mt",
+    "srcHash": "795b676781ef"
+  },
+  "designer.next.addOnUse": {
+    "status": "mt",
+    "srcHash": "9b8fc2ab4889"
+  },
+  "designer.next.addOnUseMessage": {
+    "status": "mt",
+    "srcHash": "72a54701711b"
+  },
+  "designer.next.rows": {
+    "status": "mt",
+    "srcHash": "e162d5d225f4"
+  },
+  "designer.next.title": {
+    "status": "mt",
+    "srcHash": "549056214cd4"
   },
   "designer.operatorAi.addKey": {
     "status": "mt",
@@ -15583,6 +15639,22 @@
     "status": "mt",
     "srcHash": "52e64af59dd0"
   },
+  "designer.step.appChosen": {
+    "status": "mt",
+    "srcHash": "b782586cfc43"
+  },
+  "designer.step.appDeclined": {
+    "status": "mt",
+    "srcHash": "abfb756f1960"
+  },
+  "designer.step.appNone": {
+    "status": "mt",
+    "srcHash": "3d6834302b2d"
+  },
+  "designer.step.appOffering": {
+    "status": "mt",
+    "srcHash": "dc71a4d1c3a8"
+  },
   "designer.step.applied": {
     "status": "mt",
     "srcHash": "c52545af0da8"
@@ -15746,6 +15818,18 @@
   "designer.step.needsRefused": {
     "status": "mt",
     "srcHash": "f18ece26ca85"
+  },
+  "designer.step.nextDone": {
+    "status": "mt",
+    "srcHash": "6b7a0a18cb20"
+  },
+  "designer.step.nextNone": {
+    "status": "mt",
+    "srcHash": "63749b834048"
+  },
+  "designer.step.nextWorking": {
+    "status": "mt",
+    "srcHash": "5a33db9e8c95"
   },
   "designer.step.noScreens": {
     "status": "mt",

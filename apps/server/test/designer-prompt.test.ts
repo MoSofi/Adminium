@@ -109,6 +109,29 @@ describe('what the Designer’s model is told', () => {
     expect(messages).toHaveLength(1);
   });
 
+  it('shows the published apps only while one can still be offered: a new app with no name, the offer among the turn’s tools, none made yet', async () => {
+    const apps = [{ key: 'maker-shop', name: 'Maker Shop', version: '1.2.0', line: 'A made-to-order shop and its studio.', copyable: false }];
+    const offer = { name: 'offer_app', description: 'Offer a published app.', inputSchema: { type: 'object' } };
+    const first = [say('user', 'A shop for the things I make.')];
+    const prompt = (unnamed: boolean) => createPrompt({ root, version: APP_VERSION, skills: createSkills(), providerOf: async () => 'openai-compatible', needsName: () => unnamed, listApps: async () => apps });
+    const shown = (await prompt(true)(session(), first, { tools: [offer] })).system;
+    expect(shown).toContain('===== Ready-made apps =====\n');
+    expect(shown).toContain('maker-shop — Maker Shop: A made-to-order shop and its studio.');
+    // Before the app as it is now, so the rule about the name reads after the list it is about.
+    expect(shown.indexOf('===== Ready-made apps =====')).toBeLessThan(shown.indexOf('===== The app now ====='));
+    // Named already; the tool not among this turn's; an offer already in the transcript: nothing of the list is sent.
+    expect((await prompt(false)(session(), first, { tools: [offer] })).system).not.toContain('Ready-made apps');
+    expect((await prompt(true)(session(), first, { tools: [] })).system).not.toContain('Ready-made apps');
+    const offered: RunMessage[] = [...first, { role: 'assistant', content: [{ type: 'tool_call', id: 'c1', name: 'offer_app', input: { key: 'maker-shop' } }] }, { role: 'user', content: [{ type: 'tool_result', callId: 'c1', content: 'The person said no.' }] }];
+    expect((await prompt(true)(session(), offered, { tools: [offer] })).system).not.toContain('Ready-made apps');
+  });
+
+  it('sends what comes next to the buttons, never to a list in words', async () => {
+    const { system } = await createPrompt({ root, version: APP_VERSION, skills: createSkills(), providerOf: async () => 'openai-compatible' })(session(), [say('user', 'Track repair jobs.')]);
+    expect(system).toContain('call suggest_next in the same reply as apply_app');
+    expect(system).toContain('Never end a reply with a list of next steps');
+  });
+
   it('fits Ollama’s window too, the smallest a local model reads', async () => {
     const prompt = createPrompt({ root, version: APP_VERSION, skills: createSkills(), providerOf: async () => 'ollama' });
     const { system } = await prompt(session(), [say('user', 'go')]);

@@ -281,7 +281,15 @@
     "rowsSkip": "不載入",
     "rowsNo": "你選擇了不載入。",
     "addOnSwitchOn": "開啟清單",
-    "typeBelow": "請在下方輸入你的回答。"
+    "typeBelow": "請在下方輸入你的回答。",
+    "app": "已有現成的應用程式可以做到這一點：{name}",
+    "appSends": "這是一個已發布的應用程式，完整且經過測試。你在 Studio → 應用程式 中安裝它，並在那裡選擇它的附加元件和範例資料。這裡不會建置任何內容，因此不會為它消耗你的 AI。",
+    "appCopy": "之後若要修改它，請在 Designer 首頁將它複製到此專案中（「從一個應用程式開始」）。",
+    "appYes": "你選擇了 {name}。",
+    "appOpen": "開啟 Studio → 應用程式",
+    "appNo": "改為建置你自己的應用程式。",
+    "appUse": "使用 {name}",
+    "appOwn": "建置我自己的"
   },
   "step": {
     "addOns": "正在查看附加元件",
@@ -394,7 +402,14 @@
     "spotFillFailed": "你的圖片未能放進 {subject}",
     "siteBuilding": "正在根據 {subject} 建置畫面",
     "siteBuilt": "已根據 {subject} 建置 {count, plural, other {# 個畫面}}",
-    "siteFailed": "未能根據範本建置"
+    "siteFailed": "未能根據範本建置",
+    "appOffering": "正在查看現成的應用程式",
+    "appChosen": "你選擇了 {subject}",
+    "appDeclined": "正在建置你自己的應用程式",
+    "appNone": "未提供現成的應用程式",
+    "nextWorking": "正在考慮下一步",
+    "nextDone": "已建議下一步",
+    "nextNone": "沒有建議"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -1429,5 +1444,13 @@
     "addKey": "新增 AI 金鑰",
     "upgrade": "升級",
     "step": "需要您自己的 AI 金鑰"
+  },
+  "next": {
+    "title": "接下來做什麼？",
+    "rows": "新增：{table}",
+    "addOn": "新增 {name}",
+    "addOnUse": "使用 {name}",
+    "addOnMessage": "為此應用程式新增附加元件 {name}：{what}",
+    "addOnUseMessage": "在此應用程式中使用附加元件 {name}：{what}"
   }
 }

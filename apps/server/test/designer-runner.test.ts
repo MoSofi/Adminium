@@ -213,6 +213,7 @@ function harness(
     advice?: () => string[];
     sight?: NonNullable<Parameters<typeof createDesignerRunner>[0]['sight']>;
     holdCapMs?: number;
+    appOfferWaitMs?: number;
     onPrompt?: (opts: PromptOpts | undefined) => void;
     attachments?: Attachments;
     windowOf?: (session: DesignerSession) => Promise<number>;
@@ -246,6 +247,7 @@ function harness(
     ...(opts.advice === undefined ? {} : { advice: opts.advice }),
     ...(opts.sight === undefined ? {} : { sight: opts.sight }),
     ...(opts.holdCapMs === undefined ? {} : { holdCapMs: opts.holdCapMs }),
+    ...(opts.appOfferWaitMs === undefined ? {} : { appOfferWaitMs: opts.appOfferWaitMs }),
     ...(opts.attachments === undefined ? {} : { attachments: opts.attachments }),
     ...(opts.windowOf === undefined ? {} : { windowOf: opts.windowOf }),
     retryWaitsMs: [0, 0],
@@ -1130,5 +1132,69 @@ describe('a look at the page', () => {
     await blind.runner.start(newSession().id, { text: 'go', by });
     await blind.runner.settled();
     expect(kinds(blind)).not.toContain('sight');
+  });
+});
+
+// ── a run nobody started by hand ─────────────────────────────────────────────
+
+describe('a run whose cards are answered no (the start prompt’s)', () => {
+  const offering: DesignerTool = {
+    name: 'offer_app',
+    description: 'Offer a published app.',
+    inputSchema: { type: 'object' },
+    running: () => 'Offering',
+    run: async (_input, ctx) => {
+      const answer = await ctx.ask({ type: 'app', key: 'maker-shop', name: 'Maker Shop', version: '1.2.0', line: 'A made-to-order shop.' });
+      return { content: answer.type === 'app' && answer.accept ? 'chosen' : 'declined', label: 'Offered' };
+    },
+  };
+  const answersOf = (h: Harness): unknown[] => h.published.flatMap((event) => (event.kind === 'card-answered' ? [event.value] : []));
+
+  it('answers a question no at once, and waits for the person on the offer of a published app', async () => {
+    const session = newSession();
+    const h = harness([calls('ask_person'), calls('offer_app'), says('Maker Shop it is.')], { tools: [asking, offering] });
+    await h.runner.start(session.id, { text: 'A shop for what I make.', by: { id: 'u1', label: 'Owner' }, defaultNo: true });
+    await vi.waitFor(() => expect(h.runner.waiting(session.id)).toHaveLength(1));
+    // The question was answered by nobody; the offer is the one card that waits.
+    expect(answersOf(h)).toEqual([{ type: 'question', text: 'No.' }]);
+    const card = h.runner.waiting(session.id)[0];
+    expect(card).toMatchObject({ type: 'app', key: 'maker-shop', name: 'Maker Shop' });
+    h.runner.answer(session.id, card?.id ?? '', { accept: true }, { id: 'u1', label: 'Owner' });
+    await h.runner.settled();
+    expect(answersOf(h).at(-1)).toEqual({ type: 'app', accept: true });
+    expect(h.model.requests[2]?.messages.at(-1)?.content[0]).toMatchObject({ type: 'tool_result', content: 'chosen' });
+    expect(finished(h)).toMatchObject({ outcome: 'done' });
+  });
+
+  it('takes no for the offer when nobody comes, shows it answered, and goes on', async () => {
+    const session = newSession();
+    const h = harness([calls('offer_app'), says('Building your own.')], { tools: [offering], appOfferWaitMs: 15 });
+    await h.runner.start(session.id, { text: 'A shop for what I make.', by: { id: 'u1', label: 'Owner' }, defaultNo: true });
+    await h.runner.settled();
+    expect(answersOf(h)).toEqual([{ type: 'app', accept: false }]);
+    expect(h.runner.waiting(session.id)).toEqual([]);
+    expect(h.model.requests[1]?.messages.at(-1)?.content[0]).toMatchObject({ type: 'tool_result', content: 'declined' });
+    expect(finished(h)).toMatchObject({ outcome: 'done' });
+  });
+
+  it('does not wait in a run nobody could answer: one started at boot, by no person', async () => {
+    const session = newSession();
+    const h = harness([calls('offer_app'), says('Building your own.')], { tools: [offering] });
+    await h.runner.start(session.id, { text: 'A shop for what I make.', by: { id: null, label: 'Adminium Designer' }, defaultNo: true });
+    await h.runner.settled();
+    expect(answersOf(h)).toEqual([{ type: 'app', accept: false }]);
+    expect(finished(h)).toMatchObject({ outcome: 'done' });
+  });
+
+  it('a turn a person started waits on the offer for as long as it takes', async () => {
+    const session = newSession();
+    const h = harness([calls('offer_app'), says('Building your own.')], { tools: [offering], appOfferWaitMs: 15 });
+    await h.runner.start(session.id, { text: 'A shop for what I make.', by: { id: 'u1', label: 'Owner' } });
+    await vi.waitFor(() => expect(h.runner.waiting(session.id)).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(h.runner.waiting(session.id)).toHaveLength(1);
+    h.runner.answer(session.id, h.runner.waiting(session.id)[0]?.id ?? '', { accept: false }, { id: 'u1', label: 'Owner' });
+    await h.runner.settled();
+    expect(finished(h)).toMatchObject({ outcome: 'done' });
   });
 });

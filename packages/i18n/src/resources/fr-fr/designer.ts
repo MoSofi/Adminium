@@ -291,7 +291,15 @@ export default {
     "rowsSkip": "Ne pas charger",
     "rowsNo": "Vous avez dit de ne pas les charger.",
     "addOnSwitchOn": "Activer la liste",
-    "typeBelow": "Écrivez votre réponse ci-dessous."
+    "typeBelow": "Écrivez votre réponse ci-dessous.",
+    "app": "Il existe une application toute prête pour cela : {name}",
+    "appSends": "C’est une application publiée, complète et testée. Vous l’installez dans Studio → Apps, où vous choisissez ses extensions et ses données d’exemple. Rien n’est construit ici, donc votre IA n’est pas utilisée pour cela.",
+    "appCopy": "Pour la modifier ensuite, copiez-la dans ce projet depuis l’accueil du Designer (« Partir d’une application »).",
+    "appYes": "Vous avez choisi {name}.",
+    "appOpen": "Ouvrir Studio → Apps",
+    "appNo": "Votre propre application est construite à la place.",
+    "appUse": "Utiliser {name}",
+    "appOwn": "Construire la mienne"
   },
   "step": {
     "addOns": "Examine les extensions",
@@ -404,7 +412,14 @@ export default {
     "spotFillFailed": "Votre image n’a pas été placée dans {subject}",
     "siteBuilding": "Construction des écrans à partir de {subject}",
     "siteBuilt": "{count, plural, one {# écran construit} other {# écrans construits}} à partir de {subject}",
-    "siteFailed": "Rien n’a été construit à partir du modèle"
+    "siteFailed": "Rien n’a été construit à partir du modèle",
+    "appOffering": "Examine les applications toutes prêtes",
+    "appChosen": "Vous avez choisi {subject}",
+    "appDeclined": "Construit la vôtre",
+    "appNone": "Aucune application toute prête proposée",
+    "nextWorking": "Réfléchit à la suite",
+    "nextDone": "A proposé la suite",
+    "nextNone": "Rien de proposé"
   },
   "steps": {
     "count": "{count, plural, one {# étape} other {# étapes}}",
@@ -1439,5 +1454,13 @@ export default {
     "addKey": "Ajouter une clé d’IA",
     "upgrade": "Mettre à niveau",
     "step": "Nécessite votre propre clé d’IA"
+  },
+  "next": {
+    "title": "Et ensuite ?",
+    "rows": "Ajouter : {table}",
+    "addOn": "Ajouter {name}",
+    "addOnUse": "Utiliser {name}",
+    "addOnMessage": "Ajoute l’extension {name} à cette application : {what}",
+    "addOnUseMessage": "Utilise l’extension {name} dans cette application : {what}"
   }
 } as const;

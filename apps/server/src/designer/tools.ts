@@ -12,6 +12,8 @@
  *   list_add_ons      the add-ons this server has or can get
  *   add_side          the starter's screen for a side, to rewrite
  *   get_add_on        an add-on this server lacks, after the person's yes
+ *   offer_app         a published app that is already what was asked for, before one is built (`offer-app.ts`)
+ *   suggest_next      what the person can do next, as buttons under the reply (`next-steps.ts`)
  *   read_attachment   rows of a CSV, lines of a document, or a window of a page or stylesheet, the person attached
  *   load_rows         those rows into one of the app's tables, after a yes
  *   build_on_shape    the tables and emails of an add-on's shape, from its manifest
@@ -30,6 +32,8 @@
  * the phone app are refused with fixed words (`designer/declarative.ts`).
  */
 import { makePicturesTool, type MakePicturesDeps } from './make-pictures-tool.js';
+import { suggestNextTool } from './next-steps.js';
+import { OFFER_APP, offerAppTool, type AppLine } from './offer-app.js';
 import { ADD_ON_INSTALL_FLOOR, compareSemver, isAddOnManifest, namedAddOns, PICTURE_FILE_KINDS, PUBLIC_PICTURE_MAX_BYTES, validateManifest, type AddOnManifest } from '@adminium/manifest';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -119,6 +123,8 @@ export interface ToolsDeps {
   designer: () => Designer;
   skills: Skills;
   listAddOns: () => Promise<AddOnLine[]>;
+  /** The published apps this server could install, for an offer before a new app is built. Absent where there is no list to read. */
+  listApps?: () => Promise<AppLine[]>;
   /** An add-on's manifest, installed or in this server's store; null when it is neither. */
   readAddOn?: (key: string) => Promise<unknown>;
   /** Getting an add-on this server does not have, after a person's yes. Absent where nothing can be installed. */
@@ -1229,6 +1235,34 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         return text(`${got.name} ${got.version} is installed.${builds}`, `Got ${got.name}`, { facts: { outcome: 'added' } });
       },
     },
+    // Only while the session's app is new and unnamed: after that its definition would take room from every request for nothing.
+    ...(() => {
+      const getter = deps.addOnGetter;
+      const listApps = deps.listApps;
+      if (listApps === undefined || getter === undefined || sessionId === undefined) return [];
+      const designer = deps.designer();
+      const needsName = (session: DesignerSession): boolean => designer.needsName?.(session) === true;
+      let unnamed = false;
+      try {
+        unnamed = needsName(designer.store.read(sessionId));
+      } catch {
+        // A session that cannot be read is offered nothing.
+      }
+      if (!unnamed) return [];
+      return [
+        offerAppTool({
+          listApps,
+          needsName,
+          allowed: (by) => getter.allowed(by),
+          // One offer a session, by what its transcript holds: an offer that was answered has its result there.
+          offered: (id) => {
+            const blocks = designer.store.messages(id).flatMap((entry) => entry.message.content);
+            const calls = new Set(blocks.flatMap((block) => (block.type === 'tool_call' && block.name === OFFER_APP ? [block.id] : [])));
+            return blocks.some((block) => block.type === 'tool_result' && calls.has(block.callId) && block.isError !== true);
+          },
+        }),
+      ];
+    })(),
     {
       name: 'name_app',
       description:
@@ -2390,6 +2424,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         return text(answer.type === 'question' ? `The person answered: ${answer.text}` : 'No answer.', 'You answered');
       },
     },
+    suggestNextTool({ root: deps.root, version: deps.version, listAddOns: deps.listAddOns }, appKey),
     {
       name: 'request_package',
       description:

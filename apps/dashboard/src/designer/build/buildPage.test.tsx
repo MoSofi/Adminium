@@ -42,6 +42,9 @@ vi.mock('./CodeTab.js', () => ({
 }));
 
 const spendSound = vi.hoisted(() => ({ playSpendSound: vi.fn() }));
+/** Where the page left the Designer for: a yes to a published app opens the Apps page by a full load. */
+const leave = vi.hoisted(() => ({ leaveTo: vi.fn() }));
+vi.mock('../parts/leaveTo.js', () => leave);
 vi.mock('./spendSound.js', () => spendSound);
 
 const ID = 'ds_000000000000000000000007';
@@ -904,6 +907,54 @@ describe('the build page', () => {
     live(done);
     await userEvent.click(await within(bar).findByRole('button', { name: 'Pictures' }));
     expect(await screen.findByRole('dialog', { name: 'Pictures' })).toBeTruthy();
+  });
+
+  it('offers a published app before one is built: a yes is kept, then the Apps page opens on it', async () => {
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'A shop for the things I make.' }),
+      ev(1, { kind: 'card', card: { id: 'p1', type: 'app', key: 'maker-shop', name: 'Maker Shop', version: '1.2.0', line: 'A made-to-order shop and its studio.' } }),
+    ];
+    await open();
+    const card = await screen.findByRole('group', { name: 'There is a ready-made app for this: Maker Shop' });
+    expect(card.textContent).toContain('A made-to-order shop and its studio.');
+    await userEvent.click(within(card).getByRole('button', { name: 'Use Maker Shop' }));
+    await waitFor(() => expect(leave.leaveTo).toHaveBeenCalledWith('/studio/apps#app=maker-shop'));
+    expect(posted('/answers')).toEqual([{ cardId: 'p1', value: { accept: true } }]);
+  });
+
+  it('draws what comes next as buttons under the newest reply of a turn that applied, and a press sends it', async () => {
+    const steps = [
+      { kind: 'rows' as const, table: 'jobs', name: 'Jobs', path: '/p/repairs-jobs' },
+      { kind: 'add-on' as const, key: 'inventory', name: 'Inventory', text: 'Lower stock when a job uses a part', installed: false },
+      { kind: 'ask' as const, text: 'Add a page where customers book a repair' },
+    ];
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'A bike repair shop.' }, 0),
+      ev(1, { kind: 'text', delta: 'I built Repair Desk.' }),
+      ev(1, { kind: 'next-steps', steps }),
+      ev(1, { kind: 'version', n: 1, name: 'v1' }),
+      ev(1, { kind: 'turn-finished', outcome: 'done' }, 1200),
+    ];
+    await open();
+    const next = await screen.findByRole('group', { name: 'What next?' });
+    expect(within(next).getByRole('link', { name: 'Add your Jobs' }).getAttribute('href')).toBe('/p/repairs-jobs');
+    await userEvent.click(within(next).getByRole('button', { name: 'Add Inventory' }));
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Add the Inventory add-on to this app: Lower stock when a job uses a part' }]));
+    // Once a later turn has started, the steps of the one before it are gone: they were about the app as it was.
+    live(ev(2, { kind: 'turn-started', text: 'Add the Inventory add-on to this app: Lower stock when a job uses a part' }));
+    await waitFor(() => expect(screen.queryByRole('group', { name: 'What next?' })).toBeNull());
+  });
+
+  it('draws no next steps under a turn that did not apply', async () => {
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'Add parts.' }),
+      ev(1, { kind: 'next-steps', steps: [{ kind: 'ask', text: 'Add a booking page' }] }),
+      ev(1, { kind: 'apply', ok: false, state: 'failed', message: 'A table has no key.' }),
+      ev(1, { kind: 'turn-finished', outcome: 'not-applied' }),
+    ];
+    await open();
+    expect(await screen.findByText('Add parts.')).toBeTruthy();
+    expect(screen.queryByRole('group', { name: 'What next?' })).toBeNull();
   });
 
   it('offers to continue or put the files back after a stop', async () => {

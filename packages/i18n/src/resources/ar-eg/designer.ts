@@ -291,7 +291,15 @@ export default {
     "rowsSkip": "لا تحمّل",
     "rowsNo": "قلت ألا تُحمَّل.",
     "addOnSwitchOn": "شغّل القائمة",
-    "typeBelow": "اكتب إجابتك في الأسفل."
+    "typeBelow": "اكتب إجابتك في الأسفل.",
+    "app": "يوجد تطبيق جاهز لهذا: {name}",
+    "appSends": "هو تطبيق منشور، كامل ومُختبَر. تثبّته من Studio ← التطبيقات، حيث تختار إضافاته وبياناته التجريبية. لا يُبنى شيء هنا، فلا يُستهلك شيء من الذكاء الاصطناعي الخاص بك.",
+    "appCopy": "لتغييره بعد ذلك، انسخه إلى هذا المشروع من الصفحة الرئيسية لـ Designer («ابدأ بتطبيق»).",
+    "appYes": "اخترت {name}.",
+    "appOpen": "افتح Studio ← التطبيقات",
+    "appNo": "يُبنى تطبيقك الخاص بدلًا منه.",
+    "appUse": "استخدم {name}",
+    "appOwn": "ابنِ تطبيقي الخاص"
   },
   "step": {
     "addOns": "يطّلع على الإضافات",
@@ -404,7 +412,14 @@ export default {
     "spotFillFailed": "لم توضع صورتك في {subject}",
     "siteBuilding": "جارٍ بناء الشاشات من {subject}",
     "siteBuilt": "بُنيت {count, plural, zero {# شاشة} one {شاشة واحدة} two {شاشتان} few {# شاشات} many {# شاشة} other {# شاشة}} من {subject}",
-    "siteFailed": "لم يُبنَ شيء من القالب"
+    "siteFailed": "لم يُبنَ شيء من القالب",
+    "appOffering": "يطّلع على التطبيقات الجاهزة",
+    "appChosen": "اخترت {subject}",
+    "appDeclined": "يبني تطبيقك الخاص",
+    "appNone": "لم يُعرض تطبيق جاهز",
+    "nextWorking": "يفكّر في الخطوة التالية",
+    "nextDone": "اقترح الخطوات التالية",
+    "nextNone": "لا اقتراحات"
   },
   "steps": {
     "count": "{count, plural, zero {لا خطوات} one {خطوة واحدة} two {خطوتان} few {# خطوات} many {# خطوة} other {# خطوة}}",
@@ -1439,5 +1454,13 @@ export default {
     "addKey": "إضافة مفتاح ذكاء اصطناعي",
     "upgrade": "الترقية",
     "step": "يحتاج إلى مفتاح ذكاء اصطناعي خاص بك"
+  },
+  "next": {
+    "title": "ماذا بعد؟",
+    "rows": "أضف: {table}",
+    "addOn": "أضف {name}",
+    "addOnUse": "استخدم {name}",
+    "addOnMessage": "أضف الإضافة {name} إلى هذا التطبيق: {what}",
+    "addOnUseMessage": "استخدم الإضافة {name} في هذا التطبيق: {what}"
   }
 } as const;

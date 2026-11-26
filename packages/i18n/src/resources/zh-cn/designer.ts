@@ -291,7 +291,15 @@ export default {
     "rowsSkip": "不加载",
     "rowsNo": "你选择了不加载。",
     "addOnSwitchOn": "开启列表",
-    "typeBelow": "请在下方输入你的回答。"
+    "typeBelow": "请在下方输入你的回答。",
+    "app": "已有现成的应用可以做到这一点：{name}",
+    "appSends": "这是一个已发布的应用，完整且经过测试。你在 Studio → 应用 中安装它，并在那里选择它的附加组件和示例数据。这里不会构建任何内容，因此不会为它消耗你的 AI。",
+    "appCopy": "之后若要修改它，请在 Designer 首页将它复制到此项目中（“从一个应用开始”）。",
+    "appYes": "你选择了 {name}。",
+    "appOpen": "打开 Studio → 应用",
+    "appNo": "改为构建你自己的应用。",
+    "appUse": "使用 {name}",
+    "appOwn": "构建我自己的"
   },
   "step": {
     "addOns": "正在查看附加组件",
@@ -404,7 +412,14 @@ export default {
     "spotFillFailed": "你的图片未能放进 {subject}",
     "siteBuilding": "正在根据 {subject} 构建页面",
     "siteBuilt": "已根据 {subject} 构建 {count, plural, other {# 个页面}}",
-    "siteFailed": "未能根据模板构建"
+    "siteFailed": "未能根据模板构建",
+    "appOffering": "正在查看现成的应用",
+    "appChosen": "你选择了 {subject}",
+    "appDeclined": "正在构建你自己的应用",
+    "appNone": "未提供现成的应用",
+    "nextWorking": "正在考虑下一步",
+    "nextDone": "已建议下一步",
+    "nextNone": "没有建议"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -1439,5 +1454,13 @@ export default {
     "addKey": "添加 AI 密钥",
     "upgrade": "升级",
     "step": "需要您自己的 AI 密钥"
+  },
+  "next": {
+    "title": "接下来做什么？",
+    "rows": "添加：{table}",
+    "addOn": "添加 {name}",
+    "addOnUse": "使用 {name}",
+    "addOnMessage": "为此应用添加附加组件 {name}：{what}",
+    "addOnUseMessage": "在此应用中使用附加组件 {name}：{what}"
   }
 } as const;

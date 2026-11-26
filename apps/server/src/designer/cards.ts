@@ -85,6 +85,21 @@ export type DesignerCard =
     }
   | {
       id: string;
+      /**
+       * A published app that already does what the person asked for, offered before anything is named or written. Every
+       * word of it is the server's, from the list adminium.dev gave: the model gave a key. A yes builds nothing here: the
+       * page takes the person to the Apps page, where the app is installed as any app is.
+       */
+      type: 'app';
+      key: string;
+      name: string;
+      version: string;
+      line: string;
+      /** This server may also copy the app into the project to be changed ("Start with an app"): absent where an app's own build is off. */
+      copy?: true;
+    }
+  | {
+      id: string;
       /** Rows of a CSV the person attached, into a table of the app. Every word is the server's: the file's label, the table, the counts. */
       type: 'rows';
       attachment: string;
@@ -149,6 +164,8 @@ export type CardAnswer =
   /** The ids of the pictures ticked. */
   | { type: 'pictures'; accept: string[] }
   | { type: 'add-on'; accept: boolean }
+  /** Yes: the published app, in place of one built here. */
+  | { type: 'app'; accept: boolean }
   | { type: 'rows'; accept: boolean }
   /** Yes: keep the picture on its screen. */
   | { type: 'keep-spot'; accept: boolean }
