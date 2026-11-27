@@ -171,6 +171,8 @@ import {
   answerRemovalBody,
   answerRemovalReply,
   appRemovalsReply,
+  folderAccessBody,
+  folderAccessReply,
   planAppBody,
   connectionParams,
   shapeRulesReply,
@@ -1390,6 +1392,65 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     );
 
     /*
+     * A FOLDER APP'S PUBLIC ACCESS, ALLOWED BY A PERSON. An operator project
+     * (a trial, or the hosted installation it became) has no config file to
+     * say `apps.<key>.publicAccess`, and its folder is written by the
+     * Designer: so the folder's apps are applied with no public access, and
+     * these two routes are where a signed-in person gives it or takes it
+     * back, from the app's settings page. The list is the server's reading
+     * of the installed manifest; the yes names that list (`checksum`) and
+     * needs `system:api-keys:manage`, as allowing it at an install does.
+     * Anywhere else the answer says who decides, and a POST is refused.
+     */
+    const accessDecidedBy = (): 'person' | 'config' | 'dev' => deps.folderAccess?.decides ?? 'config';
+
+    app.get(
+      '/project/apps/:key/public-access',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        schema: { params: appKeyParams, response: { 200: folderAccessReply } },
+      },
+      async (request) => {
+        await installedRow(request, request.params.key);
+        return { key: request.params.key, decides: accessDecidedBy(), publicAccess: await service.folderAccess.view(actorOf(request), request.params.key) };
+      },
+    );
+
+    app.post(
+      '/project/apps/:key/public-access',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: appKeyParams, body: folderAccessBody, response: { 200: folderAccessReply } },
+      },
+      async (request) => {
+        const { key } = request.params;
+        await installedRow(request, key);
+        const decides = accessDecidedBy();
+        if (decides !== 'person') {
+          throw new ValidationFailedError(
+            decides === 'dev'
+              ? `Under \`adminium dev\` "${key}" has the public access its folder declares: change apps/${key}/manifest/access.json.`
+              : request.body.allow
+                ? `On this server adminium.config.ts decides: set apps.${key}.publicAccess to true there, and restart.`
+                : `On this server adminium.config.ts decides what "${key}" is given, and never takes it back: revoke the app's key under Studio → API keys.`,
+            { reason: 'ACCESS_NOT_DECIDED_HERE', decides },
+          );
+        }
+        const inTurn = deps.folderAccess?.inTurn ?? (<T>(work: () => Promise<T>) => work());
+        const body = request.body;
+        const publicAccess = await inTurn(() =>
+          body.allow
+            ? service.folderAccess.allow(actorOf(request), hostOf(request), { key, checksum: body.checksum })
+            : service.folderAccess.takeBack(actorOf(request), hostOf(request), { key }),
+        );
+        // The customer side answers differently now: open screens and dashboards read it again.
+        await surfacesChanged(request);
+        return { key, decides, publicAccess };
+      },
+    );
+
+    /*
      * THE RULES A SHAPE SET, for the column inspector: each still as the
      * add-on's shape wrote it, with the add-on's name and what switching it
      * off stops guaranteeing. Read by the same people who may edit the rules.
@@ -1608,6 +1669,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             granted:
               row.row.connectionId !== null &&
               (await publicEndpointsRepo(deps.meta).listByConnection(row.row.connectionId)).some((endpoint) => endpoint.managedBy === key),
+            // An app of the folder: who allows its access here, so the page names a place that exists.
+            ...(row.row.source === FOLDER_SOURCE && deps.folderAccess !== undefined ? { decides: deps.folderAccess.decides } : {}),
           };
       return {
         ...(publicAccess === undefined ? {} : { publicAccess }),

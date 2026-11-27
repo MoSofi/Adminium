@@ -1041,7 +1041,8 @@ export async function connectCustomer(options: ConnectOptions & { baseUrl?: stri
   if (doc === null || key === null) {
     throw new SideError(
       status === 404
-        ? en('This app is not open to customers yet. Allow its public access in the app’s settings.')
+        // Where it is allowed differs (the app's own page, an update's check, the project's config): the app's page says which.
+        ? en('This app is not open to customers yet: nobody has allowed its public access. Its page in Adminium, under Studio → Apps, says how to allow it.')
         : en('This app is not installed on this Adminium, or its screens are switched off.'),
       null,
       status,

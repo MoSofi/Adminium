@@ -60,6 +60,7 @@ import {
   connectionsRepo,
   connectionTenantConfig,
   documentProfilesRepo,
+  publicApiStateRepo,
   publicEndpointsRepo,
   publicKeysRepo,
   manifestsRepo,
@@ -184,7 +185,7 @@ import type { DsnCrypto } from '@adminium/meta';
 import type { FileStore } from '../files/store.js';
 import { APP_VERSION } from '../version.js';
 import { SERVER_SCOPE } from '@adminium/meta';
-import { addressOf, grantKeyOf, installOnConnection, resolveInstall, slugForInstall, MAX_INSTALLS_PER_KEY } from '../installs/resolve.js';
+import { addressOf, grantKeyOf, installOnConnection, resolveInstall, slugForInstall, MAX_INSTALLS_PER_KEY, type InstallAddress } from '../installs/resolve.js';
 import {
   installAppBody,
   installedAppReply,
@@ -258,6 +259,24 @@ export interface AppRoutesDeps {
         onChange?: () => void;
         /** A key revoked here stops at once, not when the resolver's cache (≤ 30 s) expires. */
         invalidateKey?: (keyId: string) => void;
+      }
+    | undefined;
+  /**
+   * The project folder's apps: who says one may have the public access it
+   * declares, and the queue its own applies run in. Absent on a server that
+   * runs no project.
+   */
+  folderAccess?:
+    | {
+        /**
+         * `person`: an operator project, which has no config file: someone
+         * who may manage API keys allows it on the app's settings page.
+         * `config`: `adminium.config.ts` decides (`apps.<key>.publicAccess`).
+         * `dev`: `adminium dev` gives it as the folder declares it.
+         */
+        decides: 'person' | 'config' | 'dev';
+        /** Run a change to a folder app in turn with the folder's own applies. */
+        inTurn<T>(work: () => Promise<T>): Promise<T>;
       }
     | undefined;
   /**
@@ -717,6 +736,21 @@ export interface ApplyInPlaceReply {
   addOns?: AddOnsDone | undefined;
 }
 export type InstalledAppReply = z.infer<typeof installedAppReply>;
+/** A folder app's public access as its settings page shows it: what it asks for, what is open, what waits for a person's yes. */
+export interface FolderAccess {
+  key: string;
+  /** A live key of the app's own serves it now. */
+  open: boolean;
+  /** How many things a yes would add now: 0 when all it asks for is open. */
+  waiting: number;
+  /** As an update's check lists it: each entry `held` (open now) or not. */
+  access: NonNullable<AppInstallPlanDto['publicAccess']>;
+  /** Entries open now that the manifest would show or take more through. */
+  wider: PublicWidening[];
+  /** Names the list: sent back with the yes, which is refused when the app changed in between. */
+  checksum: string;
+}
+
 export interface UpdateInput {
   key: string;
   body: z.infer<typeof updateAppBody>;
@@ -1959,6 +1993,107 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   }
 
   /**
+   * THE APP'S ENDPOINTS AND ITS BROWSER KEYS, made or settled for one install
+   * as its manifest declares them. An install and an update reach it through
+   * {@link writePages}, after the tables exist; a person allowing a folder
+   * app's access on its settings page reaches it alone
+   * ({@link allowFolderAccess}), with nothing else of the app touched.
+   */
+  async function settlePublicAccess(input: {
+    actor: InstallActor;
+    manifest: Manifest;
+    install: InstallAddress;
+    connectionId: string | null;
+    userId: string | null;
+    names?: Readonly<Record<string, string>> | undefined;
+    /** A key the operator took back is made again: an install, or a person's new yes. An update never does. */
+    afresh: boolean;
+    /** `true` when what the manifest adds was allowed, else why it is left out. */
+    grant: true | { refusal: string };
+    /** The operator's own folder: an entry its key holds may show more (see `writePages`). */
+    ownFolder: boolean;
+    wider?: ReadonlyMap<string, readonly string[]> | undefined;
+  }): Promise<Omit<Awaited<ReturnType<typeof installPublicAccess>>, 'changedKeys'> | undefined> {
+    const { actor, manifest, install, connectionId, userId, names, grant, ownFolder, wider } = input;
+    let made: Omit<Awaited<ReturnType<typeof installPublicAccess>>, 'changedKeys'> | undefined;
+    if (connectionId === null || deps.publicAccess === undefined) return undefined;
+    const view = await deps.publicAccess.viewFor(connectionId);
+    if (view !== null && (manifest.publicAccess ?? []).length > 0) {
+      // Each of the app's keys is made once: the public side's, and a kiosk's.
+      const at = Date.now();
+      const own = await publicKeysRepo(deps.meta).listManagedBy(manifest.key, install.id);
+      const fresh = own.filter((k) => k.revokedAt === null && (k.expiresAt === null || k.expiresAt > at));
+      const live = fresh.filter((k) => pageKey(k.kind));
+      // The phone app's key: a key of its own kind beside the customer key, settled with it.
+      const phoneKeys = own.filter((k) => phoneKey(k.kind));
+      // An add-on has no `customer` key of its own: its one key is its link's.
+      const declaredPurposes = [...(manifest.kind === 'app' ? [CUSTOMER_KEY_PURPOSE] : []), ...Object.keys(manifest.publicKeys ?? {})];
+      const livePurposes = new Set(declaredPurposes.filter((purpose) => live.some((k) => k.purpose === purpose)));
+      // An install starts afresh; an update never makes again a key the operator took back.
+      const withheld = new Set(input.afresh ? [] : declaredPurposes.filter((purpose) => !livePurposes.has(purpose) && own.some((k) => k.purpose === purpose)));
+      const tableNames = names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key));
+      // The live keys on this connection of each purpose this version still declares: given what it adds, once allowed.
+      const here = new Set((await publicKeysRepo(deps.meta).listLiveDerived(connectionId, at)).map((k) => k.id));
+      const liveKeys = new Map<string, string[]>();
+      for (const purpose of livePurposes) liveKeys.set(purpose, live.filter((k) => k.purpose === purpose && here.has(k.id)).map((k) => k.id));
+      const phoneLive = phoneKeys.filter((k) => fresh.includes(k) && here.has(k.id)).map((k) => k.id);
+      if (phoneLive.length > 0) liveKeys.set(CUSTOMER_KEY_PURPOSE, [...(liveKeys.get(CUSTOMER_KEY_PURPOSE) ?? []), ...phoneLive]);
+      const phone = {
+        live: phoneLive.length > 0,
+        // An install starts afresh; an update never makes again a key the operator took back
+        // (revoked). One a version ended when it dropped the phone side is not that.
+        withheld: !input.afresh && phoneLive.length === 0 && phoneKeys.some((k) => k.revokedAt !== null),
+        customerKeyId: live.find((k) => k.purpose === CUSTOMER_KEY_PURPOSE && here.has(k.id))?.id ?? null,
+      };
+      const record = publicAccessRecorder(actor, manifest.key, connectionId, userId);
+      try {
+        const { changedKeys, ...reply } = await installPublicAccess({
+          service: deps.publicAccess.service,
+          meta: deps.meta,
+          crypto: deps.publicAccess.crypto,
+          manifest,
+          install,
+          connectionId,
+          names: tableNames,
+          view,
+          appName: manifest.name,
+          actorId: userId,
+          livePurposes,
+          withheld,
+          liveKeys,
+          phone,
+          grant: grant === true,
+          ...(grant === true ? {} : { refusal: grant.refusal }),
+          ...(ownFolder && grant === true ? { ownFolder: true } : {}),
+          ...(wider === undefined || wider.size === 0 ? {} : { wider }),
+          onCommitted: record,
+          // The add-ons that are here for the app: their entries go on its key under the same say.
+          ...(manifest.kind === 'app' ? { addOns: await liveAddOnsFor(deps.meta, manifest, connectionId) } : {}),
+        });
+        made = reply;
+        await auditLeftOut(actor, manifest.key, connectionId, userId, reply.skipped);
+        /*
+         * A staff screen's key the version turns into a shared link's: its
+         * token would open what it reads with no sign-in. Unbound only on
+         * the operator's explicit say (the check lists it), and only once
+         * it holds exactly what the version declares; otherwise it stays
+         * bound, which fails closed.
+         */
+        if (grant === true) {
+          for (const { keyId, purpose } of await keysOpenedWithoutStaff(deps.meta, manifest, connectionId)) {
+            if (!changedKeys.some((c) => c.keyId === keyId && c.settled)) continue;
+            await publicKeysRepo(deps.meta).setBinding(keyId, { requiresStaff: null, enabledBy: null });
+            await record({ kind: 'rebind', keyId, purpose, requiresStaff: null, enabledBy: null });
+          }
+        }
+      } finally {
+        deps.publicAccess.onChange?.();
+      }
+    }
+    return made;
+  }
+
+  /**
    * Write the manifest's pages, then tell open dashboards the nav moved.
    *
    * AFTER the row is recorded, because every page is tied to it — and a
@@ -2204,82 +2339,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       afterInstall.push(...plannedAfterInstallOfSenders(manifest), ...plannedAfterInstallOfRoles(manifest));
       if (connectionId !== null && manifestRowId !== null) await recordAfterInstall(deps.meta, { manifestId: manifestRowId, appKey: manifest.key }, afterInstall);
       // Guests last: the endpoints read tables that must exist, and the key is made from them.
-      let made: Omit<Awaited<ReturnType<typeof installPublicAccess>>, 'changedKeys'> | undefined;
-      if (publicAccess && connectionId !== null && deps.publicAccess !== undefined) {
-        const view = await deps.publicAccess.viewFor(connectionId);
-        if (view !== null && (manifest.publicAccess ?? []).length > 0) {
-          // Each of the app's keys is made once: the public side's, and a kiosk's.
-          const at = Date.now();
-          const own = await publicKeysRepo(deps.meta).listManagedBy(manifest.key, install.id);
-          const fresh = own.filter((k) => k.revokedAt === null && (k.expiresAt === null || k.expiresAt > at));
-          const live = fresh.filter((k) => pageKey(k.kind));
-          // The phone app's key: a key of its own kind beside the customer key, settled with it.
-          const phoneKeys = own.filter((k) => phoneKey(k.kind));
-          // An add-on has no `customer` key of its own: its one key is its link's.
-          const declaredPurposes = [...(manifest.kind === 'app' ? [CUSTOMER_KEY_PURPOSE] : []), ...Object.keys(manifest.publicKeys ?? {})];
-          const livePurposes = new Set(declaredPurposes.filter((purpose) => live.some((k) => k.purpose === purpose)));
-          // An install starts afresh; an update never makes again a key the operator took back.
-          const withheld = new Set(strict ? [] : declaredPurposes.filter((purpose) => !livePurposes.has(purpose) && own.some((k) => k.purpose === purpose)));
-          const tableNames = names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key));
-          // The live keys on this connection of each purpose this version still declares: given what it adds, once allowed.
-          const here = new Set((await publicKeysRepo(deps.meta).listLiveDerived(connectionId, at)).map((k) => k.id));
-          const liveKeys = new Map<string, string[]>();
-          for (const purpose of livePurposes) liveKeys.set(purpose, live.filter((k) => k.purpose === purpose && here.has(k.id)).map((k) => k.id));
-          const phoneLive = phoneKeys.filter((k) => fresh.includes(k) && here.has(k.id)).map((k) => k.id);
-          if (phoneLive.length > 0) liveKeys.set(CUSTOMER_KEY_PURPOSE, [...(liveKeys.get(CUSTOMER_KEY_PURPOSE) ?? []), ...phoneLive]);
-          const phone = {
-            live: phoneLive.length > 0,
-            // An install starts afresh; an update never makes again a key the operator took back
-            // (revoked). One a version ended when it dropped the phone side is not that.
-            withheld: !strict && phoneLive.length === 0 && phoneKeys.some((k) => k.revokedAt !== null),
-            customerKeyId: live.find((k) => k.purpose === CUSTOMER_KEY_PURPOSE && here.has(k.id))?.id ?? null,
-          };
-          const record = publicAccessRecorder(actor, manifest.key, connectionId, userId);
-          try {
-            const { changedKeys, ...reply } = await installPublicAccess({
-              service: deps.publicAccess.service,
-              meta: deps.meta,
-              crypto: deps.publicAccess.crypto,
-              manifest,
-              install,
-              connectionId,
-              names: tableNames,
-              view,
-              appName: manifest.name,
-              actorId: userId,
-              livePurposes,
-              withheld,
-              liveKeys,
-              phone,
-              grant: grant === true,
-              ...(grant === true ? {} : { refusal: grant.refusal }),
-              ...(ownFolder && grant === true ? { ownFolder: true } : {}),
-              ...(wider === undefined || wider.size === 0 ? {} : { wider }),
-              onCommitted: record,
-              // The add-ons that are here for the app: their entries go on its key under the same say.
-              ...(manifest.kind === 'app' ? { addOns: await liveAddOnsFor(deps.meta, manifest, connectionId) } : {}),
-            });
-            made = reply;
-            await auditLeftOut(actor, manifest.key, connectionId, userId, reply.skipped);
-            /*
-             * A staff screen's key the version turns into a shared link's: its
-             * token would open what it reads with no sign-in. Unbound only on
-             * the operator's explicit say (the check lists it), and only once
-             * it holds exactly what the version declares; otherwise it stays
-             * bound, which fails closed.
-             */
-            if (grant === true) {
-              for (const { keyId, purpose } of await keysOpenedWithoutStaff(deps.meta, manifest, connectionId)) {
-                if (!changedKeys.some((c) => c.keyId === keyId && c.settled)) continue;
-                await publicKeysRepo(deps.meta).setBinding(keyId, { requiresStaff: null, enabledBy: null });
-                await record({ kind: 'rebind', keyId, purpose, requiresStaff: null, enabledBy: null });
-              }
-            }
-          } finally {
-            deps.publicAccess.onChange?.();
-          }
-        }
-      }
+      const made = publicAccess ? await settlePublicAccess({ actor, manifest, install, connectionId, userId, names, afresh: strict, grant, ownFolder, wider }) : undefined;
       return { pages: result, rules, roles: roles === undefined || roleTables.length === 0 ? roles : { ...roles, tables: roleTables }, publicAccess: made, outbox, documents };
     } catch (error) {
       if (refuse) throw error;
@@ -2936,6 +2996,177 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       configVersion: await pagesRepo(deps.meta).configVersion(),
     });
     return result;
+  }
+
+  /**
+   * A FOLDER APP'S PUBLIC ACCESS, ALLOWED BY A PERSON. On a server whose
+   * project has no config file to say it (an operator project: a trial, or
+   * the hosted installation it became) the folder's apps are installed and
+   * applied with no public access, because nobody was there to be asked.
+   * These three are how a person is asked afterwards, on the app's settings
+   * page.
+   *
+   * The yes is an act, not a switch that is remembered. It makes the app's
+   * key and endpoints for the manifest as it is installed at that moment, as
+   * a package's install does when its box is ticked, and that key is the
+   * consent every later apply reads (`holdsPublicAccess`). So a later
+   * manifest that asks for more is applied without the more, which waits
+   * here for another yes; one that asks for less loses it at once. Nothing a
+   * model writes gives the yes: it is a signed-in person's request, by
+   * someone who may manage API keys, for the list they were shown
+   * (`checksum`).
+   */
+  async function folderInstall(key: string): Promise<InstalledManifest> {
+    // A folder app is installed once per server.
+    const installed = await resolveInstall(manifests, key, {}, { kind: 'app' });
+    if (installed === null || installed.row.status !== 'installed') throw new NotFoundError(`"${key}" is not installed.`);
+    if (installed.row.source !== FOLDER_SOURCE) {
+      throw new ValidationFailedError(`"${key}" was installed from a package: its public access is allowed when it is installed or updated.`, { reason: 'NOT_A_FOLDER_APP' });
+    }
+    return installed;
+  }
+
+  /** What the app asks for, what of it is open now, and what waits for a yes. Null for an app that asks the public API for nothing. */
+  async function folderAccessOf(actor: InstallActor, key: string): Promise<FolderAccess | null> {
+    const installed = await folderInstall(key);
+    const manifest = installed.document as Manifest | null;
+    const connectionId = installed.row.connectionId;
+    if (manifest === null || manifest.kind !== 'app' || connectionId === null) return null;
+    const names = await appTablesRepo(deps.meta).realNames(connectionId, key);
+    const access = await publicAccessOf(manifest, connectionId, names, actor, true);
+    if (access === undefined || access.endpoints.length === 0) return null;
+    const wider = await publicWiderOf({ manifest, connectionId, names });
+    const stateOf = (entry: object): string | undefined => ('onUpdate' in entry && typeof entry.onUpdate === 'string' ? entry.onUpdate : undefined);
+    // A person's yes makes again a key that was taken back, the phone app's too: here it is not withheld, it waits.
+    const phoneKey = access.phoneKey === 'withheld' ? ('made' as const) : access.phoneKey;
+    const waiting =
+      access.endpoints.filter((entry) => !entry.pending && stateOf(entry) !== 'held').length +
+      wider.length +
+      (access.opensWithoutStaff ?? []).length +
+      (phoneKey === 'made' ? 1 : 0);
+    // What the yes is for: every entry as the server would make it, not as it is listed. A change to any of it is another list.
+    const view = deps.publicAccess === undefined ? null : await deps.publicAccess.viewFor(connectionId);
+    const planned = plannedPublicEndpointsFor(manifest, names, view, { tablesMadeLater: true }, await liveAddOnsFor(deps.meta, manifest, connectionId));
+    const checksum = createHash('sha256')
+      .update(
+        JSON.stringify({
+          version: installed.row.version,
+          endpoints: planned.map((entry) => [entry.ref, entry.owner, entry.key, entry.methods, entry.definition === null ? null : printDefinition(entry.definition)]),
+          states: access.endpoints.map((entry) => [entry.ref, stateOf(entry) ?? null]),
+          wider,
+          opensWithoutStaff: access.opensWithoutStaff ?? [],
+          phoneKey: phoneKey ?? null,
+        }),
+      )
+      .digest('base64url');
+    return {
+      key,
+      open: await holdsPublicAccess(key, installed.row.id, connectionId),
+      waiting,
+      access: { ...access, ...(phoneKey === undefined ? {} : { phoneKey }) },
+      wider,
+      checksum,
+    };
+  }
+
+  const mayAllowAccess = async (actor: InstallActor): Promise<void> => {
+    if (!(await actor.can(PERMISSIONS.apiKeysManage))) throw new ForbiddenError('Only someone who may manage API keys can allow or take back an app’s public access.');
+  };
+
+  async function allowFolderAccess(actor: InstallActor, host: InstallHost, input: { key: string; checksum: string }): Promise<FolderAccess & { skipped: { ref: string; reason: string }[] }> {
+    const { key } = input;
+    await mayAllowAccess(actor);
+    const shown = await folderAccessOf(actor, key);
+    if (shown === null) throw new ValidationFailedError(`"${key}" asks for no public access.`, { reason: 'NO_PUBLIC_ACCESS' });
+    // The yes is for a list: the app as it stands now must be the one that was listed.
+    if (shown.checksum !== input.checksum) {
+      throw new ConflictError('The app changed since this was shown. Look at what it asks for now, then allow it.', 'CONFLICT', { reason: 'ACCESS_CHANGED' });
+    }
+    const installed = await folderInstall(key);
+    const manifest = installed.document as Manifest;
+    const connectionId = installed.row.connectionId;
+    let made: Awaited<ReturnType<typeof settlePublicAccess>>;
+    try {
+      made = await settlePublicAccess({
+        actor,
+        manifest,
+        install: addressOf(installed),
+        connectionId,
+        userId: actor.id,
+        // A key taken back is made again: this is a person saying yes anew.
+        afresh: true,
+        grant: true,
+        // The list they allowed is the folder's own, entry by entry: one its key holds changes to it.
+        ownFolder: true,
+      });
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new ValidationFailedError(error instanceof Error ? error.message : String(error), { reason: 'PUBLIC_ACCESS_REFUSED' });
+    }
+    // Nothing to make it with (no schema read of its database yet, a composition without the public API): said, never a yes that opened nothing.
+    if (made === undefined) {
+      throw new ValidationFailedError(`The public access of "${key}" could not be made now: this server has not read the app's database yet. Try again in a moment.`, { reason: 'PUBLIC_ACCESS_UNAVAILABLE' });
+    }
+    const skipped = made.skipped;
+    await auditAppEvent(
+      'app.public-access-allowed',
+      { key, version: installed.row.version, ...(connectionId === null ? {} : { connectionId }), endpoints: made.endpoints, ...(skipped.length === 0 ? {} : { skipped }) },
+      actor.id,
+      actor.label,
+      actor.kind,
+    );
+    host.invalidateSurfaceSettings?.();
+    const now = await folderAccessOf(actor, key);
+    return { ...(now ?? shown), skipped };
+  }
+
+  /** Take it back: the app's own keys stop at once, and its endpoints go where no key of the owner's still serves one. */
+  async function takeBackFolderAccess(actor: InstallActor, host: InstallHost, input: { key: string }): Promise<FolderAccess | null> {
+    const { key } = input;
+    await mayAllowAccess(actor);
+    const installed = await folderInstall(key);
+    const connectionId = installed.row.connectionId;
+    const access = deps.publicAccess;
+    if (connectionId === null || access === undefined) return folderAccessOf(actor, key);
+    const record = publicAccessRecorder(actor, key, connectionId, actor.id);
+    const keys = publicKeysRepo(deps.meta);
+    const at = Date.now();
+    const here = new Set((await keys.listLiveDerived(connectionId, at)).map((one) => one.id));
+    const own = (await keys.listManagedBy(key)).filter(
+      (one) => here.has(one.id) && one.revokedAt === null && (one.expiresAt === null || one.expiresAt > at) && (one.installId === null || one.installId === installed.row.id),
+    );
+    const removed: string[] = [];
+    const kept: string[] = [];
+    try {
+      for (const one of own) {
+        await keys.revoke(one.id);
+        // As the API keys page revokes: every process forgets the key at once.
+        await publicApiStateRepo(deps.meta).bump();
+        await record({ kind: 'revoke', keyId: one.id, purpose: one.purpose });
+      }
+      for (const endpoint of await publicEndpointsRepo(deps.meta).listByConnection(connectionId)) {
+        if (endpoint.managedBy !== key) continue;
+        try {
+          await access.service.removeEndpoint({ connectionId, ref: endpoint.ref });
+          removed.push(endpoint.ref);
+        } catch (error) {
+          // A key the owner made by hand still serves it: theirs to take off, under API keys.
+          if (!(error instanceof EndpointInUse)) throw error;
+          kept.push(endpoint.ref);
+        }
+      }
+    } finally {
+      access.onChange?.();
+    }
+    await auditAppEvent(
+      'app.public-access-taken-back',
+      { key, version: installed.row.version, connectionId, keys: own.map((one) => one.id), endpoints: removed, ...(kept.length === 0 ? {} : { kept }) },
+      actor.id,
+      actor.label,
+      actor.kind,
+    );
+    host.invalidateSurfaceSettings?.();
+    return folderAccessOf(actor, key);
   }
 
   /**
@@ -4610,6 +4841,12 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     tablesMadeFor,
     removals,
     answerRemoval,
+    /** A folder app's public access, asked of a person (see `folderAccessOf`). Each change runs alone for its app. */
+    folderAccess: {
+      view: folderAccessOf,
+      allow: (actor: InstallActor, host: InstallHost, input: { key: string; checksum: string }) => whileMoving(input.key, () => allowFolderAccess(actor, host, input)),
+      takeBack: (actor: InstallActor, host: InstallHost, input: { key: string }) => whileMoving(input.key, () => takeBackFolderAccess(actor, host, input)),
+    },
     /** The versions of a key that are packages in the store, whatever the folder holds. */
     packagedVersions: (key: string): Promise<string[]> => deps.store.versions(key).catch(() => [] as string[]),
   };

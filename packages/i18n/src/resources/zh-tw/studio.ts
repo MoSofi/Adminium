@@ -3646,7 +3646,9 @@ export default {
     "phone": "手機應用程式",
     "phoneLine": "此應用程式附有給顧客用的手機應用程式。Adminium 不會提供給任何人：它在手機上執行，並用專屬金鑰存取訪客可以存取的內容。關閉顧客畫面也會讓它停止。",
     "phoneBuild": "為應用程式商店建置的手機應用程式需要這台伺服器提供兩樣東西：手機連得到的伺服器位址，以及該應用程式的「手機應用程式」金鑰。",
-    "phoneKeys": "開啟 API 金鑰"
+    "phoneKeys": "開啟 API 金鑰",
+    "customerNotAllowed": "這些頁面可以開啟，但無法讀取或儲存任何內容：尚未有人允許此應用程式的公開存取。請在本頁的「公開存取」下允許它。",
+    "customerConfigDecides": "這些頁面可以開啟，但無法讀取或儲存任何內容：此伺服器的 adminium.config.ts 不允許此應用程式的公開存取。請在其中將 apps.{key}.publicAccess 設為 true，然後重新啟動。"
   },
   "uninstall": {
     "files": "應用程式的檔案",
@@ -7260,5 +7262,19 @@ export default {
       "summary": "{failed, plural, other {# 則無法處理}}，{holding, plural, other {# 則正在暫停簡訊}}。",
       "retryAll": "全部重試"
     }
+  },
+  "folderAccess": {
+    "allowed": "已允許公開存取。",
+    "takenBack": "已收回公開存取。",
+    "changed": "自此清單顯示以來，應用程式已有變更。請重新檢視後再允許。",
+    "openIntro": "已允許。此應用程式的客戶畫面可以：",
+    "moreIntro": "此應用程式現在要求更多。在有人允許之前，它的客戶畫面會繼續使用已允許的內容。它們還將能夠：",
+    "closedIntro": "尚未有人允許，因此此應用程式的客戶畫面可以開啟，但無法讀取或儲存任何內容。它們需要：",
+    "widerIntro": "在它們已經可以存取的地方，將能看到或做更多：",
+    "failed": "公開存取未變更",
+    "leftOut": "已允許，但以下項目除外：",
+    "takeBack": "收回",
+    "takeBackHelp": "收回後，此應用程式的客戶畫面會立即對所有人關閉。您可以在此處重新允許。",
+    "allowHelp": "之後，任何能開啟此應用程式客戶畫面的人都可以這樣做，無需登入。您可以在此處收回。"
   }
 } as const;

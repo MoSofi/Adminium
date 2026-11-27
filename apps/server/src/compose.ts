@@ -3318,6 +3318,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             publicResolver.invalidate(keyId);
           },
         },
+        // Who allows a folder app's public access here, and the queue the folder's own applies run in.
+        ...(opts.project === undefined
+          ? {}
+          : {
+              folderAccess: {
+                decides: opts.project.mode === 'dev' ? ('dev' as const) : opts.project.operator === true ? ('person' as const) : ('config' as const),
+                inTurn: (work) => (projectApps === null ? work() : projectApps.inTurn(work)),
+              },
+            }),
       };
       await api.register(appRoutes(appDeps));
       // Export everything (Studio): the archive's export variant, made here and downloaded once.
@@ -3408,6 +3417,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           service: appService,
           meta,
           apps: project.apps,
+          // No config file to say it: a person allows a folder app's public access, on its settings page.
+          ...(project.operator === true ? { accessBy: 'person' as const } : {}),
           databases: project.databases ?? [],
           connectionFor: async (key) => (await manager.connections.findByProjectKey(key))?.id ?? null,
           log: project.log,

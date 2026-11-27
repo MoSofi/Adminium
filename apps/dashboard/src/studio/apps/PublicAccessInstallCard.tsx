@@ -117,28 +117,16 @@ export function publicAccessBlocked(access: PublicAccessPlan): boolean {
   return !access.canGrant || access.endpoints.some((endpoint) => endpoint.issues.length > 0);
 }
 
-export function PublicAccessInstallCard({
-  access,
-  checked,
-  onChange,
-}: {
-  access: PublicAccessPlan;
-  checked: boolean;
-  onChange: (next: boolean) => void;
-}) {
-  const blocked = publicAccessBlocked(access);
+/**
+ * What the access lets the app's customer screens do: a line per thing, then
+ * what it would open with no staff signed in, the phone app's key, and what
+ * stops an entry. The install check's card lists it, and so does a folder
+ * app's settings page where a person allows it afterwards.
+ */
+export function PublicAccessAsks({ access }: { access: PublicAccessPlan }) {
   const troubled = access.endpoints.filter((endpoint) => endpoint.issues.length > 0);
   return (
-    <section className={CARD} data-testid="install-public-access">
-      <h3 className="mb-[11px] flex items-center gap-[9px]">
-        <Globe aria-hidden className="size-4 text-accent" />
-        <span className="text-[13.5px] font-extrabold tracking-[-0.01em]">
-          {t('studio:appPublicAccess.title', 'Public access')}
-        </span>
-      </h3>
-      <p className="mb-2.5 text-[12.5px] leading-[1.5] text-fg-muted">
-        {t('studio:appPublicAccess.intro', 'The app’s customer screens need to:')}
-      </p>
+    <>
       <ul className="mb-[13px] flex flex-col gap-[7px]">
         {accessLines(access.endpoints).map(({ key, line, pending }) => (
           <li key={key} className="flex items-start gap-2 text-[12.5px] leading-[1.45] text-fg">
@@ -194,6 +182,47 @@ export function PublicAccessInstallCard({
           ))}
         </ul>
       ) : null}
+    </>
+  );
+}
+
+/** What would stop the access working though it is allowed: the public API off, no email set up. */
+export function PublicAccessWarnings({ access }: { access: PublicAccessPlan }) {
+  if (access.warnings.length === 0) return null;
+  return (
+    <ul className="mt-3 flex flex-col gap-1.5" data-role="public-access-warnings">
+      {access.warnings.map((warning) => (
+        <li key={warning.code} className="flex items-start gap-2 text-[12px] leading-[1.45] text-warn">
+          <AlertTriangle aria-hidden className="mt-px size-3.5 shrink-0" />
+          <span>{warningText(warning.code, warning.message)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function PublicAccessInstallCard({
+  access,
+  checked,
+  onChange,
+}: {
+  access: PublicAccessPlan;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  const blocked = publicAccessBlocked(access);
+  return (
+    <section className={CARD} data-testid="install-public-access">
+      <h3 className="mb-[11px] flex items-center gap-[9px]">
+        <Globe aria-hidden className="size-4 text-accent" />
+        <span className="text-[13.5px] font-extrabold tracking-[-0.01em]">
+          {t('studio:appPublicAccess.title', 'Public access')}
+        </span>
+      </h3>
+      <p className="mb-2.5 text-[12.5px] leading-[1.5] text-fg-muted">
+        {t('studio:appPublicAccess.intro', 'The app’s customer screens need to:')}
+      </p>
+      <PublicAccessAsks access={access} />
       <label className={`flex items-start gap-2.5 ${blocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
         <Checkbox checked={checked && !blocked} disabled={blocked} onCheckedChange={(next) => onChange(next === true)} />
         <span className="text-[12.5px] font-bold">{t('studio:appPublicAccess.allow', 'Allow this public access')}</span>
@@ -206,16 +235,7 @@ export function PublicAccessInstallCard({
             )
           : t('studio:appPublicAccess.helper', 'You can narrow it later on the API keys page.')}
       </p>
-      {access.warnings.length > 0 ? (
-        <ul className="mt-3 flex flex-col gap-1.5" data-role="public-access-warnings">
-          {access.warnings.map((warning) => (
-            <li key={warning.code} className="flex items-start gap-2 text-[12px] leading-[1.45] text-warn">
-              <AlertTriangle aria-hidden className="mt-px size-3.5 shrink-0" />
-              <span>{warningText(warning.code, warning.message)}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <PublicAccessWarnings access={access} />
     </section>
   );
 }

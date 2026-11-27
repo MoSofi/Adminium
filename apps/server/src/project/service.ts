@@ -50,6 +50,12 @@ export interface ProjectServerOptions {
   apps?: ProjectConfig['apps'];
   /** The configured databases that have a URL, in the config's order: an app goes on the first unless it names one. */
   databases?: readonly string[];
+  /**
+   * An operator project: no config file, its config built from the
+   * environment (`operator-project.ts`). Nothing can say `apps.<key>.publicAccess`
+   * there, so a folder app's public access is a signed-in person's to allow.
+   */
+  operator?: boolean | undefined;
 }
 
 /**

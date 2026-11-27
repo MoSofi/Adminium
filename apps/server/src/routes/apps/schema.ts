@@ -884,6 +884,41 @@ export const appRemovalsReply = z.object({
   removals: z.array(appRemovalChange).nullable(),
 });
 
+/**
+ * A folder app's public access, as its settings page shows it on a server
+ * where a person allows it: what the app asks for, what of it is open, and
+ * what waits for a yes.
+ */
+const folderAccess = z.object({
+  /** A live key of the app's own serves it now. */
+  open: z.boolean(),
+  /** How many things a yes would add now: 0 when all it asks for is open. */
+  waiting: z.number().int(),
+  /** As an update's check lists it: an entry is `held` when it is open now, and waits otherwise. */
+  access: appInstallPlanDto.shape.publicAccess.unwrap(),
+  /** Entries open now that the app would show or take more through: part of what a yes allows. */
+  wider: appInstallPlanDto.shape.publicWider.unwrap(),
+  /** Names this list. Sent back with the yes, which is refused (409) when the app changed in between. */
+  checksum: z.string(),
+  /** After a yes: what the server still left out, each with why. */
+  skipped: z.array(z.object({ ref: z.string(), reason: z.string() })).optional(),
+});
+
+export const folderAccessReply = z.object({
+  key: appKey,
+  /** Who allows it on this server (see the settings reply's `publicAccess.decides`). */
+  decides: z.enum(['person', 'config', 'dev']),
+  /** Null for an app that asks the public API for nothing. */
+  publicAccess: folderAccess.nullable(),
+});
+
+export const folderAccessBody = z.discriminatedUnion('allow', [
+  /** Allow what the list named by `checksum` asks for. */
+  z.object({ allow: z.literal(true), checksum: z.string().min(1).max(200) }),
+  /** Take it back: the app's keys stop, its customer screens can read and save nothing. */
+  z.object({ allow: z.literal(false) }),
+]);
+
 export const answerRemovalBody = z.object({
   /** True drops the tables and columns asked about, with their data. False keeps them, released from the app. */
   accept: z.boolean(),
@@ -1392,7 +1427,20 @@ export const appSettingsReply = z.object({
    * switched on, and whether the install made the app's access. Absent for an
    * app that asks for none.
    */
-  publicAccess: z.object({ apiOn: z.boolean(), granted: z.boolean() }).optional(),
+  publicAccess: z
+    .object({
+      apiOn: z.boolean(),
+      granted: z.boolean(),
+      /**
+       * For an app of the project folder: who allows its public access on
+       * this server. `person`: someone who may manage API keys, on this page
+       * (`/project/apps/{key}/public-access`). `config`: `adminium.config.ts`,
+       * with `apps.<key>.publicAccess`. `dev`: `adminium dev` gives it as the
+       * folder declares it. Absent for an app installed from a package.
+       */
+      decides: z.enum(['person', 'config', 'dev']).optional(),
+    })
+    .optional(),
 });
 
 /**

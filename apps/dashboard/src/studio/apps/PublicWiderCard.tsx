@@ -19,7 +19,7 @@ import type { PublicWideningRow } from './appsApi.js';
 const CARD = 'rounded-[14px] border border-warn/30 bg-warn-soft p-[18px]';
 
 /** What one endpoint would newly give, in words. */
-function gainOf(row: PublicWideningRow): string {
+export function gainOf(row: PublicWideningRow): string {
   const parts = [
     ...(row.columns.length === 0 ? [] : [t('studio:publicWider.columns', 'shows {columns}', { columns: row.columns.join(', ') })]),
     ...(row.methods.length === 0 ? [] : [t('studio:publicWider.methods', 'takes {methods}', { methods: row.methods.join(', ') })]),
