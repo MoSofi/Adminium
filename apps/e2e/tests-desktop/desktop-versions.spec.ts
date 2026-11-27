@@ -125,7 +125,9 @@ test('a request builds with versions off, and the version button says so with th
   await page.getByRole('textbox', { name: 'Describe your app' }).fill('A repair desk: jobs and parts.');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/design\/ds_[0-9a-z]{24}$/);
-  await expect(page.getByText('The app has a jobs table now. It is applied and saved.')).toBeVisible({ timeout: 120_000 });
+  // The first of them: this app is one bare table, so the Designer is sent back for what it leaves out, and the stand-in
+  // model answers each time with the same sentence, each a paragraph of its own. The whole turn takes half a second.
+  await expect(page.getByText('The app has a jobs table now. It is applied and saved.').first()).toBeVisible({ timeout: 120_000 });
   await expect(page.getByText(/^Saved as v1$/)).toBeHidden();
   await page.getByRole('button', { name: 'Versions: off' }).click();
   await expect(page.getByText('Versions are off on this computer.')).toBeVisible();
