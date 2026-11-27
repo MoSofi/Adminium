@@ -35,7 +35,7 @@ entry here is out of its reach, whatever the screens try. The app needs a custom
 | `table` | One of the app's table refs. |
 | `methods` | `GET` to read, `POST` to add, `PATCH` to change. |
 | `select` | The columns a reply carries. Leave it out and every column is sent, so list them. |
-| `writable` | The columns a browser may set. |
+| `writable` | The columns a browser may set: every column the screen's form sends. An entry with `POST` or `PATCH` lists them. |
 | `defaults` | Values the server writes whatever the browser sends. |
 
 - **Add or read, not both.** A table anyone may add a row to may not also be one anyone may read:
@@ -45,6 +45,9 @@ entry here is out of its reach, whatever the screens try. The app needs a custom
 - `PATCH` is refused without a `claim`, a `claimedBy` or a `visibleWith`: nobody changes a row
   without proving it is theirs.
 - `writable` never names a column Adminium fills (a `sequence`, a `code`, a `stamp`, a total).
+- An entry that adds or changes rows and leaves a browser nothing to set is refused by the check:
+  `{ "methods": ["POST"], "select": ["id"] }` with no `writable` is one. A column the form sends
+  that `writable` does not name is refused when the form is sent.
 
 **A person's own rows.** An entry with `claim` lets a person prove who they are, by details of
 their row or by a link emailed to them, and so opens a session. An entry with
