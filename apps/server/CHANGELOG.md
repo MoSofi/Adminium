@@ -1,5 +1,93 @@
 # @adminium/server
 
+## 0.3.79
+
+### Patch Changes
+
+- cb8105a: Designer: the page picture keeps a see-through picture see-through, instead of drawing it on a black box the page does not show; a Figma part being read is named on its step line, not by its node id.
+- adb2599: The Designer no longer names the provider of the AI an installation includes. When a model call failed on the connection the operator set, the note read "The model stopped answering (openai-compatible, 429)", and on a server that reaches Ollama or OpenAI directly it named them. It now reads "The included AI stopped answering (429)", and the server leaves the provider's name out of the event it sends, not just out of the sentence. The provider's own words still follow, as before. A person's own connection is named as it was.
+- 7a7b492: The Designer can now add the packages an app's screens need (React, Tailwind, the icon set, a font) to a project that has no `package.json`. A trial's or hosted installation's project is made with none, so npm took the nearest folder above with a `node_modules` as the project: in the image that is `/`, and the install failed there with `Tracker "idealTree" already exists`. The first customer or staff side of such an installation was written and never built. The Designer now writes a `package.json` that lists nothing into the project before it installs, and never over one that is there.
+- e1160cd: The Designer can show its preview on a server people reach, once the server has a second address for it.
+  
+  Until now the Preview tab there read "The preview is off on a live server": such a server has one name, and an app's screens, which a model wrote, would have run on the same site as the signed-in person. A new setting, `ADMINIUM_PREVIEW_ORIGIN`, gives the instance a second name on a different site (another registrable domain), the way `adminium design` has `localhost` beside `127.0.0.1`.
+  
+  - **What the preview's address does.** The instance answers on it. Everything that acts for a person is refused there: the Designer's routes, every way to sign in, setup, the models, users, roles, API keys and settings. The only user ever signed in there is the preview user, who holds the roles of the app being built, through a one-use ticket. A person's own session is not read on the preview's address, and the preview user's is read nowhere else. The instance's own addresses may frame it, and nothing else may.
+  - **For operators.** It needs `ADMINIUM_PUBLIC_ORIGIN`, and is refused when it names an address the instance already answers on. It must be on another registrable domain, which Adminium cannot check: see "The Designer's preview address" in the environment variables page.
+  - **Unchanged.** Without the setting a live server has no preview, as before. `adminium design` and the desktop app work as they did. An app's screens are still served at their own address.
+  
+  `GET /api/v1/system/info` now says whether the Designer has a preview here (`designer.preview`).
+- 56ece22: The Designer offers a published app before it builds one, and ends a reply with buttons.
+  
+  - **A ready-made app, offered first.** While a new session's app has no name yet, the Designer is shown the apps this server could install (the cached list of adminium.dev, less what is installed). When one is the kind of thing the person asked for, it asks on a card of the server's own words ("There is a ready-made app for this: Maker Shop"). "Use it" builds nothing and opens Studio → Apps on that app; "Build my own" goes on as before. One offer a session, made before any instruction on how to build is followed. A server that has never read the list (a trial at its first start) asks adminium.dev for it once, when a new session first needs it. In the start prompt's run, where every other card is answered no at once, this card waits up to ten minutes for the person, then takes no and builds.
+  - **What next, as buttons.** A reply no longer ends with a list of next steps in words. The Designer's `suggest_next` puts up to four buttons under the newest reply of a turn that applied: a request the person sends with one press; an add-on by the server's own name, which a press asks the Designer for (its card then asks before anything is installed, or the Designer says who can install it); and a table the person fills themselves ("Add your Products"), which opens its page in the dashboard.
+- befd12d: The Designer, from a walk on real models:
+  
+  - The look at the page now tells the model which colours the picture shows. With the Designer in dark mode it saw the page's dark look and "fixed" it, once taking a site's dark mode away.
+  - A page out of sight (its tab in the background) sends no picture of itself, and the model is told it could not look. A picture drawn as one flat colour is dropped. Before, the model took an empty picture for a blank page and rewrote a working screen.
+  - The check for unstyled classes no longer reads a compared value, a row's key or a method's argument inside `className` as classes.
+  - The model can take away picture spots the pages no longer need (`remove_spots`). A spot the person filled, or one a screen still draws, is kept.
+  - The note at the end of a turn counts pictures to fill as the Pictures button does.
+  - An app's name sent with HTML entities ("Crumb &amp; Crust") is read as written ("Crumb & Crust").
+  - Each new reply of a turn starts a new paragraph in the chat.
+  - A reply whose tool call the provider lost (it ends to call a tool and brings no call: about 3 in 10 replies to one request on claude-sonnet-5-5) is asked again up to three times. It no longer ends a first turn as "empty", or a later turn as if the work were finished.
+- 60a447f: A person can allow the public access of an app the Designer built, on a server with no `adminium.config.ts` to say so.
+  
+  A trial (and the hosted installation it becomes) runs as an operator project: its config is built from the environment, so nothing could ever say `apps.<key>.publicAccess`, and a server never gives a folder app public access on its own. An app the Designer built with a customer side therefore opened and could read or save nothing ("This app is not open to customers yet"), and the app's page only said "Update the app and allow it", which an app of the folder cannot do.
+  
+  - **"Public access" on the app's page.** For an app of the project folder on such a server, the page lists what its customer screens would do, in the words the install check uses, with **Allow this public access**. The list is the server's reading of the installed app. Allowing it makes the app's key and endpoints at once, as ticking the box at an install does, and is audited as the person's. It needs the permission to manage API keys; someone without it reads the list and is told so.
+  - **Taken back in the same place.** "Take it back" stops the app's key at once and removes its endpoints. Allowing it again makes a new key.
+  - **More is asked again.** The yes is for the list that was shown, and is refused if the app changed in between. When the Designer later makes the app ask for more (a new entry, a column more on one that is open), the app is applied without the more, customers go on with what was allowed, and the card lists what waits beside what is open. What the app stops asking for is taken off its key at once, with nobody asked.
+  - **Never by the Designer.** Nothing a model writes gives the access. The Designer is told once that it waits for the person, and where.
+  - **A project with a config file is as before.** There the committed `adminium.config.ts` decides, the page now says so by name (`apps.<key>.publicAccess`), and `adminium dev` gives the access as the folder declares it.
+  - The customer page's own message no longer names a setting that may not be there: it sends whoever runs the app to its page under Studio → Apps, which says how to allow it on that server.
+  
+  New: `GET` and `POST /api/v1/project/apps/{key}/public-access`, and `publicAccess.decides` (`person`, `config` or `dev`) on an app's settings for an app of the folder.
+- b18bbad: An app's check now refuses a `publicAccess` entry that adds or changes rows and leaves a browser nothing to set, where the entry is written. A Designer wrote `{ "table": "order_requests", "methods": ["POST"], "select": ["id"] }` for an order form that sends six columns; the check passed, the app was applied, and the mistake showed only when a person opened the app's page to allow its public access: the endpoint could not be made ("declares "create" but lists no writable columns") and Allow stayed off. The manifest's validator now says "this entry adds rows, so list the columns a browser may set in writable" at `publicAccess.<n>.writable`, so the Designer's `check_app`, `adminium app check`, a build and an install all read it before anything is applied.
+  
+  The condition is the endpoint's own: a `writable` list left empty, an entry seen with a parent (`visibleWith`) that names none, or no list where what `select` shows is only the key, a column a filter holds, the `claimedBy` column or what Adminium fills. `PATCH` (and `PUT` and `BATCH` in a file made on an Adminium) is held to the same. An entry the endpoint is made for is not refused: `{ "methods": ["POST"], "select": ["id", "message"] }` still lets a browser set `message`. A manifest that validated before and is refused now is one whose endpoint could never have been made.
+- 0f7049b: Building from a site template, from a walk on a real model:
+  
+  - A page and its stylesheet attached one by one are one template with one plan. Before, the stylesheet got an empty plan card of its own ("From style: 0 tables, 0 forms…"), and building it replaced the plan already approved, so the check before going live called things on that plan "not on the plan you approved". A stylesheet attached by itself is now brought in with no plan at all, beside whatever the side already has.
+  - Every plan a person approves for an app is kept. A second template's plan no longer takes away what the first approved, and an empty plan never takes the place of one with something on it.
+  - The plan lists only what the template has. Each thing it reports says where the template has it, and the server looks: a card payment or a search the template never had is refused. The model is also told which of the usual things the server did not find.
+  - Rows the template shows are called the template's own, also where no repeated block was found for them (the reviews of a slider), not "made up".
+  - A row's `id` goes with the columns a plan approves for reading, so a product page that links by id is no longer asked for as "beyond the plan".
+  - "Check this before it goes live" says what more a role could do: each table with the actions, the pages, a change of its limits. Before it said only "could do more than before".
+  - A refused step whose reason is a list shows the list's first lines. Before it showed only the heading ("The plan does not read:").
+  - An app made from a template is named after the business its pages name. When the name the model picks has nothing to do with the pages' titles or the person's words, it is handed the titles once before a name is taken.
+  - New checks, said to the model before a person meets them: `client.create` on a table whose public entry asks for rows below it (an order and its lines) is told to use `client.createTree`; `event.currentTarget` read after an `await` (or in a callback that runs later) is told to keep the element first; a field with no label and a link that holds only a picture with no `alt` are told to name it.
+  - A basket's total says what it takes in: the build instructions and the template guide now say a total is the sum of its lines, with delivery, tax or a discount as its own figure.
+  - Radio groups choose on an arrow key also when the key is pressed and released at once (a switch device, remote desktop or automation). Before, the focus moved and nothing was chosen.
+  - The sample-data guide says a sample row agrees with itself (no price beside "price on request").
+  - From a template, the plan comes before the app. In a new app, a model that starts writing tables, access and sample rows, or adds the side, before it has proposed the plan is told to propose it first (said in one reply, never a wall).
+  - A template's checkout is planned as an order with its lines, and a plan may not let a customer's page send a price or a total.
+  - A person who asks for no sample rows gets none: the rule for a first preview and the end-of-turn reminder both give way to their words.
+  - Rewriting the sample file tells the model the rows already added stay as they are, so it does not say the page changed.
+  - A zip refused for a file name in an old encoding names the file and says to rename it (on Windows, zipping again gives the same zip).
+  - The steps of a template build are said as what they are: reading the template, the plan approved or sent back, then building. Before, each read "Built N screens". A side that was not added no longer reads "Added screens".
+  - "Check this before it goes live" now sees what strangers may write to the rows below an entry's own (an order's lines). A manifest names them by their table, and they were read only as a list, so widening what a create writes to its lines was never asked.
+  - The manifest check refuses a row's key among what a public entry lets a browser write. Before, the check passed it and the apply stopped part way ("is the primary key and cannot be writable").
+  - The template finder sees a slider of reviews as a repeated block: who said a quote (`<cite>`) is a field of its own, so the plan can count the reviews as rows from the template.
+  - An app made from a template takes the business's own name: a name that only shares a word with it ("Fernhill Pottery" for "Fernhill Ceramics") is handed the page titles once, as an unrelated name is.
+  - Small wording for the model: a basket kept in the browser works and is not "not available"; a build names tables and columns as its plan does; rows keep the template's order on the page; the reminder about an empty first page leaves it empty when the person asked for no sample rows, in any language.
+  - An app stored before this release with a public entry the check now refuses (one that adds rows and leaves a browser nothing to set, or one that lets a browser write a row's key) is still read by what reads it: its forms, the record of a consent box, an add-on's settling. The entry is left out, as no endpoint was ever made for it, and the app's next apply says what to fix.
+  - A radio group inside a form reports an arrow-key choice once. The said-once note about a template's checkout is said per app, not once for every app built from the same template. Only the person's own words count as theirs for an app's name and for "no sample rows": the server's notes about an attached file do not, and "I have no sample data, make some up" asks for rows.
+- Updated dependencies [56ece22]
+- Updated dependencies [befd12d]
+- Updated dependencies [60a447f]
+- Updated dependencies [b18bbad]
+- Updated dependencies [0f7049b]
+  - @adminium/i18n@0.3.79
+  - @adminium/manifest@0.3.79
+  - @adminium/engine@0.3.79
+  - @adminium/llm@0.3.79
+  - @adminium/adapter-mysql@0.3.79
+  - @adminium/adapter-postgres@0.3.79
+  - @adminium/adapter-sqlite@0.3.79
+  - @adminium/schema-import@0.3.79
+  - @adminium/add-on-contracts@0.3.79
+  - @adminium/meta@0.3.79
+
 ## 0.3.78
 
 ### Patch Changes

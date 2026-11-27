@@ -67,6 +67,31 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.79',
+    date: '2026-11-27',
+    title: 'The Designer on a live server, and apps from a site template',
+    summary:
+      'The Designer can show its preview on a server people reach, a person can allow the public access of an app it built there, and building from a site template now follows the plan a person approved.',
+    notice: {
+      title: 'Before you upgrade',
+      items: [
+        'An app of your own is checked more strictly the next time it is applied or updated: a public entry that adds or changes rows and names nothing a browser may set, or one that lets a browser write a row\u2019s key, is refused. No such entry ever worked, and an installed app keeps running without it.',
+      ],
+    },
+    changes: [
+      { tag: 'New', text: 'The Designer\u2019s preview on a server people reach: set ADMINIUM_PREVIEW_ORIGIN to a second address on another domain. Nothing that acts for a person is answered there.' },
+      { tag: 'New', text: 'On a server with no config file, such as a trial, a person allows the public access of an app the Designer built on the app\u2019s page under Studio \u2192 Apps, and takes it back in the same place.' },
+      { tag: 'New', text: 'The Designer offers a ready-made app before it builds one of the same kind, and ends a reply with buttons for what to do next.' },
+      { tag: 'Improved', text: 'From a site template, the plan comes before anything is written, lists only what the template has, and is kept for every template an app is built from. A checkout is planned as an order with its lines, and no customer page sends a price or a total.' },
+      { tag: 'Improved', text: '\u201cCheck this before it goes live\u201d names what more a role could do: the tables with their actions, the pages and the limits.' },
+      { tag: 'Improved', text: 'The Designer is told before a person meets it when a screen writes an order without its lines, reads a form after waiting, or leaves a field or a picture link unnamed.' },
+      { tag: 'Fixed', text: 'A page and its stylesheet attached one by one are one template with one plan. Before, the stylesheet\u2019s empty plan replaced the approved one.' },
+      { tag: 'Fixed', text: 'The Designer can add the packages an app\u2019s screens need to a project with no package.json, asks again when the model\u2019s provider loses a tool call, and no longer mistakes a dark page or a background tab for a broken screen.' },
+      { tag: 'Fixed', text: 'Radio groups choose on an arrow key also when the key is pressed and released at once, as a switch device or a remote desktop sends it.' },
+      { tag: 'Fixed', text: 'A zip refused for a file name in an old encoding names the file and says to rename it.' },
+    ],
+  },
+  {
     version: '0.3.78',
     date: '2026-11-25',
     title: 'Add-on pages on an app\u2019s own key',
