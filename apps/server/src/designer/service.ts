@@ -467,6 +467,15 @@ export function createDesigner(host: DesignerHost): Designer {
   const pageWarnings = new Map<string, string[]>();
   /** Public access the last apply left as it was: the screens are refused what the manifest grants until it is settled. */
   const accessWarnings = new Map<string, string[]>();
+  /**
+   * Apps whose last apply left public access waiting for a person's yes (a server with no config file to say it:
+   * `project-apps.ts`, `accessBy: 'person'`). Nothing in the folder changes that, so it is not a problem to fix: the
+   * model is told once to say where the person allows it.
+   */
+  const accessWaits = new Set<string>();
+  const ACCESS_WAITS =
+    '- The app’s customer screens can read and save nothing yet: nobody has allowed its public access, and only a person can, on the app’s own page in Adminium (Studio → Apps → this app → “Public access”), where the server lists what would open. ' +
+    'Nothing in the app’s files changes this, so change nothing for it: tell the person, in a sentence, that this is where they allow it.';
 
   async function pipeline(session: DesignerSession, handle: TurnHandle, opts: { version?: boolean; askRemovals?: boolean; label?: string; saved?: readonly string[] } = {}): Promise<PipelineResult> {
     const { events, turn } = handle;
@@ -559,6 +568,8 @@ export function createDesigner(host: DesignerHost): Designer {
     if (result?.state === 'installed' || result?.state === 'applied') {
       pageWarnings.set(key, result.pageWarnings ?? []);
       accessWarnings.set(key, result.accessWarnings ?? []);
+      if (result.accessWaits === true) accessWaits.add(key);
+      else accessWaits.delete(key);
     }
     const kept = pageWarnings.get(key) ?? [];
     // What is served now, as a mark: the build's own, and more when applying it changed the server (a table made, a page
@@ -676,8 +687,9 @@ export function createDesigner(host: DesignerHost): Designer {
     advice: (session) => {
       const manifest = checkApp(host.root, session.appKey, { version: host.version }).manifest;
       const tables = manifest !== null && manifest.kind === 'app' ? (manifest.requiredSchema?.tables ?? []).map((table) => table.ref) : [];
+      const waits = accessWaits.has(session.appKey) ? [ACCESS_WAITS] : [];
       // A copy of a published app is as its authors laid it out: its tables without pages and its screens are theirs.
-      if (hasOwnBuild(host.root, session.appKey)) return [];
+      if (hasOwnBuild(host.root, session.appKey)) return waits;
       // A name of four words or more is the first words of the request, not a name: it is what customers read in the page's header.
       const named = manifest !== null && typeof manifest.name === 'string' ? manifest.name : '';
       const unnamed =
@@ -702,6 +714,7 @@ export function createDesigner(host: DesignerHost): Designer {
       const phone = phoneNow(host.root, session.appKey);
       const phoneFailed = phone.state === 'failed' ? [`- ${phone.words.split('\n').slice(0, 12).join('\n  ')}\n  Fix it in apps/${session.appKey}/mobile/App.tsx or the file under mobile/src/ it names, then call build_sides.`] : [];
       return [
+        ...waits,
         ...noScreens,
         ...phoneFailed,
         ...unloadedFiles(session),

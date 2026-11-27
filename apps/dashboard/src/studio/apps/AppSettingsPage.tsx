@@ -104,6 +104,7 @@ export { SampleDataBanner } from './SampleData.js';
 /** For the page route (`pages/PageRenderer.tsx`), which loads it from here, in this chunk. */
 export { FeaturePageNotice } from './FeaturePageNotice.js';
 import { AppPartsCard } from './AppPartsCard.js';
+import { FolderAccessCard } from './FolderAccessCard.js';
 import { AppIcon, CARD, CardTitle, workspacesHolding, workspacesOf } from './appPageParts.js';
 import { InstallScope, addressOf, splitAddress, useInstallId } from './installScope.js';
 import { AfterInstallCard, EditScreensCard, LookCard, WhatItAddedCard, monoDigits } from './OwnAppCards.js';
@@ -385,6 +386,8 @@ function Loaded({ app, copies }: { app: InstalledApp; copies: readonly Installed
           {app.sides.length === 0 ? null : (
             <ScreensCard app={app} settings={settings} busy={patch.isPending} onPatch={(change) => patch.mutate(change)} onChanged={refresh} />
           )}
+          {/* An app of the folder, where no config file says who may have public access: a person allows it here. */}
+          {fromFolder && settings.publicAccess?.decides === 'person' ? <FolderAccessCard appKey={app.key} onChanged={refresh} onNotice={setNotice} /> : null}
           <EditScreensCard appKey={app.key} appName={name} serverName={serverName} onNotice={setNotice} />
           {own || several ? (
             <WhatItAddedCard
@@ -635,9 +638,9 @@ function SideRow({
                   : t('studio:appSettings.customerOffHelp', 'Customers see “not available”. Nothing was deleted.')}
           </p>
           {/* On, and unable to answer: the switch serves the pages; the public API is what they call. */}
-          {!staff && on && !disabled && customerTrouble(settings.publicAccess) !== null ? (
+          {!staff && on && !disabled && customerTrouble(settings.publicAccess, app.key) !== null ? (
             <p className="mt-[5px] text-xs leading-[1.5] text-warn" data-testid="app-side-customer-trouble">
-              {customerTrouble(settings.publicAccess)}
+              {customerTrouble(settings.publicAccess, app.key)}
             </p>
           ) : null}
         </div>
@@ -886,9 +889,23 @@ function DataCard({ app }: { app: InstalledApp }) {
 }
 
 /** Why a customer side that is on cannot answer, or null when it can (or the app asks for no public access). */
-export function customerTrouble(access: { apiOn: boolean; granted: boolean } | undefined): string | null {
+export function customerTrouble(access: AppSettingsView['publicAccess'], appKey = ''): string | null {
   if (access === undefined) return null;
   if (!access.granted) {
+    // An app of the project folder is never updated from here: each says the place where its access is allowed.
+    if (access.decides === 'person') {
+      return t(
+        'studio:appSettings.customerNotAllowed',
+        'These pages open, but they cannot read or save anything: nobody has allowed the app’s public access yet. Allow it under “Public access” on this page.',
+      );
+    }
+    if (access.decides === 'config') {
+      return t(
+        'studio:appSettings.customerConfigDecides',
+        'These pages open, but they cannot read or save anything: this server’s adminium.config.ts does not allow the app’s public access. Set apps.{key}.publicAccess to true there, and restart.',
+        { key: appKey },
+      );
+    }
     return t(
       'studio:appSettings.customerNoAccess',
       'These pages open, but they cannot read or save anything: the app was installed without its public access. Update the app and allow it.',

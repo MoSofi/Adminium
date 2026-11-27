@@ -56,6 +56,8 @@ let phoneCalls: { what: string; body?: unknown }[];
 /** What the server answers a yes, an opening or a stop with; by default, how the phone side stands. */
 let phoneAnswer: ((what: string) => Response | null) | null;
 let mode: 'local' | 'live';
+/** A live server whose operator gave it a preview address. */
+let liveHasPreview: boolean;
 /** Whether the session's app is installed yet (it is not before its first turn). */
 let appThere: boolean;
 let fixes: string[];
@@ -78,13 +80,14 @@ beforeEach(() => {
   phoneAnswer = null;
   appThere = true;
   mode = 'local';
+  liveHasPreview = false;
   fixes = [];
   vi.stubGlobal('WebSocket', FakeSocket);
   vi.stubGlobal(
     'fetch',
     vi.fn((input: unknown, init?: RequestInit) => {
       const url = String(input);
-      if (url === '/api/v1/system/info') return Promise.resolve(jsonResponse(200, { designer: { mode, link: false } }));
+      if (url === '/api/v1/system/info') return Promise.resolve(jsonResponse(200, { designer: { mode, link: false, ...(mode === 'live' ? { preview: liveHasPreview } : {}) } }));
       const phoneBase = `/api/v1/designer/sessions/${SESSION.id}/phone`;
       // A server that builds no phone app has no such route: the 404 below.
       if (url.startsWith(phoneBase) && phoneStatus !== null) {
@@ -585,6 +588,20 @@ describe('the phone side of the preview', () => {
     mount();
     await waitFor(() => expect(model.noPreview).toBe(true));
     await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(asked()).toEqual([]);
+    expect(model.phone).toBeNull();
+    expect(model.sides).not.toContain('mobile');
+  });
+
+  it('has a preview on a live server with a preview address, and still asks nothing of a phone side', async () => {
+    mode = 'live';
+    liveHasPreview = true;
+    phoneStatus = built();
+    mount();
+    await waitFor(() => expect(model.app).not.toBeNull());
+    expect(model.noPreview).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    // A phone app is built where the app is designed on a person's own computer: a live server is never asked for one.
     expect(asked()).toEqual([]);
     expect(model.phone).toBeNull();
     expect(model.sides).not.toContain('mobile');

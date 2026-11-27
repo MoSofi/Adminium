@@ -78,6 +78,8 @@ export interface SystemInfoDeps {
   designer?: 'local' | 'live' | 'off' | undefined;
   /** Whether `adminium design` signs its owner in with a one-use link. */
   designerLink?: boolean | undefined;
+  /** The Designer has a preview here: always under `adminium design`, on a server people reach only with a preview address. */
+  designerPreview?: boolean | undefined;
   /** The user's own database's state (`project/your-database-state.ts`); none when left out. */
   ownDatabase?: (() => YourDatabaseState | null) | undefined;
   /** The clock the trial's days are counted on. Default `Date.now`. */
@@ -118,7 +120,7 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
   const { env, meta } = deps;
   return {
     version: APP_VERSION,
-    designer: { mode: deps.designer ?? 'off', link: deps.designerLink === true, startPrompt: await startPromptOpen(env, meta, deps.designer ?? 'off', deps.hasDefaultModel), startPromptWaitsUntil: await waitsUntil(env, meta, deps.designer ?? 'off') },
+    designer: { mode: deps.designer ?? 'off', link: deps.designerLink === true, preview: deps.designerPreview === true, startPrompt: await startPromptOpen(env, meta, deps.designer ?? 'off', deps.hasDefaultModel), startPromptWaitsUntil: await waitsUntil(env, meta, deps.designer ?? 'off') },
     node: process.version,
     dialect: meta?.dialect ?? null,
     runtime: env.ADMINIUM_RUNTIME,

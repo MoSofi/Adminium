@@ -7,7 +7,7 @@
 | `references/manifest/people-3.md` | People (part 3) | 731 |
 | `references/manifest/shipping.md` | Shipping | 5707 |
 | `references/manifest/public-access.md` | Public access | 2014 |
-| `references/manifest/public-access-2.md` | Public access (part 2) | 7550 |
+| `references/manifest/public-access-2.md` | Public access (part 2) | 7648 |
 | `references/manifest/public-access-3.md` | Public access (part 3) | 7679 |
 | `references/manifest/public-access--filters.md` | Public access — Filters | 835 |
 | `references/manifest/public-access--windows-on-a-moment.md` | Public access — Windows on a moment | 2049 |

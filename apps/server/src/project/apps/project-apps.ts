@@ -26,6 +26,14 @@
  * no table of somebody else's changed, and no public access unless
  * `adminium.config.ts` says so for that app.
  *
+ * An operator project (a trial, or the hosted installation it became) has no
+ * config file to say so, and the folder is written by the Designer for a
+ * stranger. There the folder is never given public access by this module at
+ * all (`accessBy: 'person'`): a signed-in person allows it on the app's
+ * settings page, for the list the server shows them, and the key that makes
+ * is the consent a later apply reads. What a later manifest adds waits for
+ * another yes.
+ *
  * ─── A failure is shown, not retried ────────────────────────────────────────
  *
  * An app that cannot be applied keeps running as it was. The reason is
@@ -61,6 +69,12 @@ export interface AppliedApp {
   pageWarnings?: string[];
   /** Public access the server left as it was, each with why. */
   accessWarnings?: string[];
+  /**
+   * Where a person allows public access (`accessBy: 'person'`): the app asks
+   * for access nobody has allowed yet. Nothing in the folder changes that, so
+   * it is kept apart from `accessWarnings`, which a change to the folder mends.
+   */
+  accessWaits?: true;
 }
 
 /** What an install or an apply said about the pages it wrote, as sentences. */
@@ -86,6 +100,12 @@ export interface ProjectApps {
    * screen polls it under `adminium dev` and reloads when it moves.
    */
   buildOf(key: string): string | null;
+  /**
+   * Run something else that changes one of the folder's apps (a person
+   * allowing its public access) in turn with the reconciles: never while one
+   * runs, and none starts until it is done.
+   */
+  inTurn<T>(work: () => Promise<T>): Promise<T>;
 }
 
 export interface ProjectAppsOptions {
@@ -96,6 +116,13 @@ export interface ProjectAppsOptions {
   meta: MetaDb;
   /** The project's `apps` block. */
   apps: ProjectConfig['apps'];
+  /**
+   * Who says an app may have the public access it declares. `config` (the
+   * default): `adminium.config.ts`, with `apps.<key>.publicAccess`. `person`:
+   * an operator project, which has no config file: nothing here gives it, and
+   * a person allows it on the app's settings page.
+   */
+  accessBy?: 'config' | 'person' | undefined;
   /** The configured databases that have a URL, in the config's order. */
   databases: readonly string[];
   /** The connection a database key names on this instance, or null. */
@@ -186,10 +213,42 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
   const unattended: Unattended =
     opts.mode === 'dev' ? { installAddOns: true, adaptForeignTables: true } : { installAddOns: false, adaptForeignTables: false };
 
+  const byPerson = opts.accessBy === 'person' && opts.mode !== 'dev';
+  /** Why an apply here leaves out what a folder's manifest adds, where a person is the one who allows it. */
+  const PERSON_REFUSAL = 'nobody has allowed it yet: someone who may manage API keys allows it on the app’s settings page (Studio → Apps)';
+
   /** Whether this app may be given the public access it declares. */
   function publicAccessFor(key: string): { allowed: boolean; refusal: string } {
+    // No config file says so here, and the folder is not a developer's own: only a person's yes gives it.
+    if (byPerson) return { allowed: false, refusal: PERSON_REFUSAL };
     const allowed = opts.mode === 'dev' || opts.apps?.[key]?.publicAccess === true;
     return { allowed, refusal: `adminium.config.ts does not allow it: set apps.${key}.publicAccess to true` };
+  }
+
+  /**
+   * Where a person allows it: what of the app's public access waits for their
+   * yes now, by endpoint, as its settings page lists it. An entry left out
+   * for that is not a fault of the folder, whatever words the server left it
+   * out with (a new entry, or one its key holds that would show more).
+   */
+  async function waitingFor(key: string): Promise<{ any: boolean; refs: ReadonlySet<string> }> {
+    if (!byPerson) return { any: false, refs: new Set() };
+    const view = await service.folderAccess.view(PROJECT_FOLDER_ACTOR, key).catch(() => null);
+    if (view === null) return { any: false, refs: new Set() };
+    return {
+      any: view.waiting > 0,
+      // An entry that cannot be made at all is not waiting for anybody: that one is the folder's to mend.
+      refs: new Set([...view.access.endpoints.filter((entry) => !entry.pending && entry.onUpdate !== 'held' && entry.issues.length === 0).map((entry) => entry.ref), ...view.wider.map((entry) => entry.ref)]),
+    };
+  }
+
+  /** What an apply left out that the folder can mend, apart from what waits for a person. */
+  function accessOf(
+    reply: { publicAccess?: { skipped: readonly { ref: string; reason: string }[] } | undefined },
+    waiting: { any: boolean; refs: ReadonlySet<string> },
+  ): { accessWarnings?: string[]; accessWaits?: true } {
+    const skipped = (reply.publicAccess?.skipped ?? []).filter((entry) => entry.reason !== PERSON_REFUSAL && !waiting.refs.has(entry.ref));
+    return { ...accessWarningsOf({ publicAccess: { skipped } }), ...(waiting.any ? { accessWaits: true as const } : {}) };
   }
 
   /** The connection an app is installed on: the database its config names, else the first one. */
@@ -253,7 +312,8 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
   /** Public access the committed config does not allow is said, once: it is never taken back unasked. */
   const saidAccessStays = new Set<string>();
   async function sayAccessThatStays(key: string): Promise<void> {
-    if (publicAccessFor(key).allowed || saidAccessStays.has(key)) return;
+    // Where a person allows it, a key that is here is their yes: nothing to say.
+    if (byPerson || publicAccessFor(key).allowed || saidAccessStays.has(key)) return;
     const live = await publicKeysRepo(opts.meta).newestLiveByApp(key, 'customer');
     if (live === null || live.managedBy !== key) return;
     saidAccessStays.add(key);
@@ -319,7 +379,11 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
     opts.log(`App "${app.key}" installed from apps/${app.key}.${made}`);
     sayAddOns(app.key, reply.addOns);
     if (declaresAccess && !access.allowed) {
-      opts.log(`App "${app.key}" is installed WITHOUT public access: ${access.refusal} to give it what its manifest declares.`);
+      opts.log(
+        byPerson
+          ? `App "${app.key}" is installed WITHOUT public access: ${access.refusal}.`
+          : `App "${app.key}" is installed WITHOUT public access: ${access.refusal} to give it what its manifest declares.`,
+      );
     }
     await publicApiFor(app.key, declaresAccess, access.allowed);
     if (opts.mode === 'dev' && manifest.kind === 'app' && manifest.sampleData !== undefined && opts.apps?.[app.key]?.sampleData !== false) {
@@ -330,7 +394,7 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
         opts.warn(`App "${app.key}": its sample data was not added (${error instanceof Error ? error.message : String(error)}).`);
       }
     }
-    return { key: app.key, state: 'installed', hash: app.hash, ...pageWarningsOf(reply), ...accessWarningsOf(reply) };
+    return { key: app.key, state: 'installed', hash: app.hash, ...pageWarningsOf(reply), ...accessOf(reply, await waitingFor(app.key)) };
   }
 
   async function applyChanged(
@@ -350,7 +414,13 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
     const made = reply.schema?.created ?? [];
     opts.log(`App "${app.key}" applied from apps/${app.key}${made.length === 0 ? '' : ` (new tables: ${made.join(', ')})`}.`);
     // Public access the server did not take: never in silence, or a screen goes on being refused what its manifest grants.
-    for (const skipped of reply.publicAccess?.skipped ?? []) opts.warn(`App "${app.key}": the public access of "${skipped.ref}" was left as it was (${skipped.reason}).`);
+    const waiting = await waitingFor(app.key);
+    for (const skipped of reply.publicAccess?.skipped ?? []) {
+      // Waiting for a person's yes is how it goes here, not a fault of the folder: said below, not as a warning.
+      if (skipped.reason === PERSON_REFUSAL || waiting.refs.has(skipped.ref)) continue;
+      opts.warn(`App "${app.key}": the public access of "${skipped.ref}" was left as it was (${skipped.reason}).`);
+    }
+    if (waiting.any) opts.log(`App "${app.key}" asks for public access that is not open: ${PERSON_REFUSAL}.`);
     sayAddOns(app.key, reply.addOns);
     /*
      * A column the folder now lets be empty, on a table that exists, stays
@@ -418,7 +488,7 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
           'Nothing was dropped. Answer it in Studio → Apps: "Remove them" drops the data, "Keep the data" leaves it in the database and out of the app.',
       );
     }
-    return { key: app.key, state: 'applied', hash: app.hash, ...pageWarningsOf(reply), ...accessWarningsOf(reply) };
+    return { key: app.key, state: 'applied', hash: app.hash, ...pageWarningsOf(reply), ...accessOf(reply, waiting) };
   }
 
   async function one(app: BuiltProjectApp): Promise<AppliedApp> {
@@ -512,5 +582,14 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
     },
     status: () => last,
     buildOf: (key) => stamps.get(key) ?? null,
+    inTurn(work) {
+      const done = running.then(work, work);
+      // The queue goes on whatever it did; its failure is its caller's alone.
+      running = done.then(
+        () => last,
+        () => last,
+      );
+      return done;
+    },
   };
 }

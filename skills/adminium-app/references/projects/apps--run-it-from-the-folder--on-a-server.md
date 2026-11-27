@@ -55,6 +55,15 @@ On a server the public API also has to be there for a customer side to reach any
 has not allowed. A database that `adminium dev` once ran against keeps the access dev gave: a server
 started on it warns the same way.
 
+A server with no `adminium.config.ts` at all (a trial, or a hosted installation: an
+[operator project](https://docs.adminium.dev/self-hosting/env-vars/), `ADMINIUM_OPERATOR_PROJECT`) has nothing to set
+`publicAccess` in, and its folder is written by Adminium Designer. There a person allows it instead:
+the app's page under **Studio → Apps** has a **Public access** card that lists what the app's
+customer screens would do, with **Allow this public access**. It needs the permission to manage API
+keys, opens at once, and is taken back in the same place. The yes is for the list that was shown:
+when the app later asks for more, it is applied without the more, customers go on with what was
+allowed, and the card lists what waits. What the app stops asking for is taken off at once.
+
 `adminium dev` switches the public API on by itself for an app that declares public access, and
 records it in the audit log. It listens on every address of the machine unless told otherwise, so on
 a shared network start it with `--host 127.0.0.1`; the terminal says so when it applies.

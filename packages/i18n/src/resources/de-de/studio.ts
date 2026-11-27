@@ -3646,7 +3646,9 @@ export default {
     "phone": "Handy-App",
     "phoneLine": "Diese App hat eine Handy-App für Kunden. Adminium liefert sie an niemanden aus: Sie läuft auf einem Handy und erreicht mit einem eigenen Schlüssel, was Gäste erreichen dürfen. Wer die Kundenansichten abschaltet, hält auch sie an.",
     "phoneBuild": "Eine Handy-App, die für einen Store gebaut wird, braucht zwei Dinge von diesem Server: seine Adresse, wie ein Handy sie erreicht, und den Schlüssel „Handy-App“ der App.",
-    "phoneKeys": "API-Schlüssel öffnen"
+    "phoneKeys": "API-Schlüssel öffnen",
+    "customerNotAllowed": "Diese Seiten öffnen sich, können aber nichts lesen oder speichern: Noch hat niemand den öffentlichen Zugriff der App erlaubt. Erlauben Sie ihn auf dieser Seite unter „Öffentlicher Zugriff“.",
+    "customerConfigDecides": "Diese Seiten öffnen sich, können aber nichts lesen oder speichern: Die adminium.config.ts dieses Servers erlaubt den öffentlichen Zugriff der App nicht. Setzen Sie dort apps.{key}.publicAccess auf true und starten Sie neu."
   },
   "uninstall": {
     "files": "Die Dateien der App",
@@ -7260,5 +7262,19 @@ export default {
       "summary": "{failed, plural, one {# konnte nicht verarbeitet werden} other {# konnten nicht verarbeitet werden}}, {holding, plural, one {# hält SMS zurück} other {# halten SMS zurück}}.",
       "retryAll": "Alle erneut versuchen"
     }
+  },
+  "folderAccess": {
+    "allowed": "Öffentlicher Zugriff erlaubt.",
+    "takenBack": "Öffentlicher Zugriff zurückgenommen.",
+    "changed": "Die App hat sich geändert, seit diese Liste angezeigt wurde. Prüfen Sie sie erneut und erlauben Sie sie dann.",
+    "openIntro": "Erlaubt. Die Kundenseiten der App können:",
+    "moreIntro": "Die App verlangt jetzt mehr. Bis jemand es erlaubt, arbeiten ihre Kundenseiten mit dem weiter, was erlaubt war. Zusätzlich würden sie:",
+    "closedIntro": "Noch hat das niemand erlaubt, daher öffnen sich die Kundenseiten der App, können aber nichts lesen oder speichern. Sie müssen:",
+    "widerIntro": "Und wo sie es schon können, würden sie mehr sehen oder tun:",
+    "failed": "Der öffentliche Zugriff wurde nicht geändert",
+    "leftOut": "Erlaubt, mit Ausnahme von:",
+    "takeBack": "Zurücknehmen",
+    "takeBackHelp": "Das Zurücknehmen schließt die Kundenseiten der App sofort für alle. Sie können den Zugriff hier wieder erlauben.",
+    "allowHelp": "Jeder, der die Kundenseiten der App öffnen kann, darf das dann ohne Anmeldung. Sie können es hier zurücknehmen."
   }
 } as const;

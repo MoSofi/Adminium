@@ -3310,12 +3310,40 @@ export function appReferenceIssues(
 
   out.push(...rollupChainIssues(m.requiredSchema.tables));
 
+  /*
+   * What an endpoint never offers a browser of a table when an entry names no
+   * `writable`: the columns Adminium fills, as the server reads them of the
+   * table alone (`decidedColumnsOf` in its `public-api/endpoint.ts`, rule for
+   * rule; `public-writable-parity.test.ts` there holds the two together).
+   * Fewer than `decided` above, which also holds a formula, a format, a
+   * default and what another table's rule decides: the endpoint's own default
+   * leaves none of those out, so this must not either.
+   */
+  const filledOf = (ref: string): ReadonlySet<string> => {
+    const filled = new Set<string>();
+    const table = tables.get(ref);
+    if (table === undefined) return filled;
+    for (const column of table.columns) {
+      const rules = column.rules;
+      if (rules === undefined) continue;
+      if ((['copy', 'sequence', 'code', 'rollup', 'stamp', 'lookup', 'band', 'perNight', 'customerKey', 'codeLast4'] as const).some((name) => rules[name] !== undefined)) filled.add(column.ref);
+      if (rules.rollup?.balance !== undefined) filled.add(rules.rollup.balance.column);
+    }
+    if (table.booking?.cancel?.flag !== undefined) filled.add(table.booking.cancel.flag);
+    if (table.booking?.anyone?.flag !== undefined) filled.add(table.booking.anyone.flag);
+    for (const late of table.states?.late ?? []) if (late.flag !== undefined) filled.add(late.flag);
+    // A price rule's own columns on the table it is written on, and how long a posting of the row holds.
+    if (table.adjust !== undefined) for (const column of adjustDecidedColumns(table.ref, table.adjust).get(table.ref) ?? []) filled.add(column);
+    for (const posting of table.postings ?? []) if (typeof posting.heldUntil === 'string') filled.add(posting.heldUntil);
+    return filled;
+  };
   out.push(
     ...forgetCopiesIssues(m),
     ...publicAccessIssues(m.publicAccess ?? [], {
       index,
       appKey: m.key,
       decided: (table) => decided.get(table) ?? new Set(),
+      filled: filledOf,
       answersAvailability: (table) => tables.get(table)?.capacity !== undefined || tables.get(table)?.booking !== undefined,
       addOns: new Set([...(m.kind === 'add-on' ? [m.key] : []), ...[...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key)]),
       ridesAppKeys: m.kind === 'add-on',

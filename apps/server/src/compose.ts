@@ -235,6 +235,8 @@ import { designerLiveRoutes } from './routes/designer/live.js';
 import { pickLocalized } from './add-ons/catalog.js';
 import { designerRoutes } from './routes/designer/index.js';
 import { designSessionRoutes } from './routes/auth/design-session.js';
+import { hostRole } from './designer/design-mode.js';
+import { onPreviewHost } from './designer/live-preview.js';
 import { registerPreview } from './designer/preview.js';
 import { registerPhonePreview } from './plugins/phone-preview.js';
 import { createPhoneDoor, type PhoneDoor } from './designer/phone-door.js';
@@ -999,8 +1001,18 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const liveAllowed = opts.designer === undefined && env.ADMINIUM_DESIGNER === 'live' && env.ADMINIUM_RUNTIME !== 'desktop';
   if (!app.hasDecorator('designerMode')) app.decorate('designerMode', opts.designer !== undefined ? opts.designer.mode : liveAllowed ? 'live' : 'off');
   if (!app.hasDecorator('designerLink')) app.decorate('designerLink', opts.designer?.token != null);
-  // The preview's own low session, spent on the preview's name (designer/preview.ts).
-  const previewTickets = opts.designer === undefined ? null : registerPreview(app, { meta, port: opts.designer.port });
+  // The preview's own low session, spent on the preview's name (designer/preview.ts): `localhost` under `adminium design`,
+  // the operator's preview address where the live Designer is allowed and has one (designer/live-preview.ts).
+  const designPort = opts.designer?.port;
+  const livePreview = liveAllowed && app.hasDecorator('livePreview') ? app.livePreview : null;
+  const previewOrigin = designPort !== undefined ? `http://localhost:${String(designPort)}` : (livePreview?.origin ?? null);
+  const previewTickets =
+    designPort !== undefined
+      ? registerPreview(app, { meta, onPreview: (request) => hostRole(request.headers.host, designPort) === 'preview' })
+      : livePreview !== null
+        ? registerPreview(app, { meta, onPreview: (request) => onPreviewHost(livePreview, request) })
+        : null;
+  if (!app.hasDecorator('designerPreview')) app.decorate('designerPreview', previewTickets !== null);
 
   await app.register(rbacPlugin, { meta });
 
@@ -3306,6 +3318,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             publicResolver.invalidate(keyId);
           },
         },
+        // Who allows a folder app's public access here, and the queue the folder's own applies run in.
+        ...(opts.project === undefined
+          ? {}
+          : {
+              folderAccess: {
+                decides: opts.project.mode === 'dev' ? ('dev' as const) : opts.project.operator === true ? ('person' as const) : ('config' as const),
+                inTurn: (work) => (projectApps === null ? work() : projectApps.inTurn(work)),
+              },
+            }),
       };
       await api.register(appRoutes(appDeps));
       // Export everything (Studio): the archive's export variant, made here and downloaded once.
@@ -3396,6 +3417,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           service: appService,
           meta,
           apps: project.apps,
+          // No config file to say it: a person allows a folder app's public access, on its settings page.
+          ...(project.operator === true ? { accessBy: 'person' as const } : {}),
           databases: project.databases ?? [],
           connectionFor: async (key) => (await manager.connections.findByProjectKey(key))?.id ?? null,
           log: project.log,
@@ -3901,8 +3924,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             ...(live === null ? {} : { live }),
             root,
             limits,
-            // A preview needs a second name for this server, which only `adminium design` has: off on a live server.
-            preview: previewTickets === null || opts.designer === undefined ? null : { tickets: previewTickets, origin: `http://localhost:${String(opts.designer.port)}` },
+            // A preview needs a second name for this server: `adminium design` has one, a live server only with ADMINIUM_PREVIEW_ORIGIN.
+            preview: previewTickets === null || previewOrigin === null ? null : { tickets: previewTickets, origin: previewOrigin },
             appCatalog,
             previewRoles: (appKey) => appRoleNames(meta, appKey),
             // The first password of the owner `design` made: offered where the server is that person's own machine only.

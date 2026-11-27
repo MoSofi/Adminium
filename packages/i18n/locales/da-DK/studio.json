@@ -3636,7 +3636,9 @@
     "phone": "Telefonapp",
     "phoneLine": "Denne app har en telefonapp til kunder. Adminium viser den ikke til nogen: Den kører på en telefon og når det, gæster må nå, med sin egen nøgle. Slår du kundeskærmene fra, stopper den også.",
     "phoneBuild": "En telefonapp, der bygges til en butik, skal bruge to ting fra denne server: dens adresse, som en telefon når den, og appens nøgle “telefonapp”.",
-    "phoneKeys": "Åbn API-nøgler"
+    "phoneKeys": "Åbn API-nøgler",
+    "customerNotAllowed": "Siderne åbner, men de kan hverken læse eller gemme noget: ingen har endnu tilladt appens offentlige adgang. Tillad den under “Offentlig adgang” på denne side.",
+    "customerConfigDecides": "Siderne åbner, men de kan hverken læse eller gemme noget: serverens adminium.config.ts tillader ikke appens offentlige adgang. Sæt apps.{key}.publicAccess til true dér, og genstart."
   },
   "uninstall": {
     "files": "Appens filer",
@@ -7250,5 +7252,19 @@
       "summary": "{failed, plural, one {# kunne ikke behandles} other {# kunne ikke behandles}}, {holding, plural, one {# holder sms’er tilbage} other {# holder sms’er tilbage}}.",
       "retryAll": "Prøv alle igen"
     }
+  },
+  "folderAccess": {
+    "allowed": "Offentlig adgang tilladt.",
+    "takenBack": "Offentlig adgang taget tilbage.",
+    "changed": "Appen er ændret, siden listen blev vist. Se den igen, og tillad den så.",
+    "openIntro": "Tilladt. Appens kundeskærme kan:",
+    "moreIntro": "Appen beder nu om mere. Indtil nogen tillader det, fortsætter dens kundeskærme med det, der var tilladt. De ville også kunne:",
+    "closedIntro": "Ingen har tilladt dette endnu, så appens kundeskærme åbner, men kan hverken læse eller gemme noget. De skal kunne:",
+    "widerIntro": "Og hvor de allerede kan, ville de se eller gøre mere:",
+    "failed": "Den offentlige adgang blev ikke ændret",
+    "leftOut": "Tilladt, bortset fra dette:",
+    "takeBack": "Tag den tilbage",
+    "takeBackHelp": "Tager du den tilbage, lukkes appens kundeskærme straks for alle. Du kan tillade den igen her.",
+    "allowHelp": "Alle, der kan åbne appens kundeskærme, kan derefter gøre dette uden at logge ind. Du kan tage det tilbage her."
   }
 }

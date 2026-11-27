@@ -63,11 +63,12 @@ half-configured and fail later.
 | `ADMINIUM_OPERATOR_MAIL_FROM` | With `ADMINIUM_OPERATOR_SMTP_URL` | — | The address your mail server pins for this installation, `shop-7f3a9c@mail.example.com`. Each needs the other, or the boot fails. |
 | `ADMINIUM_OPERATOR_EMAIL_MAX_PER_DAY` | No | `500` | Mail people write, a day, through `ADMINIUM_OPERATOR_SMTP_URL`. Account mail is not counted. |
 | `ADMINIUM_HOSTED_MODE` | No | `off` | `on` runs a paid installation on your server: the trial's host list, network policy, own-code and address rules stay; the clock, banners and caps go. Needs `ADMINIUM_PUBLIC_ORIGIN` and `ADMINIUM_DATABASE_HOSTS`. |
-| `ADMINIUM_OPERATOR_PROJECT` | No | `off` | Trial or hosted mode only: `on` runs the instance as a project with no config file. Its config is built from the environment (`main` is `ADMINIUM_SOURCE_URL`), its folder is `<ADMINIUM_DATA_DIR>/project` (or `ADMINIUM_PROJECT_DIR`) with only `apps/` and `.adminium/`, and nothing written into that folder is ever read as configuration or run. `adminium archive create` and `archive restore` also take it without either mode, for a stopped trial's one-off. |
+| `ADMINIUM_OPERATOR_PROJECT` | No | `off` | Trial or hosted mode only: `on` runs the instance as a project with no config file. Its config is built from the environment (`main` is `ADMINIUM_SOURCE_URL`), its folder is `<ADMINIUM_DATA_DIR>/project` (or `ADMINIUM_PROJECT_DIR`) with only `apps/` and `.adminium/`, and nothing written into that folder is ever read as configuration or run. No config file can say an app of the folder may have [public access](/projects/apps/), so a signed-in person who may manage API keys allows it on the app's page; its customer screens also need `ADMINIUM_PUBLIC_API_ORIGINS` (at least `self`). `adminium archive create` and `archive restore` also take it without either mode, for a stopped trial's one-off. |
 | `ADMINIUM_YOUR_DATABASE` | No | *(unset)* | Needs `ADMINIUM_OPERATOR_PROJECT`: the user's own Postgres or MySQL database, as JSON `{"url", "intent", "tables", "readOnly", "label", "notes"}`. Connected after the server listens (a 5-second check, then retries at 1, 2, 5 and 15 minutes), so a database that is down never holds up the boot. `read-only-analytics` forces read-only. `notes` (at most 2,000 characters, addresses and passwords taken out) go to the schema assistant once. If your AI server refuses that run with a 429 before answering, nothing is counted: the run waits for the `Retry-After` it was given (30 seconds when none; 15 minutes for one over 5 minutes, such as a daily cap, or after 10 refusals in a row) and starts again by itself, after a restart too. `GET /api/v1/llm/yours-assist` shows `waiting` and the time. It never runs again on a store restored from an archive. A secret: taken out of the environment at boot. |
 | `ADMINIUM_DATABASE_USER_HOST` | No | *(unset)* | Trial or hosted mode: the one `host:port` of the user's own database, outside `ADMINIUM_DATABASE_HOSTS`. Public addresses only; the port is required, 1024 or above, and not a known non-database service. With `ADMINIUM_YOUR_DATABASE` it must be that database's host and port. |
 | `ADMINIUM_DATABASE_DENY_ADDRESSES` | No | *(unset)* | CSV of IP addresses and CIDR ranges (v4 or v6) no source database may resolve to, on top of the private and reserved ranges. |
 | `ADMINIUM_OPERATOR_DOMAINS` | No | *(unset)* | CSV of the user's own verified domains: plain lower-case host names, `shop.example.com`. No wildcard, address, port or path. Honoured with or without trial mode: the instance answers on these and `ADMINIUM_PUBLIC_ORIGIN`'s host, links in email point at `https://` and the first one, and only these can be mapped to an app's side or the add-on pages. |
+| `ADMINIUM_PREVIEW_ORIGIN` | No | *(unset)* | The address the Designer's preview is served on, `https://shop.preview-example.com`: a second name for this instance, on a different site from `ADMINIUM_PUBLIC_ORIGIN` (another registrable domain, not a subdomain beside it). Needs `ADMINIUM_PUBLIC_ORIGIN`. Unset, the Designer on a server people reach has no preview. See [The Designer's preview address](#the-designers-preview-address). |
 | `ADMINIUM_OPERATOR_TOKEN` | No | *(unset)* | The [operator endpoint](/self-hosting/operator-endpoint/)'s bearer token, and the key [instance events](#adminium_operator_events_url) are signed with: 32 random bytes or more (`openssl rand -hex 32`), one per instance. Needs `ADMINIUM_OPERATOR_LISTEN`, `ADMINIUM_OPERATOR_EVENTS_URL` or both. A secret: takes `_FILE`. |
 | `ADMINIUM_OPERATOR_LISTEN` | No | *(unset)* | `address:port` the [operator endpoint](/self-hosting/operator-endpoint/) listens on, on your own network: `10.0.0.2:4601`. Never `0.0.0.0`, a name, or `PORT`. Needs `ADMINIUM_OPERATOR_TOKEN`. The public listener never serves `/api/v1/operator/*`. |
 | `ADMINIUM_OPERATOR_EVENTS_URL` | No | *(unset)* | Where [signed instance events](#adminium_operator_events_url) go: `https://…`, or `http://` to a private address. Needs `ADMINIUM_OPERATOR_TOKEN`. |
@@ -1259,6 +1260,43 @@ With `ADMINIUM_PUBLIC_ORIGIN` or `ADMINIUM_OPERATOR_DOMAINS` set, on any server:
   A mapping saved before is not answered.
   Under trial mode and the hosted profile, the websites that may show a form in
   a frame must be listed domains too.
+
+### The Designer's preview address
+
+Under `adminium design` the Designer and its preview are two names of one
+computer (`127.0.0.1` and `localhost`): two sites to a browser, so an app's
+screens, which a model wrote, are shown without ever being sent your session.
+A server people reach has one name, so there the Designer's Preview tab says
+"The preview is off on a live server."
+
+`ADMINIUM_PREVIEW_ORIGIN` gives the instance its second name. Point the host
+at the same server as the instance (your proxy passes it through like any
+other name) and set the variable. Then:
+
+- the instance answers on that host too;
+- everything that acts for a person is refused there (403, reason
+  `PREVIEW_HOST`): the Designer's own routes, every way to sign in, setup, the
+  models, users, roles, API keys and settings;
+- the only user ever signed in there is the preview user, who holds the roles
+  of the app being built and nothing else, through a one-use ticket the
+  Designer asks for. A person's own session is not read on the preview's
+  address, and the preview user's is read nowhere else;
+- the instance's own addresses may frame the preview (`ADMINIUM_PUBLIC_ORIGIN`
+  and the listed domains), and nothing else may.
+
+**It must be on a different site.** Use another registrable domain:
+`shop.example-preview.com` beside `shop.example.com`, not
+`preview.shop.example.com` or `shop-preview.example.com`. A name under the
+same registrable domain is the same site to a browser: it is sent
+`SameSite=Lax` cookies and can write cookies over its parent's. Adminium
+refuses an address the instance already answers on, and cannot check the rest.
+If you host many instances, give each its own host under one preview domain
+(`<name>.example-preview.com`), and consider asking for that domain to be put
+on the [Public Suffix List](https://publicsuffix.org/), so one instance's
+preview is a different site from another's.
+
+The preview shows the app as it is applied. An app's screens stay served at
+their own address on the instance's name, as on any server.
 
 ### The hosted profile
 

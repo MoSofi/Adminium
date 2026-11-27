@@ -3646,7 +3646,9 @@ export default {
     "phone": "手机应用",
     "phoneLine": "此应用带有面向顾客的手机应用。Adminium 不向任何人提供它：它在手机上运行，并用专属密钥访问访客可以访问的内容。关闭顾客界面也会让它停止。",
     "phoneBuild": "为应用商店构建的手机应用需要这台服务器提供两样东西：手机能够访问到的服务器地址，以及该应用的“手机应用”密钥。",
-    "phoneKeys": "打开 API 密钥"
+    "phoneKeys": "打开 API 密钥",
+    "customerNotAllowed": "这些页面可以打开，但无法读取或保存任何内容：还没有人允许该应用的公开访问。请在本页的“公开访问”下允许它。",
+    "customerConfigDecides": "这些页面可以打开，但无法读取或保存任何内容：此服务器的 adminium.config.ts 不允许该应用的公开访问。请在其中将 apps.{key}.publicAccess 设为 true，然后重启。"
   },
   "uninstall": {
     "files": "应用的文件",
@@ -7260,5 +7262,19 @@ export default {
       "summary": "{failed, plural, other {# 条无法处理}}，{holding, plural, other {# 条正在暂停短信}}。",
       "retryAll": "全部重试"
     }
+  },
+  "folderAccess": {
+    "allowed": "已允许公开访问。",
+    "takenBack": "已收回公开访问。",
+    "changed": "自此列表显示以来，应用已发生变化。请重新查看后再允许。",
+    "openIntro": "已允许。该应用的客户界面可以：",
+    "moreIntro": "该应用现在要求更多。在有人允许之前，它的客户界面继续使用已允许的内容。它们还将能够：",
+    "closedIntro": "还没有人允许，因此该应用的客户界面可以打开，但无法读取或保存任何内容。它们需要：",
+    "widerIntro": "在它们已经可以访问的地方，将能看到或做更多：",
+    "failed": "公开访问未更改",
+    "leftOut": "已允许，但以下内容除外：",
+    "takeBack": "收回",
+    "takeBackHelp": "收回后，该应用的客户界面会立即对所有人关闭。您可以在此处重新允许。",
+    "allowHelp": "之后，任何能打开该应用客户界面的人都可以这样做，无需登录。您可以在此处收回。"
   }
 } as const;
