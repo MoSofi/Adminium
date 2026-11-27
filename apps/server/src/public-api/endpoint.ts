@@ -928,6 +928,13 @@ function cascadingReferrers(view: SnapshotView, table: ResolvedTable): string[] 
  * every column the mandatory filters name, every claim column, and every
  * column the server mints. Each subtraction is the reason one of the
  * scope compiler's refusals can never fire on a default.
+ *
+ * The manifest's own check works the same list out from the declared tables
+ * (`writableThrough` in `packages/manifest/src/public-access.ts`, with
+ * `filledOf` in its `schema.ts` standing for `decidedColumnsOf` here), so an
+ * entry that would be left with nothing writable is refused where it is
+ * written. A subtraction added here is added there:
+ * `test/public-writable-parity.test.ts` fails until it is.
  */
 function defaultWritable(def: PublicEndpointDefinition, table: ResolvedTable | null): string[] {
   const out = new Set(def.select);

@@ -998,6 +998,11 @@ interface PublicAccessContext {
   appKey?: string | undefined;
   /** Columns Adminium decides on a table: a browser may never write them. */
   decided: (table: string) => ReadonlySet<string>;
+  /**
+   * The columns of a table Adminium fills, as the endpoint an entry becomes reads them when it works out what
+   * an entry with no `writable` may write ({@link writableThrough}). Fewer than `decided`. Absent: none.
+   */
+  filled?: (table: string) => ReadonlySet<string>;
   /** The columns of a table a money figure Adminium works out reads (a formula, a total, a copy into one). */
   figures?: (table: string) => ReadonlySet<string>;
   /** Whether the app's outbox writes a message when a row of the table is created. */
@@ -1397,6 +1402,40 @@ function shopperListIssues(entries: readonly PublicAccess[], ctx: PublicAccessCo
   return out;
 }
 
+/** The methods that send column values, each with what it does to rows: the ones `writable` means anything to. */
+const SENDS_VALUES = { POST: 'adds', PATCH: 'changes', PUT: 'replaces', BATCH: 'writes' } as const;
+
+/**
+ * The columns a browser may set through an entry, as the endpoint the entry
+ * becomes holds them: the ones it names, and for an entry that names none,
+ * what the endpoint works out. This follows the server line for line
+ * (`definitionOf` in `apps/manifest-public.ts`, `defaultWritable` in
+ * `public-api/endpoint.ts`), and `public-writable-parity.test.ts` there
+ * holds the two together. An entry seen with a parent writes only what it
+ * names. Any other writes what it shows, less its key, the columns its
+ * filters hold, the column its rows are claimed by, and what Adminium fills
+ * (`filled`).
+ */
+function writableThrough(
+  entry: Pick<PublicAccess, 'writable' | 'select' | 'visibleWith' | 'filters' | 'claim' | 'claimedBy'>,
+  columns: readonly { ref: string; role?: string | undefined; rules?: Record<string, unknown> | undefined }[],
+  filled: ReadonlySet<string>,
+): string[] {
+  if (entry.writable !== undefined) return [...entry.writable];
+  if (entry.visibleWith !== undefined) return [];
+  // No select shows every column but a code Adminium makes and a secret.
+  const shown = entry.select ?? columns.filter((column) => column.rules?.['code'] === undefined && column.rules?.['secret'] !== true).map((column) => column.ref);
+  const keys = columns.filter((column) => column.role === 'pk').map((column) => column.ref);
+  const kept = new Set(shown);
+  for (const ref of keys) kept.delete(ref);
+  for (const ref of filled) kept.delete(ref);
+  for (const filter of entry.filters ?? []) kept.delete(filter.column);
+  if (entry.claimedBy !== undefined) kept.delete(entry.claimedBy.column);
+  // A claim is proved on the row's key, which an endpoint reads as the first of them (`id` with none).
+  if (entry.claim !== undefined) kept.delete(keys[0] ?? 'id');
+  return shown.filter((ref) => kept.has(ref));
+}
+
 /** Everything in `publicAccess` and `publicKeys` that names something undeclared, or breaks a rule. */
 export function publicAccessIssues(entries: readonly PublicAccess[], ctx: PublicAccessContext): ReferenceIssue[] {
   const out: ReferenceIssue[] = [];
@@ -1575,6 +1614,8 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     const patches = entry.methods.includes('PATCH');
     const creates = entry.methods.includes('POST');
     const identity = identities.get(key);
+    /** Whether a finding below already asks this entry for its `writable`. */
+    let toldToList = false;
 
     // A change to an existing row, from a browser, only behind a claim: the
     // guest reaches their own row (or a child of it) and nothing else.
@@ -1763,10 +1804,12 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       }
       if (entry.methods.includes('PATCH') && entry.writable === undefined) {
         out.push({ path: at('writable'), message: 'a change through an entry visible with a parent names what it may write' });
+        toldToList = true;
       }
       // A child's create names the parent it is made under by its link, which the create proves the session reaches.
       if (creates && pointsUp && !writable.has(v.via)) {
         out.push({ path: at('writable'), message: `this entry creates rows under "${v.table}", so "${v.via}" is writable: the parent a create names` });
+        toldToList = true;
       }
       /*
        * A column of the child pointing at the key's own person (a note's
@@ -1786,6 +1829,30 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       }
       if (hops(entries, i) > 2) out.push({ path: at('visibleWith'), message: 'an entry is at most two steps from the entry its person claims' });
       if (root === undefined) out.push({ path: at('visibleWith'), message: 'the entries it is visible with lead to no claimed person' });
+    }
+    /*
+     * An entry that sends values and leaves a browser nothing to set. The
+     * endpoint it becomes is refused for it ("declares "create" but lists no
+     * writable columns"), which is read only once somebody allows the app's
+     * public access: long after the file was written, by a person who did not
+     * write it. Said here on the same condition, so whoever writes the entry
+     * reads it. An availability entry only answers, and a forms or a chat
+     * entry is no endpoint (each says the same of itself, above).
+     */
+    const sends = (Object.keys(SENDS_VALUES) as (keyof typeof SENDS_VALUES)[]).filter((method) => entry.methods.includes(method));
+    if (sends.length > 0 && entry.kind !== 'availability' && !doorKeys.includes(key) && !toldToList) {
+      const columns = table.columns as readonly { ref: string; role?: string | undefined; rules?: Record<string, unknown> | undefined }[];
+      if (writableThrough(entry, columns, ctx.filled?.(entry.table) ?? new Set()).length === 0) {
+        const does = sends.map((method) => SENDS_VALUES[method]);
+        const worked =
+          entry.writable === undefined && entry.visibleWith === undefined
+            ? ": with no list it may set the columns the entry shows (select), and none of those is a browser's to set"
+            : '';
+        out.push({
+          path: at('writable'),
+          message: `this entry ${does.length === 1 ? (does[0] as string) : `${does.slice(0, -1).join(', ')} and ${does[does.length - 1] as string}`} rows, so list the columns a browser may set in writable${worked}`,
+        });
+      }
     }
     for (const ref of entry.files ?? []) {
       // A guest's own upload is written by naming it, and only a file they uploaded for the column is taken there.
