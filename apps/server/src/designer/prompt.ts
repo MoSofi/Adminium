@@ -153,10 +153,11 @@ export const WANTS_OWN_PICTURES =
 /**
  * Words that say the person wants no sample rows (yet): the first preview is then empty because they asked, and nothing
  * asks the model to fill it. English, as the words about pictures are; said in another language, the rows are written
- * and the person can remove them.
+ * and the person can remove them. "I have no sample data" and "there is no demo content yet" say what is missing, not
+ * what is wanted, and are not read as this.
  */
 export const WANTS_NO_SAMPLE_ROWS =
-  /\b(?:no|without(?: any)?|do(?: not|n't|n’t) (?:add|write|make|put in|include|seed)(?: any)?|leave out(?: the)?|skip(?: the)?) (?:sample|example|demo|dummy|fake|test|placeholder|seed) (?:rows?|data|records?|content|entries|items)\b/i;
+  /\b(?:(?<!\b(?:have|has|had|got|is|are|was|were|there['’]s|contains?) )no|without(?: any)?|do(?: not|n't|n’t) (?:add|write|make|put in|include|seed)(?: any)?|leave out(?: the)?|skip(?: the)?) (?:sample|example|demo|dummy|fake|test|placeholder|seed) (?:rows?|data|records?|content|entries|items)\b/i;
 
 /** Words that say an add-on may do the job: invoices, stock. English, and not the only way in (an app that names an add-on carries the skill too). */
 export const MENTIONS_ADD_ON = /\b(add-?ons?|invoices?|quotes?|receipts?|stock|inventory|supplies|ingredients|warehouse|batch(es)?|expir(y|es|ed|ing)|reorder(s|ing)?|stock ?take|discounts?|coupons?|vouchers?|gift ?cards?|store credit|loyalty|happy hour)\b/i;

@@ -607,7 +607,7 @@ describe('a person who brings the pictures', () => {
     ]) {
       expect(WANTS_NO_SAMPLE_ROWS.test(said), said).toBe(true);
     }
-    for (const said of ['A bakery with a menu of cakes.', 'Add sample rows for the services.', 'No rows should be deleted when I import.', 'There is no data yet, so make some.']) {
+    for (const said of ['A bakery with a menu of cakes.', 'Add sample rows for the services.', 'No rows should be deleted when I import.', 'There is no data yet, so make some.', 'I have no sample data so make some up.', 'There is no demo content yet, please add some.', 'The shop has no test data, write a few rows.']) {
       expect(WANTS_NO_SAMPLE_ROWS.test(said), said).toBe(false);
     }
     // The rule the model is given says so too.

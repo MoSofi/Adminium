@@ -683,14 +683,14 @@ describe('the name of an app made from a template', () => {
 
   it('is not taken at once when it has nothing to do with the template: the titles are handed over once, as data, and the next name is taken', async () => {
     const named: string[] = [];
-    const said = { text: 'Make an app from it.' };
+    const said = { text: 'Make an app from it.', note: '' };
     const mine = createDesignerTools(
       {
         root,
         version: APP_VERSION,
         designer: () =>
           ({
-            store: { messages: () => [{ turn: 1, message: { role: 'user', content: [{ type: 'text', text: said.text }] } }] },
+            store: { messages: () => [{ turn: 1, message: { role: 'user', content: [{ type: 'text', text: said.text }, ...(said.note === '' ? [] : [{ type: 'text', text: said.note }])] } }] },
             needsName: () => true,
             nameApp: async (_id: string, name: string) => {
               named.push(name);
@@ -723,6 +723,12 @@ describe('the name of an app made from a template', () => {
     // The next name is taken, whatever it is: said once, never a wall.
     expect((await nameApp('Site Studio', other)).label).toBe('Named the app Site Studio');
     expect(named).toEqual(['Site Studio']);
+    // The server's own note about the attached file is not the person's words: "customer" in it makes no name theirs.
+    const fourth = 'ds_000000000000000000000003';
+    attachments.addSite(fourth, { label: 'fernhill', judged: await judgeSite('fernhill.zip', TITLES.map((title, n) => at(n === 0 ? 'index.html' : `p${String(n)}.html`, `<!doctype html><html><head><title>${title.replace('&', '&amp;')}</title></head><body><p>x</p></body></html>`))) });
+    said.note = '\n\nAttached: a site template (fernhill). Its pages become the customer side of an app.';
+    expect((await nameApp('Customer Portal', fourth)).label).toBe('Read the template\'s own name first');
+    said.note = '';
     // A name of the business, or one the person asked for, is taken at once.
     const third = 'ds_000000000000000000000002';
     attachments.addSite(third, { label: 'fernhill', judged: await judgeSite('fernhill.zip', TITLES.map((title, n) => at(n === 0 ? 'index.html' : `p${String(n)}.html`, `<!doctype html><html><head><title>${title.replace('&', '&amp;')}</title></head><body><p>y</p></body></html>`))) });

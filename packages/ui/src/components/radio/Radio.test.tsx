@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Radio, RadioGroup } from './Radio.js';
@@ -91,6 +92,42 @@ describe('Radio', () => {
     await user.keyboard('{/ArrowDown}');
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(onValueChange.mock.calls).toEqual([['monthly']]);
+  });
+
+  it('reports a held move once inside a form too, where Radix stops its own click on the way up', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    function Held() {
+      const [value, setValue] = useState('weekly');
+      return (
+        <form>
+          <RadioGroup
+            value={value}
+            aria-label="Frequency"
+            name="frequency"
+            onValueChange={(next) => {
+              onValueChange(next);
+              setValue(next);
+            }}
+          >
+            <Radio value="daily" label="Daily" />
+            <Radio value="weekly" label="Weekly" />
+            <Radio value="monthly" label="Monthly" />
+          </RadioGroup>
+        </form>
+      );
+    }
+    render(<Held />);
+    await user.tab();
+    await user.keyboard('{ArrowDown>}');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Monthly' }).getAttribute('aria-checked')).toBe('true'));
+    await user.keyboard('{/ArrowDown}');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(onValueChange.mock.calls).toEqual([['monthly']]);
+    // And an arrow sent down and up at once still chooses there.
+    await user.keyboard('{ArrowUp}');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Weekly' }).getAttribute('aria-checked')).toBe('true'));
+    expect(onValueChange.mock.calls).toEqual([['monthly'], ['weekly']]);
   });
 
   it('never leaves the focus on one item and the choice on another, when two arrows land before the focus has moved', async () => {

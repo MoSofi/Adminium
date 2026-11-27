@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { validateManifest } from '../src/index.js';
+import { validateManifest, validateStoredManifest } from '../src/index.js';
 import { entryOf, issuesText, kitchen, tableOf, type Doc } from './orders-stays-fixture.js';
 
 const issues = (m: Doc): string[] => {
@@ -33,5 +33,26 @@ describe('a row\'s key among what a browser may write', () => {
     const read = (m['publicAccess'] as Doc[]).find((entry) => (entry['methods'] as string[]).every((method) => method === 'GET') && entry['claim'] === undefined && entry['kind'] === undefined) as Doc;
     read['writable'] = [keyOf(m, read['table'] as string)];
     expect(issues(m).filter((line) => line.includes('is the key of'))).toEqual([]);
+  });
+
+  it('does not take a stored app away from what reads it: a document held from before is read without the entry', () => {
+    // Stored by an older Adminium, which passed both shapes; no endpoint was ever made for either entry.
+    const m = kitchen();
+    const entries = m['publicAccess'] as Doc[];
+    const create = entryOf(m, 'orders', 'POST');
+    create['writable'] = [...(create['writable'] as string[]), keyOf(m, 'orders')];
+    expect(validateManifest(m).ok).toBe(false);
+    const read = validateStoredManifest(m);
+    expect(read.ok).toBe(true);
+    if (!read.ok) return;
+    expect(read.manifest.publicAccess).toHaveLength(entries.length - 1);
+    expect(read.manifest.publicAccess?.some((entry) => entry.table === 'orders' && entry.methods.includes('POST'))).toBe(false);
+    // A sound document reads as itself, and anything else a document fails on is still said.
+    expect(validateStoredManifest(kitchen())).toEqual(validateManifest(kitchen()));
+    const broken = kitchen();
+    (entryOf(broken, 'orders', 'POST')['writable'] as string[]).push(keyOf(broken, 'orders'), 'no_such_column');
+    const still = validateStoredManifest(broken);
+    expect(still.ok).toBe(false);
+    expect(still).toEqual(validateManifest(broken));
   });
 });

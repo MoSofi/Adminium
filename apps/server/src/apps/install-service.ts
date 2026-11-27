@@ -30,6 +30,7 @@ import {
   planInstall,
   namedAddOns,
   validateManifest,
+  validateStoredManifest,
   withoutDefaultSchema,
   type InstallPlan,
   type AddOnManifest,
@@ -4430,7 +4431,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   async function appHere(appKey: string, connectionId: string): Promise<Manifest | 'unreadable' | null> {
     const row = await manifests.findInScope(appKey, connectionId);
     if (row === null || row.row.kind !== 'app' || row.row.connectionId !== connectionId) return null;
-    const read = validateManifest(row.document, { allowLocalPublisher: true });
+    const read = validateStoredManifest(row.document, { allowLocalPublisher: true });
     return read.ok ? read.manifest : 'unreadable';
   }
 

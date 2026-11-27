@@ -431,7 +431,10 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
     return out;
   };
 
-  /** What the person wrote in this session: the first message of each turn. Never the engine's own notes to the model. */
+  /**
+   * What the person wrote in this session: the first block of each turn's first message. Never the engine's own notes
+   * to the model, which follow it as blocks of their own (about an attached file, a picked element, a hand edit).
+   */
   const personWords = (sessionId: string): string => {
     const seen = new Set<number>();
     const out: string[] = [];
@@ -439,7 +442,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
       if (seen.has(turn)) continue;
       seen.add(turn);
       if (message.role !== 'user') continue;
-      for (const block of message.content) if (block.type === 'text') out.push(block.text);
+      const first = message.content[0];
+      if (first?.type === 'text') out.push(first.text);
     }
     return out.join(' ');
   };

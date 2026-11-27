@@ -146,6 +146,7 @@ export { CARRIES_MAX, STATE_ACTIONS_MAX, carrySchema, type Carry, stateActionIss
 
 export {
   validateManifest,
+  validateStoredManifest,
   isManifestOnly,
   hasPhoneSide,
   parseManifest,

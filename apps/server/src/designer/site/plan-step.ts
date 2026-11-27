@@ -95,7 +95,7 @@ export function seenInSite(seen: string, ids: ReadonlySet<string>, pages: readon
  */
 const SUM_COLUMN = /^(?:.+_)?(?:total|subtotal|price)$|^(?:tax|vat|discount|shipping|delivery)_(?:amount|total)$|^(?:line|order|grand|net|gross)_amount$/;
 
-/** The checkout forms a model was told to give lines, by template and form: said once each. */
+/** The checkout forms a model was told to give lines, by app, template and form: said once each. */
 const toldLines = new Set<string>();
 
 export interface PlanStepDeps {
@@ -191,7 +191,8 @@ export async function askPlan(
     if (isCheckout && form.lines === undefined) {
       // Said once for a template's form, never a wall: what the finder calls a checkout may be a form to buy one thing,
       // to give, or to book. The same plan again goes to the person, who sees the form as it is proposed.
-      const key = `${site.sha256}:${form.form}`;
+      // By app as well: another app built from the same template is told too.
+      const key = `${ctx.root}\n${ctx.appKey}\n${site.sha256}\n${form.form}`;
       if (!toldLines.has(key)) {
         if (toldLines.size >= 500) toldLines.clear();
         toldLines.add(key);

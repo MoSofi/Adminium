@@ -236,6 +236,36 @@ export function pictureSizeWarnings(
 }
 
 /**
+ * The two refusals of a public entry added after documents were already stored: an entry that sends values and leaves a
+ * browser nothing to set, and one that lets a browser write a row's key. Each is said at the entry's `writable`.
+ */
+const LATE_ENTRY_REFUSALS = ['so list the columns a browser may set in writable', 'cannot be written publicly: the database gives a row its key'] as const;
+
+/**
+ * Read a document this installation already holds.
+ *
+ * A check added in a later release must not take a stored app away from what reads it (its forms, the record of a
+ * consent box, an add-on's settling). The two refusals above name entries no endpoint was ever made for: making one
+ * failed for the same reason. So a stored document they alone refuse is read with those entries left out, which is
+ * what it has always meant. Anything else it fails on is returned as it is, and the app's next apply or update is
+ * still held to every rule ({@link validateManifest}).
+ */
+export function validateStoredManifest(input: unknown, opts: ValidateManifestOptions = {}): ValidateManifestResult {
+  const first = validateManifest(input, opts);
+  if (first.ok) return first;
+  const entries = (input as { publicAccess?: unknown } | null)?.publicAccess;
+  if (!Array.isArray(entries)) return first;
+  const left = new Set<number>();
+  for (const issue of first.issues) {
+    const at = /^publicAccess\.(\d+)\.writable$/.exec(issue.path);
+    if (at === null || !LATE_ENTRY_REFUSALS.some((part) => issue.message.includes(part))) return first;
+    left.add(Number(at[1]));
+  }
+  const second = validateManifest({ ...(input as Record<string, unknown>), publicAccess: entries.filter((_, index) => !left.has(index)) }, opts);
+  return second.ok ? second : first;
+}
+
+/**
  * Validate an untrusted manifest document. Returns the typed manifest on
  * success, or every issue found (schema + policy) on failure — never throws.
  */

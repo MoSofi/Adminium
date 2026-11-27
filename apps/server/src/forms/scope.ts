@@ -23,7 +23,7 @@
  * outside hours (the entries under the reserved key `chat`) through the same
  * scope, compiled the same way (`door: 'chat'`).
  */
-import { chatEntriesOf, formsEntriesOf, validateManifest, type FormsEntry, type Manifest } from '@adminium/manifest';
+import { chatEntriesOf, formsEntriesOf, validateStoredManifest, type FormsEntry, type Manifest } from '@adminium/manifest';
 import { appTablesRepo, manifestsRepo, type MetaDb } from '@adminium/meta';
 
 import { addOnInstallsStamp } from '../apps/add-on-tables.js';
@@ -150,7 +150,7 @@ export function createFormsScopes(deps: FormsScopesDeps) {
     const on = new Set((self?.attachments ?? []).filter((attachment) => attachment.disabledAt === null).map((attachment) => attachment.attachedTo));
     for (const one of entries) {
       if (one.row.kind !== 'app' || one.row.status !== 'installed' || one.row.connectionId !== connectionId || !on.has(one.row.manifestKey)) continue;
-      const read = validateManifest(one.document, { allowLocalPublisher: true });
+      const read = validateStoredManifest(one.document, { allowLocalPublisher: true });
       if (!read.ok || read.manifest.kind !== 'app') continue;
       const opened = entriesOf(read.manifest);
       if (opened.length === 0) continue;

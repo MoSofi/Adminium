@@ -401,14 +401,18 @@ export function placeholderScreens(root: string, appKey: string, tables: readonl
 
 export function createDesigner(host: DesignerHost): Designer {
   const store = createSessionStore(host.root);
-  /** What the person wrote in a session: the first message of each turn. Never the engine's own notes to the model. */
+  /**
+   * What the person wrote in a session: the first block of each turn's first message. Never the engine's own notes to
+   * the model, which follow it as blocks of their own.
+   */
   const personWrote = (sessionId: string): string => {
     const opened = new Set<number>();
     const wrote: string[] = [];
     for (const { turn, message } of store.messages(sessionId)) {
       if (opened.has(turn)) continue;
       opened.add(turn);
-      if (message.role === 'user') for (const block of message.content) if (block.type === 'text') wrote.push(block.text);
+      const first = message.role === 'user' ? message.content[0] : undefined;
+      if (first?.type === 'text') wrote.push(first.text);
     }
     return wrote.join(' ');
   };

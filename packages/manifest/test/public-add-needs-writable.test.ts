@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { validateManifest } from '../src/index.js';
+import { validateManifest, validateStoredManifest } from '../src/index.js';
 
 type Doc = Record<string, unknown>;
 
@@ -84,6 +84,14 @@ describe('an entry that adds rows and names nothing a browser may set', () => {
     expect(said([written])).toEqual([`this entry adds rows, ${LIST}${WORKED}`]);
     const result = validateManifest(shop([{ ...written, writable: ['product_id', 'quantity', 'message'] }]));
     expect(result.ok ? [] : result.issues).toEqual([]);
+  });
+
+  it('is read without the entry in a document stored before the check, so what reads the app keeps it', () => {
+    // No endpoint was ever made for it: the stored app is read as it has always worked, with its other entries.
+    const stored = shop([{ table: 'products', methods: ['GET'], select: ['id', 'name'] }, { table: 'order_requests', methods: ['POST'], select: ['id'] }]);
+    expect(validateManifest(stored).ok).toBe(false);
+    const read = validateStoredManifest(stored);
+    expect(read.ok && read.manifest.publicAccess?.map((entry) => entry.table)).toEqual(['products']);
   });
 
   it('is refused with a list left empty, whatever else the entry fills', () => {
