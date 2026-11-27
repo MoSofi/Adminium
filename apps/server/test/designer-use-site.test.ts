@@ -709,7 +709,7 @@ describe('the name of an app made from a template', () => {
     expect((await nameApp('Site Studio')).label).toBe('Named the app Site Studio');
     // A template whose pages all name the business.
     const other = 'ds_000000000000000000000001';
-    attachments.addSite(other, { label: 'fernhill', judged: await judgeSite('fernhill.zip', TITLES.map((title, n) => at(n === 0 ? 'index.html' : `p${String(n)}.html`, `<!doctype html><html><head><title>${title.replace('&', '&amp;')}</title></head><body><p>x</p></body></html>`))) });
+    attachments.addSite(other, { label: 'fernhill', judged: await judgeSite('fernhill.zip', TITLES.map((title, n) => at(n === 0 ? 'index.html' : `p${String(n)}.html`, `<!doctype html><html><head><title>${title.replace(/&/g, '&amp;')}</title></head><body><p>x</p></body></html>`))) });
     named.length = 0;
     const told = await nameApp('Site Studio', other);
     expect(told.isError).toBeUndefined();
@@ -725,13 +725,13 @@ describe('the name of an app made from a template', () => {
     expect(named).toEqual(['Site Studio']);
     // The server's own note about the attached file is not the person's words: "customer" in it makes no name theirs.
     const fourth = 'ds_000000000000000000000003';
-    attachments.addSite(fourth, { label: 'fernhill', judged: await judgeSite('fernhill.zip', TITLES.map((title, n) => at(n === 0 ? 'index.html' : `p${String(n)}.html`, `<!doctype html><html><head><title>${title.replace('&', '&amp;')}</title></head><body><p>x</p></body></html>`))) });
+    attachments.addSite(fourth, { label: 'fernhill', judged: await judgeSite('fernhill.zip', TITLES.map((title, n) => at(n === 0 ? 'index.html' : `p${String(n)}.html`, `<!doctype html><html><head><title>${title.replace(/&/g, '&amp;')}</title></head><body><p>x</p></body></html>`))) });
     said.note = '\n\nAttached: a site template (fernhill). Its pages become the customer side of an app.';
     expect((await nameApp('Customer Portal', fourth)).label).toBe('Read the template\'s own name first');
     said.note = '';
     // A name of the business, or one the person asked for, is taken at once.
     const third = 'ds_000000000000000000000002';
-    attachments.addSite(third, { label: 'fernhill', judged: await judgeSite('fernhill.zip', TITLES.map((title, n) => at(n === 0 ? 'index.html' : `p${String(n)}.html`, `<!doctype html><html><head><title>${title.replace('&', '&amp;')}</title></head><body><p>y</p></body></html>`))) });
+    attachments.addSite(third, { label: 'fernhill', judged: await judgeSite('fernhill.zip', TITLES.map((title, n) => at(n === 0 ? 'index.html' : `p${String(n)}.html`, `<!doctype html><html><head><title>${title.replace(/&/g, '&amp;')}</title></head><body><p>y</p></body></html>`))) });
     expect((await nameApp('Fernhill Ceramics', third)).label).toBe('Named the app Fernhill Ceramics');
   });
 });

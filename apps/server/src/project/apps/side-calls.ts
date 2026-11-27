@@ -73,8 +73,11 @@ const WHERE_TABLES =
 /** A create a customer page makes one row at a time: `create` and `createWithRank` send the row's own values and nothing below it. */
 const BARE_CREATE = new RegExp(callOpening('create|createWithRank'), 'g');
 
+/** A name as a pattern that matches it and nothing else. */
+const asPattern = (name: string): string => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /** What a name is set to where it is declared (`const orders = …`), or null. */
-const heldAs = (name: string, text: string): string | null => new RegExp(`\\b(?:const|let)\\s+${name.replace(/\$/g, '\\$')}\\s*(?::[^=\\n]+)?=\\s*([^;\\n]+)`).exec(text)?.[1]?.trim() ?? null;
+const heldAs = (name: string, text: string): string | null => new RegExp(`\\b(?:const|let)\\s+${asPattern(name)}\\s*(?::[^=\\n]+)?=\\s*([^;\\n]+)`).exec(text)?.[1]?.trim() ?? null;
 
 /**
  * The table a create's first argument names, as the starter and the guides write it: a name in quotes, `tables['orders']`,
@@ -237,7 +240,7 @@ function functionsIn(text: string): FunctionSpan[] {
 export function currentTargetAfterAwait(source: string): string | null {
   const text = unquoted(code(source));
   const functions = functionsIn(text);
-  const declares = (span: FunctionSpan, name: string): boolean => new RegExp(`(?:^|[\\s,({])${name.replace(/\$/g, '\\$')}\\s*(?:[:,=)]|$)`).test(span.params);
+  const declares = (span: FunctionSpan, name: string): boolean => new RegExp(`(?:^|[\\s,({])${asPattern(name)}\\s*(?:[:,=)]|$)`).test(span.params);
   for (const use of text.matchAll(/(?<![\w$.])([A-Za-z_$][\w$]*)\s*\.\s*currentTarget\b/g)) {
     const name = use[1] as string;
     const at = use.index;
