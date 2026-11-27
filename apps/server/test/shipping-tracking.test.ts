@@ -77,7 +77,15 @@ async function metaOn(dialect: Dialect): Promise<{ meta: MetaDb; destroy: () => 
     await admin.end();
     const url = new URL(base);
     url.pathname = `/${database}`;
-    const meta = createPostgresMetaDb({ pool: new pg.Pool({ connectionString: url.toString(), max: 6, types: postgresInt8AsNumber(pg as unknown as Record<string, unknown>) }) });
+    const pool = new pg.Pool({ connectionString: url.toString(), max: 6, types: postgresInt8AsNumber(pg as unknown as Record<string, unknown>) });
+    // The teardown drops the database WITH (FORCE), which ends a connection a poll or a pickup still holds with
+    // 57P01. That ending is expected here; unheard, it would surface as an unhandled error and fail the run.
+    const ended = (error: Error & { code?: string }) => {
+      if (error.code !== '57P01') throw error;
+    };
+    pool.on('error', ended);
+    pool.on('connect', (client) => client.on('error', ended));
+    const meta = createPostgresMetaDb({ pool });
     await applyMigrations(meta.db, { dialect: meta.dialect });
     return {
       meta,
