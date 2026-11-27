@@ -96,7 +96,20 @@ function nameOf(bytes: Buffer, utf8: boolean, zip: string): string {
       throw form(zip, 'a file name is not the UTF-8 it says it is');
     }
   }
-  if (bytes.some((byte) => byte >= 0x80)) throw form(zip, 'a file name is in an old encoding, not UTF-8');
+  if (bytes.some((byte) => byte >= 0x80)) {
+    // The name as far as it reads, so the person can find the file. "Make the zip again" alone sent a Windows user in a
+    // circle: Explorer writes a name with an accented letter this way every time (seen 2026-11-27).
+    const shown = bytes
+      .toString('latin1')
+      .replace(/[\x80-\xff]+/g, '?')
+      // eslint-disable-next-line no-control-regex -- control characters are taken out of a name that is shown
+      .replace(/[\x00-\x1f\x7f"]/g, '')
+      .slice(-80);
+    throw new ZipRefusal(
+      'ZIP_FORM',
+      `${zip} is made in a way this reader does not take (a file name is in an old encoding, not UTF-8: "${shown}", where "?" is a letter it cannot read). Windows writes a name with an accented letter this way, so the same zip would come out again: rename that file with plain letters, then make the zip again.`,
+    );
+  }
   return bytes.toString('latin1');
 }
 

@@ -56,7 +56,7 @@ inventory:
    how many of the template's blocks are filler (the same item repeated to fill a grid).
 2. **What the forms do**: each form, the table it writes to, and that strangers can add to it,
    with limits.
-3. **What the template shows**, every feature of it, each marked:
+3. **What the template shows**: only what it has, each thing marked:
    - **Works**: Adminium does it now (the product pages, the cart and the order, the contact form).
    - **Works with an add-on**: it works once that add-on is installed (coupons: Offers), and
      whether it is installed.
@@ -82,7 +82,10 @@ For each one not available, the person chooses:
   staff mark paid in the dashboard, in place of a card form.
 - **Leave it out**: the part is taken off the page, and the summary says so.
 
-The usual ones in a shop template:
+List only what the template has. A checkout form with no payment fields has no payment to decide,
+and filter buttons are not a search: a thing the person is asked to decide and that was never on
+their site is a question about nothing. How the usual ones in a shop template are handled, when
+the template has them:
 
 | The template shows | Status | Build it | Replace it |
 |---|---|---|---|
@@ -103,7 +106,14 @@ first returns what the server found in the template (its repeated blocks with th
 a cart, the features and the links to nowhere), and then takes the plan. The person reviews it in one
 sheet (**Review the plan…**): what becomes a table, what the forms do, what the template shows with
 **Build**, **Replace** or **Leave out** for each thing not available (Replace is picked where there is
-one, never Build), the links to fill, and what is added to the project. The answer is kept in
+one, never Build), the links to fill, and what is added to the project. Each thing the plan reports
+says where the template has it (`seen`: an id the server found, or a few words exactly as a page has
+them); the server looks, and refuses a plan that reports what it cannot find in the template. Pages
+and stylesheets attached one by one are one template, with one plan; a stylesheet by itself is
+brought in with no plan at all. In a new app the plan comes before the app: until it has been
+proposed, the Designer does not write the app's tables, pages, access or sample rows, and does not
+add its side. A checkout on the template's basket page is planned as an order with its lines, and
+the plan names no price or total among what a customer's page sends. The answer is kept in
 `apps/<key>/template-plan.json` with the template's sha256, and the system prompt says what it
 approved, so a later session neither asks again nor undoes it, and a different template asks again.
 Then, in a session that holds a template, the server asks **Check this before it goes live** only for
@@ -269,6 +279,10 @@ delete. Each sample row names its own picture: give every row its own `@asset` l
 two rows show the same file. A picture Adminium keeps belongs to one row, and a second row naming
 the same asset shows an empty frame.
 
+Rows whose words are on a page are the template's own, whether or not a repeated block was found
+for them: the three reviews of a slider are sample rows from the template. Only rows the template
+has no words for at all are made up, and the plan and the summary name them as such.
+
 What is written once (a hero's heading, the "why choose us" blocks with their icons) stays in the
 markup. Say in the plan that it can become a table later.
 
@@ -285,6 +299,9 @@ says, and `plainText` on the name columns.
 - Keep the template's labels and placeholders. Add an `aria-label` where an input has neither.
 - After sending, say what happens next under the button, in the template's own text styles. On
   a refusal, say a sentence of your own for its `code`.
+- Keep the form itself before the first `await` (`const form = event.currentTarget`), and reset
+  that. React clears `event.currentTarget` when the handler returns, so reading it after an
+  `await` throws, and the page says the send failed when it worked.
 - A form that asks for something the app will not keep (a password for an account that is never
   made) is left out, and is a line in the plan. Never keep a field whose answer is thrown away.
 
@@ -299,13 +316,18 @@ its children, a quote first, a price check and a retry key, all as
   kept or sent by the page: each line copies its price from the product, and the order adds them
   up.
 - The cart and checkout pages show the quote's figures in the template's markup: each line's
-  amount, the subtotal, the total. A quote fills in the columns the guest has not typed yet;
+  amount, the subtotal, the total. A total is what the lines listed add up to. Delivery, tax or a
+  discount is a figure of its own, named beside it, and a total that takes one in says so
+  ("Total, with £6 delivery"): a total that is more than its lines, with nothing to say why, reads
+  as a mistake. A quote fills in the columns the guest has not typed yet;
   older versions fill only text, not a choice, so send a value for a required choice column (the
   country) with the quote.
 - On some databases a money figure comes back as a number (`50`), on others as a string
   (`"50.00"`). Read either, and format it with `formatTenantMoney` and the venue's currency.
-- "Place order" sends the order with `expect` set to the total the guest was shown and the cart's
-  retry key, then empties the cart and opens the thank-you page with the order's number.
+- "Place order" sends the order and its lines in one write, `client.createTree`, with `expect` set
+  to the total the guest was shown and the cart's retry key, then empties the cart and opens the
+  thank-you page with the order's number. `client.create` sends the order alone, and an entry that
+  asks for at least one line refuses it.
 - The template's ways to pay are a choice column on the order. Only the ones the shop takes without
   a card (a bank transfer, a cheque, paying on delivery) are in the entry's `writableValues`.
 

@@ -30,6 +30,7 @@
  * A card (a question, a package, data that would be lost) pauses the turn
  * until it is answered. Stop answers every waiting card with "stopped".
  */
+import { plainWords } from './untrusted.js';
 import { ATTACHMENT_MAX_PER_MESSAGE, attachmentNote, withSessionLock, type Attachment, type Attachments } from './attachments.js';
 import { FIGMA_LONG_FORM_WINDOW } from './figma/distil.js';
 import { cleanPicked, pickedNote } from './picked.js';
@@ -288,10 +289,26 @@ interface Running {
   defaultNo: boolean;
 }
 
-/** The first line of a refusal, short enough for a step's line on the page. */
-function whyOf(content: string): string {
-  const line = content.split('\n', 1)[0] ?? '';
-  return line.length > 240 ? `${line.slice(0, 239)}…` : line;
+/** How many lines of a refusal's list a step shows under its heading. */
+const WHY_ITEMS = 3;
+
+/**
+ * The first line of a refusal, short enough for a step's line on the page. A first line that only opens a list
+ * ("The plan does not read:") says nothing by itself, so the list's first lines come with it, and how many more there are.
+ */
+export function whyOf(content: string): string {
+  const short = (line: string, max: number): string => (line.length > max ? `${line.slice(0, max - 1)}…` : line);
+  const lines = content.split('\n');
+  const first = short(lines[0] ?? '', 240);
+  if (!first.trimEnd().endsWith(':')) return first;
+  const items: string[] = [];
+  for (const line of lines.slice(1)) {
+    if (!/^\s*-\s+\S/.test(line)) break;
+    // A list's lines may carry words a model or a file wrote: made plain, as every outside word on the page is.
+    items.push(plainWords(line, 160));
+  }
+  if (items.length === 0) return first;
+  return [first, ...items.slice(0, WHY_ITEMS), ...(items.length > WHY_ITEMS ? [`… and ${String(items.length - WHY_ITEMS)} more`] : [])].join('\n');
 }
 
 /** The file or name a call is about, for the page to name: its `path`, else its `name`. */

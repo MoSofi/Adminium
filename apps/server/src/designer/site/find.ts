@@ -442,21 +442,32 @@ function fieldsOf(core: Element, page: string, shapes: Shapes): RawField[] {
     const kids = elementsIn(el);
     const stars = kids.filter(isStar);
     if (stars.length >= 2) add(at, 'rating', String(stars.length));
+    // Who said it, written inside the words it belongs to: `"…"<cite>Ruth, Sheffield</cite>`. A field of its own, not
+    // more of the same run: read as one run, a slider of reviews was one field a slide and so no block at all, and a
+    // model called the template's own three reviews "made up" (seen 2026-11-26).
+    const cites = at.textTaken ? [] : kids.filter((kid) => isHtml(kid, 'cite') && plainWords(textOf(kid, TEXT_SKIP), VALUE_MAX) !== '');
     if (!at.textTaken) {
       const heading = /^h[1-6]$/.test(el.tagName);
       const words = ownWords(el, false);
       if (heading || words.trim() !== '') {
         // One run of text is one field, inline words and all; text beside blocks is a field of its own.
         const whole = heading || !kids.some((kid) => kid.namespaceURI === HTML_NS && BLOCK_TAGS.has(kid.tagName));
-        const text = plainWords(whole ? textOf(el, TEXT_SKIP) : words, VALUE_MAX);
+        const text = plainWords(whole ? textOf(el, cites.length === 0 ? TEXT_SKIP : [...TEXT_SKIP, 'cite']) : words, VALUE_MAX);
         if (text !== '') {
-          const typed = typeOf(text, el, heading, at.inQuote);
+          const typed = typeOf(text, el, heading, at.inQuote || cites.length > 0);
           add(at, typed.kind, typed.value, typed.hint);
         }
         if (whole) at.textTaken = true;
       }
     }
-    for (const kid of kids) if (!stars.includes(kid)) visit(kid, at);
+    for (const kid of kids) {
+      if (stars.includes(kid)) continue;
+      if (cites.includes(kid)) {
+        add({ ...at, path: `${at.path}>cite` }, 'text', textOf(kid, TEXT_SKIP), 'author');
+        continue;
+      }
+      visit(kid, at);
+    }
   };
   visit(core, { path: '', inLink: false, inner: false, inQuote: false, textTaken: false, depth: 0 });
   return fields;

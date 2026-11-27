@@ -9,7 +9,7 @@ inventory:
    how many of the template's blocks are filler (the same item repeated to fill a grid).
 2. **What the forms do**: each form, the table it writes to, and that strangers can add to it,
    with limits.
-3. **What the template shows**, every feature of it, each marked:
+3. **What the template shows**: only what it has, each thing marked:
    - **Works**: Adminium does it now (the product pages, the cart and the order, the contact form).
    - **Works with an add-on**: it works once that add-on is installed (coupons: Offers), and
      whether it is installed.
@@ -35,7 +35,10 @@ For each one not available, the person chooses:
   staff mark paid in the dashboard, in place of a card form.
 - **Leave it out**: the part is taken off the page, and the summary says so.
 
-The usual ones in a shop template:
+List only what the template has. A checkout form with no payment fields has no payment to decide,
+and filter buttons are not a search: a thing the person is asked to decide and that was never on
+their site is a question about nothing. How the usual ones in a shop template are handled, when
+the template has them:
 
 | The template shows | Status | Build it | Replace it |
 |---|---|---|---|
@@ -56,7 +59,14 @@ first returns what the server found in the template (its repeated blocks with th
 a cart, the features and the links to nowhere), and then takes the plan. The person reviews it in one
 sheet (**Review the plan…**): what becomes a table, what the forms do, what the template shows with
 **Build**, **Replace** or **Leave out** for each thing not available (Replace is picked where there is
-one, never Build), the links to fill, and what is added to the project. The answer is kept in
+one, never Build), the links to fill, and what is added to the project. Each thing the plan reports
+says where the template has it (`seen`: an id the server found, or a few words exactly as a page has
+them); the server looks, and refuses a plan that reports what it cannot find in the template. Pages
+and stylesheets attached one by one are one template, with one plan; a stylesheet by itself is
+brought in with no plan at all. In a new app the plan comes before the app: until it has been
+proposed, the Designer does not write the app's tables, pages, access or sample rows, and does not
+add its side. A checkout on the template's basket page is planned as an order with its lines, and
+the plan names no price or total among what a customer's page sends. The answer is kept in
 `apps/<key>/template-plan.json` with the template's sha256, and the system prompt says what it
 approved, so a later session neither asks again nor undoes it, and a different template asks again.
 Then, in a session that holds a template, the server asks **Check this before it goes live** only for

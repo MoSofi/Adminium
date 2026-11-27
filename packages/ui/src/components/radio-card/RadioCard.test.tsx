@@ -47,6 +47,16 @@ describe('RadioCard', () => {
     await user.keyboard('{/ArrowDown}');
   });
 
+  it('chooses the next card that is not disabled on an arrow pressed and released at once', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    renderCards({ onValueChange });
+    await user.tab();
+    await user.keyboard('{ArrowDown}');
+    await waitFor(() => expect(screen.getByRole('radio', { name: /SQLite/ }).getAttribute('aria-checked')).toBe('true'));
+    expect(onValueChange.mock.calls).toEqual([['sqlite']]);
+  });
+
   it('hides the check indicator when hideIndicator is set', () => {
     render(
       <RadioGroup defaultValue="a" aria-label="Bare">

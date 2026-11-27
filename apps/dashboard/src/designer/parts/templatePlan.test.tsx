@@ -3,7 +3,7 @@
  * The template plan card: the summary in the chat, the sheet it opens, the answer it sends, and how
  * it stands once it is sent, built, or answered with changes.
  */
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -183,7 +183,7 @@ describe('the sheet', () => {
     expect(within(group).getAllByRole('radio').every((radio) => radio.getAttribute('tabindex') === '-1')).toBe(true);
     act(() => group.focus());
     expect(document.activeElement).toBe(replace);
-    // Held, as a person's key is: a press that is let go at once never selects.
+    // Held, as a person's key is.
     await user.keyboard('{ArrowDown>}');
     expect(document.activeElement).toBe(leave);
     expect(leave?.getAttribute('aria-checked')).toBe('true');
@@ -192,6 +192,25 @@ describe('the sheet', () => {
     await user.keyboard('{/ArrowUp}');
     expect(document.activeElement).toBe(build);
     expect(build?.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('chooses with an arrow that is pressed and let go at once, as a switch device or automation sends it', async () => {
+    // Seen 2026-11-26: the arrows moved the focus and chose nothing, so the card showed Replace chosen and Leave out focused.
+    draw({ start: { sheet: true, sections: ['shows'] } });
+    const user = userEvent.setup();
+    const group = within(screen.getByRole('dialog')).getByRole('radiogroup', { name: 'Card payments' });
+    const [build, replace, leave] = within(group).getAllByRole('radio');
+    act(() => group.focus());
+    expect(document.activeElement).toBe(replace);
+    await user.keyboard('{ArrowDown}');
+    await waitFor(() => expect(leave?.getAttribute('aria-checked')).toBe('true'));
+    expect(document.activeElement).toBe(leave);
+    await user.keyboard('{ArrowUp}');
+    await waitFor(() => expect(replace?.getAttribute('aria-checked')).toBe('true'));
+    await user.keyboard('{ArrowUp}');
+    await waitFor(() => expect(build?.getAttribute('aria-checked')).toBe('true'));
+    // Only the chosen card is in the tab order.
+    expect(within(group).getAllByRole('radio').map((radio) => radio.getAttribute('tabindex'))).toEqual(['0', '-1', '-1']);
   });
 
   it('keeps the list of what works as it is folded until asked', async () => {

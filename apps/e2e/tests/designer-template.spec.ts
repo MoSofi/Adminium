@@ -248,11 +248,13 @@ function planOf(content: string): Record<string, unknown> {
     ],
     forms: [{ form: found.form, label: 'Newsletter', table: 'subscribers', writable: ['email'], perHour: 5 }],
     report: [
-      { id: 'newsletter', label: 'Newsletter sign-up', where: 'On the Home page', status: 'works' },
+      // Each row says where the template has it: an id the server found, or words of a page.
+      { id: 'newsletter', label: 'Newsletter sign-up', where: 'On the Home page', seen: found.form, status: 'works' },
       {
         id: 'card-payments',
         label: 'Card payments',
         where: 'On the Shop page',
+        seen: 'Our newsletter',
         status: 'not-available',
         build: 'a payment link emailed for each order',
         buildServerCode: true,

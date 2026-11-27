@@ -46,14 +46,68 @@ describe('what an app newly allows', () => {
     expect(outsideChanges(root, 'shop', before, currentSnapshot(root, 'shop'))).toEqual([]);
   });
 
+  it('sees what a stranger may write to the rows below an entry’s own, as a manifest names them: by their table', () => {
+    // Seen 2026-11-27: the children were read only as a list, a manifest writes them as { "<table>": { … } }, and a
+    // create that wrote product_id and qty to its lines (the plan had approved product and quantity) was never asked.
+    const orders = (lines: Record<string, unknown>) => access([{ table: 'orders', methods: ['POST'], writable: ['name'], children: { order_lines: { via: 'order_id', min: 1, max: 40, ...lines } } }]);
+    orders({ writable: ['product', 'quantity'] });
+    const before = currentSnapshot(root, 'shop');
+    expect(before.access[0]?.writable).toEqual(['name', 'order_lines.product', 'order_lines.quantity']);
+    orders({ writable: ['product', 'quantity', 'unit_price'], children: { line_options: { via: 'line_id', max: 8, writable: ['name'] } } });
+    const now = currentSnapshot(root, 'shop');
+    expect(now.access[0]?.writable).toEqual(['name', 'order_lines.product', 'order_lines.quantity', 'order_lines.unit_price', 'order_lines.line_options.name']);
+    expect(outsideChanges(root, 'shop', before, now).map((change) => change.line)).toEqual(['strangers could write order_lines.unit_price, order_lines.line_options.name of orders']);
+    // The same lines again ask nothing.
+    expect(outsideChanges(root, 'shop', now, now)).toEqual([]);
+  });
+
   it('names a new role, and a role that can do more', () => {
     put('apps/shop/manifest/roles.json', JSON.stringify([{ key: 'staff', permissions: ['table:@products:read'] }]));
     const before = currentSnapshot(root, 'shop');
     put('apps/shop/manifest/roles.json', JSON.stringify([{ key: 'staff', permissions: ['table:@products:read', 'table:@products:delete'] }, { key: 'guest', permissions: [] }]));
     expect(outsideChanges(root, 'shop', before, currentSnapshot(root, 'shop')).map((change) => change.view)).toEqual([
-      { kind: 'role', role: 'staff', isNew: false },
+      { kind: 'role', role: 'staff', isNew: false, rights: { tables: [{ table: 'products', actions: ['delete'] }], pages: 0, limits: false, other: [], more: 0 } },
+      // A new role with nothing granted has nothing more to name.
       { kind: 'role', role: 'guest', isNew: true },
     ]);
+  });
+
+  it('says what more a role could do: each table by its name with the actions, the pages counted, the rest as written or counted', () => {
+    put('apps/shop/manifest/tables/bookings.json', JSON.stringify({ ref: 'bookings', name: 'Bookings', columns: [] }));
+    put('apps/shop/manifest/roles.json', JSON.stringify([{ key: 'staff', permissions: ['table:@products:read'] }]));
+    const before = currentSnapshot(root, 'shop');
+    const tables = Array.from({ length: 7 }, (_, n) => `table:@t${String(n)}:read`);
+    put(
+      'apps/shop/manifest/roles.json',
+      JSON.stringify([
+        {
+          key: 'staff',
+          permissions: ['table:@products:read', 'table:@bookings:delete', 'table:@bookings:read', 'table:@bookings:update', 'table:@bookings:read_pii', 'table:@bookings:create', 'page:@shop-bookings:view', 'page:@shop-classes:view', 'app:@:staff', 'Odd Grant!', ...tables],
+          limits: { bookings: ['note'] },
+        },
+        { key: 'courier', permissions: ['table:@bookings:read'] },
+      ]),
+    );
+    const changes = outsideChanges(root, 'shop', before, currentSnapshot(root, 'shop'));
+    const staff = changes.find((change) => change.view.kind === 'role' && change.view.role === 'staff');
+    expect(staff?.view).toEqual({
+      kind: 'role',
+      role: 'staff',
+      isNew: false,
+      rights: {
+        // The table's own name, the actions in the order a person thinks of them; six tables named, the seventh and eighth counted.
+        tables: [{ table: 'Bookings', actions: ['read', 'read_pii', 'create', 'update', 'delete'] }, ...Array.from({ length: 5 }, (_, n) => ({ table: `t${String(n)}`, actions: ['read'] }))],
+        pages: 2,
+        limits: true,
+        other: ['app:@:staff'],
+        more: 3,
+      },
+    });
+    expect(staff?.line).toBe('the role "staff" could do more than before (17 new rights: Bookings: read, read_pii, create, update, delete; t0: read; t1: read; t2: read; t3: read; t4: read; 2 pages; its write limits changed; app:@:staff; 3 more)');
+    // A new role's rights are named too, and that it starts with no limits is no right.
+    const courier = changes.find((change) => change.view.kind === 'role' && change.view.role === 'courier');
+    expect(courier?.view).toEqual({ kind: 'role', role: 'courier', isNew: true, rights: { tables: [{ table: 'Bookings', actions: ['read'] }], pages: 0, limits: false, other: [], more: 0 } });
+    expect(courier?.line).toBe('a new role "courier" could sign in and use the app (Bookings: read)');
   });
 
   it('names a page whose own code calls an address outside the public client, and not the template’s copy or a comment', () => {

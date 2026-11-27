@@ -12,7 +12,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { answerFor } from '../src/designer/cards.js';
 import { outsideChanges, withApproved, type AppliedSnapshot } from '../src/designer/outside-check.js';
-import { approvedOf, planBrief, planFor, planProposalSchema, presetChoice, readTemplatePlan, writeTemplatePlan, type TemplatePlanFile, type TemplatePlanRequest } from '../src/designer/site/template-plan.js';
+import { approvedOf, planBrief, planFor, planForSide, planProposalSchema, presetChoice, readTemplatePlan, writeTemplatePlan, type TemplatePlanFile, type TemplatePlanRequest } from '../src/designer/site/template-plan.js';
+import { buildFromPlan } from '../src/designer/site/plan-step.js';
 import { googleFonts } from '../src/designer/site/use-site.js';
 
 const CARD: TemplatePlanRequest & { id: string } = {
@@ -77,7 +78,10 @@ describe('the model’s proposal', () => {
   it('refuses a ref that is not one, and anything it does not know', () => {
     expect(planProposalSchema.safeParse({ tables: [{ table: 'Products', label: 'P', columns: [{ column: 'name', label: 'n' }] }] }).success).toBe(false);
     expect(planProposalSchema.safeParse({ tables: [], sneaky: true }).success).toBe(false);
-    expect(planProposalSchema.safeParse({ report: [{ id: 'a', label: 'A', where: 'Here', status: 'broken' }] }).success).toBe(false);
+    expect(planProposalSchema.safeParse({ report: [{ id: 'a', label: 'A', where: 'Here', seen: 'form-1', status: 'broken' }] }).success).toBe(false);
+    // Every report row says where the template has it.
+    expect(planProposalSchema.safeParse({ report: [{ id: 'a', label: 'A', where: 'Here', status: 'works' }] }).success).toBe(false);
+    expect(planProposalSchema.safeParse({ report: [{ id: 'a', label: 'A', where: 'Here', seen: 'form-1', status: 'works' }] }).success).toBe(true);
   });
 });
 
@@ -93,6 +97,13 @@ describe('what an approved plan allows', () => {
       ],
       roles: [{ role: 'staff', tables: ['products', 'messages', 'orders'] }],
     });
+  });
+
+  it('reads a row’s id with the columns the person approved: the sheet does not name it, and a page links to a row by it', () => {
+    const { type: _type, id: _id, ...plan } = CARD;
+    // "categories" approves `name` alone; the build's entry always selects the id too (seen 2026-11-26: "strangers could read id of products").
+    expect(approvedOf(plan, { tables: ['categories'] }).access[0]).toEqual({ table: 'categories', methods: ['GET'], select: ['id', 'name'] });
+    expect(buildFromPlan('shop', { ...FILE('a'.repeat(64)), answer: { ...FILE('a'.repeat(64)).answer, tables: ['categories'] } })).toContain('strangers read id, name;');
   });
 });
 
@@ -118,6 +129,15 @@ describe('the kept plan', () => {
     expect(planFor(root, 'shop', 'b'.repeat(64))).toBeNull();
   });
 
+  it('is found for a side also when a later plan, for the other side, is the one the app is built by', () => {
+    const customer = FILE('a'.repeat(64));
+    writeTemplatePlan(root, 'shop', { ...customer, side: 'staff', site: { ...customer.site, sha256: 'c'.repeat(64), name: 'desk' }, others: [{ ...customer, side: 'customer' }] });
+    expect(planForSide(root, 'shop', 'staff')?.site.name).toBe('desk');
+    expect(planForSide(root, 'shop', 'customer')?.site.name).toBe('furni');
+    writeTemplatePlan(root, 'shop', customer);
+    expect(planForSide(root, 'shop', 'staff')).toBeNull();
+  });
+
   it('is said short in the prompt: what to build and what was decided, and where the whole plan is', () => {
     const brief = planBrief('shop', FILE('a'.repeat(64)));
     expect(brief).toContain('apps/shop/template-plan.json');
@@ -128,6 +148,15 @@ describe('the kept plan', () => {
     // The plan's own words are the model's, made from the template's: none of them rides in the prompt.
     for (const words of ['Contact', 'Card payments', 'Chat widget', 'Products', 'furni', 'Instagram']) expect(brief).not.toContain(words);
     expect(brief).toContain('never ask for it again');
+    // A plan with a basket says what a total is, every turn: delivery inside "Total" with nothing said read as a wrong sum.
+    expect(brief).toContain('A total on a page is what its lines add up to: delivery, tax or a discount is its own figure, named, and a total that takes one in says so.');
+    const { forms: _forms, ...noBasket } = FILE('a'.repeat(64)).plan;
+    expect(planBrief('shop', { ...FILE('a'.repeat(64)), plan: { ...noBasket, forms: [] } })).not.toContain('A total on a page');
+    // The template's order on the page (seen 2026-11-26: a screen sorted the products newest first, the template's last one first).
+    expect(buildFromPlan('shop', FILE('a'.repeat(64)))).toContain("fill it per row, in the template's order (by the rows' position where the table has one, else as the list comes, by key: never newest first)");
+    // The plan's own names, letter for letter (seen 2026-11-27: "product_id" and "qty" for the plan's "product" and "quantity").
+    expect(buildFromPlan('shop', FILE('a'.repeat(64)))).toContain('Name every table and column as the plan names it, letter for letter: another name, in access.json above all, is asked of the person as something that was not on the plan.');
+    expect(buildFromPlan('shop', FILE('a'.repeat(64)))).toContain('Send it with client.createTree (the row and its order_lines in one write), never client.create. The total the page shows is what its lines add up to;');
     expect(brief.length).toBeLessThan(1200);
   });
 });
@@ -141,6 +170,15 @@ describe('the check before going live, with an approved plan', () => {
     expect(outsideChanges(root, 'shop', withApproved(null, now, approved, new Map([['shop-products', 'products']])), now)).toEqual([]);
   });
 
+  it('asks nothing for the id of a table whose columns the plan approved, in a plan kept before the id was written into it', () => {
+    const kept = { access: [{ table: 'products', methods: ['GET'], select: ['name'] }], roles: [] };
+    const now = snap([{ table: 'products', methods: ['GET'], select: ['id', 'name'], writable: [] }]);
+    expect(outsideChanges(root, 'shop', withApproved(null, now, kept), now)).toEqual([]);
+    // Any other column is still asked, and a create's reply is no read the plan approved.
+    const more = snap([{ table: 'products', methods: ['GET'], select: ['id', 'name', 'cost'], writable: [] }]);
+    expect(outsideChanges(root, 'shop', withApproved(null, more, kept), more).map((change) => change.line)).toEqual(['strangers could read cost of products']);
+  });
+
   it('asks nothing for the order and its lines the plan approved, written as children', () => {
     const now = snap([{ table: 'orders', methods: ['POST'], select: [], writable: ['email', 'order_lines.product', 'order_lines.quantity'], humanCheck: true }]);
     expect(outsideChanges(root, 'shop', withApproved(null, now, approved), now)).toEqual([]);
@@ -149,20 +187,20 @@ describe('the check before going live, with an approved plan', () => {
   it('asks when a role that was there before loosens its limits, plan or not; a role the plan makes comes with its own', () => {
     const before = snap([], { staff: ['limits:{"products":["price"]}', 'table:@products:read'] });
     const now = snap([], { staff: ['limits:null', 'table:@products:read'] });
-    expect(outsideChanges(root, 'shop', withApproved(before, now, approved), now).map((change) => change.view)).toEqual([{ kind: 'role', role: 'staff', isNew: false }]);
+    expect(outsideChanges(root, 'shop', withApproved(before, now, approved), now).map((change) => change.view)).toEqual([{ kind: 'role', role: 'staff', isNew: false, rights: { tables: [], pages: 0, limits: true, other: [], more: 0 } }]);
     const fresh = snap([], { staff: ['limits:null', 'table:@products:read'] });
     expect(outsideChanges(root, 'shop', withApproved(null, fresh, approved), fresh)).toEqual([]);
   });
 
   it('asks for a page of a table the plan did not name', () => {
     const now = snap([], { staff: ['page:@shop-secrets:view'] });
-    expect(outsideChanges(root, 'shop', withApproved(null, now, approved, new Map([['shop-secrets', 'secrets']])), now).map((change) => change.view)).toEqual([{ kind: 'role', role: 'staff', isNew: false }]);
+    expect(outsideChanges(root, 'shop', withApproved(null, now, approved, new Map([['shop-secrets', 'secrets']])), now).map((change) => change.view)).toEqual([{ kind: 'role', role: 'staff', isNew: false, rights: { tables: [], pages: 1, limits: false, other: [], more: 0 } }]);
   });
 
   it('asks for what goes beyond it: another method, another column, another table, a grant the plan did not name', () => {
     const now = snap([{ table: 'products', methods: ['GET', 'PATCH'], select: ['id', 'name', 'cost'], writable: [] }, { table: 'messages', methods: ['POST'], select: [], writable: ['name', 'body', 'phone'] }, { table: 'bookings', methods: ['POST'], select: [], writable: ['when'] }], { staff: ['table:@products:read', 'table:@secrets:read'] });
     const lines = outsideChanges(root, 'shop', withApproved(null, now, approved), now).map((change) => change.line);
-    expect(lines).toEqual(['strangers could change rows of products', 'strangers could read cost of products', 'strangers could write phone of messages', 'strangers could add rows to bookings', 'the role "staff" could do more than before (1 new right)']);
+    expect(lines).toEqual(['strangers could change rows of products', 'strangers could read cost of products', 'strangers could write phone of messages', 'strangers could add rows to bookings', 'the role "staff" could do more than before (1 new right: secrets: read)']);
   });
 
   it('asks when access widens without a new name: every column, the human check taken off, rows no longer kept back', () => {

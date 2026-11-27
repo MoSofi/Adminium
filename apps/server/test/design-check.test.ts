@@ -14,7 +14,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { classesDefined, classesIn, dashboardPageLine, designIssues, emojiIn, isPaletteClass, lowContrastRules, rawColours, unbroughtCalls, unbroughtComponents, unbroughtPicture } from '../src/project/apps/design-check.js';
+import { classesDefined, classesIn, dashboardPageLine, designIssues, emojiIn, isPaletteClass, lowContrastRules, rawColours, unbroughtCalls, unbroughtComponents, unbroughtPicture, unnamedParts } from '../src/project/apps/design-check.js';
 import { applyLook, resolveLook } from '../src/project/apps/look.js';
 
 let root: string;
@@ -411,6 +411,77 @@ describe('a helper a screen calls and never brings', () => {
       "// formatMoney(1)\n/* loadRows() */\nexport const x = 1;",
     ];
     for (const source of fine) expect(unbroughtCalls(source), source).toEqual([]);
+  });
+});
+
+describe('a field or a picture link with no name', () => {
+  it('names a field that only a placeholder describes, and says how to name it', async () => {
+    // Seen 2026-11-26: a newsletter box with a placeholder and nothing else. A screen reader says "edit text".
+    write('customer/src/App.tsx', screen('<main className="page"><img className="logo" src={logo} alt="" /><form><input type="email" name="email" placeholder="Your email address" required /><textarea name="note" /><button>Join</button></form></main>'));
+    const found = (await designIssues(root, 'cakes')).filter((issue) => issue.kind === 'names');
+    expect(found.map((issue) => issue.line)).toEqual([
+      '- apps/cakes/customer/src/App.tsx: the fields <input type="email" name="email">, <textarea name="note"> have no name a screen reader can say (a placeholder is not one: it goes when the person types). Put each inside its <label>, point a <label htmlFor="…"> at its id, or give it an aria-label that says what to type.',
+    ]);
+    write('customer/src/App.tsx', screen('<main className="page"><img className="logo" src={logo} alt="" /><input name="q" placeholder="Search" /></main>'));
+    expect((await designIssues(root, 'cakes')).filter((issue) => issue.kind === 'names')[0]?.line).toContain('the field <input name="q"> has no name a screen reader can say');
+  });
+
+  it('takes every way a field is named, and says nothing where the file does not say for certain', () => {
+    const named = `
+      function Row({ label, children }) { return <label className="row"><span>{label}</span>{children}</label>; }
+      export function Form() {
+        const id = useId();
+        const [rows, setRows] = useState<Item[]>([]);
+        return (
+          <form onSubmit={(event) => rows.length > 0 && send(event)}>
+            <label>Full name <input name="name" required /></label>
+            <label>
+              Delivery{' '}
+              <select name="delivery" value={delivery} onChange={(e) => setDelivery(e.target.value)}>
+                {OPTIONS.map((d) => (<option key={d}>{d}</option>))}
+              </select>
+            </label>
+            <Label>Phone <input name="phone" /></Label>
+            <label htmlFor="city">City</label><input id="city" />
+            <label htmlFor='zip'>Zip</label><input id='zip' />
+            <label htmlFor={id}>Worked out</label><input id={id} />
+            <input name="q" aria-label="Search the shop" />
+            <input name="r" aria-labelledby="heading" />
+            <textarea name="t" title="Your note" />
+            <Row label="Email"><input name="email" /></Row>
+            <Field label="Street" htmlFor="street"><input id="street" /></Field>
+            <input type="hidden" name="token" value={token} />
+            <input type="submit" value="Send" />
+            <input type="file" hidden onChange={() => {}} />
+            <input {...register('age')} />
+            <input type={kind} name="any" />
+          </form>
+        );
+      }`;
+    expect(unnamedParts(named)).toEqual({ fields: [], pictureLink: false });
+    // A label that points elsewhere names nothing, and a field after a closed label is outside it.
+    expect(unnamedParts('<form><label htmlFor="a">A</label><input id="b" name="b" /><label>C <input name="c" /></label><select name="d"><option>x</option></select></form>').fields).toEqual(['<input name="b">', '<select name="d">']);
+    // A comment is not a field, and at most four are named.
+    expect(unnamedParts('// <input name="gone" />\n<form>' + Array.from({ length: 6 }, (_, n) => `<input name="f${String(n)}" />`).join('') + '</form>').fields).toEqual(['<input name="f0">', '<input name="f1">', '<input name="f2">', '<input name="f3">']);
+  });
+
+  it('names a link that holds only a picture with no alt, and none whose picture or link says where it goes', async () => {
+    write('customer/src/App.tsx', screen('<main className="page"><img className="logo" src={logo} alt="" /><Link to={`/product/${p.id}`}><img src={url} alt="" /></Link></main>'));
+    expect((await designIssues(root, 'cakes')).filter((issue) => issue.kind === 'names').map((issue) => issue.line)).toEqual([
+      '- apps/cakes/customer/src/App.tsx: a link holds only a picture with no alt, so the link has no name: give the picture an alt that says where the link goes, or the link an aria-label.',
+    ]);
+    expect(unnamedParts('<a href={href}>\n  <img src={url} />\n</a>').pictureLink).toBe(true);
+    for (const fine of [
+      '<a href={href}><img src={url} alt={product.name} /></a>',
+      '<a href={href} aria-label="The speckled mug"><img src={url} alt="" /></a>',
+      '<Link to="/shop"><img src={url} alt="" /> Shop</Link>',
+      '<Link to="/shop"><img src={url} alt="" /><span>Shop</span></Link>',
+      // A part of the app's own inside the link may name it: nothing is said.
+      '<Link to={`/product/${p.id}`}><ProductPicture product={p} /></Link>',
+      '<a {...props}><img src={url} alt="" /></a>',
+    ]) {
+      expect(unnamedParts(fine).pictureLink, fine).toBe(false);
+    }
   });
 });
 

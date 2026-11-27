@@ -641,7 +641,7 @@ describe.each(META_ENGINES)('Check this before it goes live, on $name', (engine)
       expect(card).toMatchObject({ changes: [{ kind: 'role', role: 'staff', isNew: false }], planned: true });
       await d.answer(card, false);
       expect((await d.over(beyond, 1)).at(-1)).toMatchObject({ outcome: 'not-applied' });
-      expect(toolSaid()).toContainEqual(expect.stringContaining('the role "staff" could do more than before (1 new right)'));
+      expect(toolSaid()).toContainEqual(expect.stringContaining('the role "staff" could do more than before (1 new right: 1 page)'));
     });
   });
 });

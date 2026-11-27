@@ -1613,8 +1613,14 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     }
     // Nothing a server decides may be written by a browser.
     const decided = ctx.decided(entry.table);
+    // Nor a row's key, by an entry that sends values: a caller who writes a key re-keys rows. The endpoint refuses it
+    // when it is made ("is the primary key and cannot be writable"), which is part way through an apply: said here first.
+    const sendsValues = entry.methods.some((method) => method === 'POST' || method === 'PATCH' || method === 'PUT' || method === 'BATCH');
     for (const ref of writable) {
       if (decided.has(ref)) out.push({ path: at('writable'), message: `"${ref}" is decided by Adminium and cannot be written publicly` });
+      else if (sendsValues && (ctx.index.column(entry.table, ref) as { role?: string } | undefined)?.role === 'pk') {
+        out.push({ path: at('writable'), message: `"${ref}" is the key of "${entry.table}" and cannot be written publicly: the database gives a row its key` });
+      }
     }
     // A file column names a file a signed-in staff member uploaded: a browser's key uploads nothing, so it names none —
     // but a guest's own upload, in a column the entry lets them upload into (`uploads`).

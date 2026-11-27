@@ -11491,6 +11491,26 @@
     "status": "mt",
     "srcHash": "b8f35d6c7c8a"
   },
+  "designer.access.action.create": {
+    "status": "mt",
+    "srcHash": "58d1bbce297d"
+  },
+  "designer.access.action.delete": {
+    "status": "mt",
+    "srcHash": "9485989ff514"
+  },
+  "designer.access.action.read": {
+    "status": "mt",
+    "srcHash": "a7afddb68260"
+  },
+  "designer.access.action.readPii": {
+    "status": "mt",
+    "srcHash": "d7ff55883017"
+  },
+  "designer.access.action.update": {
+    "status": "mt",
+    "srcHash": "7550b672e162"
+  },
   "designer.access.add": {
     "status": "mt",
     "srcHash": "467f2d78e24b"
@@ -11567,6 +11587,14 @@
     "status": "mt",
     "srcHash": "39b25a3c1f9a"
   },
+  "designer.access.newRoleRights": {
+    "status": "mt",
+    "srcHash": "1c9cafc33cdd"
+  },
+  "designer.access.newRoleRightsAllowed": {
+    "status": "mt",
+    "srcHash": "a690380f8eed"
+  },
   "designer.access.noCheck": {
     "status": "mt",
     "srcHash": "47c3a587ae65"
@@ -11607,6 +11635,22 @@
     "status": "mt",
     "srcHash": "9b603f948a3d"
   },
+  "designer.access.rightLimits": {
+    "status": "mt",
+    "srcHash": "e620439a5c98"
+  },
+  "designer.access.rightMore": {
+    "status": "mt",
+    "srcHash": "97ccc90f1e21"
+  },
+  "designer.access.rightPages": {
+    "status": "mt",
+    "srcHash": "f5623edceb53"
+  },
+  "designer.access.rightTable": {
+    "status": "src",
+    "srcHash": "776740b1731d"
+  },
   "designer.access.role": {
     "status": "mt",
     "srcHash": "1e620374e3c1"
@@ -11614,6 +11658,14 @@
   "designer.access.roleAllowed": {
     "status": "mt",
     "srcHash": "ec542930311d"
+  },
+  "designer.access.roleRights": {
+    "status": "mt",
+    "srcHash": "41d88985a2c6"
+  },
+  "designer.access.roleRightsAllowed": {
+    "status": "mt",
+    "srcHash": "d9697e69b723"
   },
   "designer.access.title": {
     "status": "mt",
@@ -15791,6 +15843,10 @@
     "status": "mt",
     "srcHash": "121bfa240a1e"
   },
+  "designer.step.nameFromTemplate": {
+    "status": "mt",
+    "srcHash": "37e5c036f1b2"
+  },
   "designer.step.named": {
     "status": "mt",
     "srcHash": "0134bdd5c705"
@@ -15979,9 +16035,9 @@
     "status": "mt",
     "srcHash": "1751bee8a1ee"
   },
-  "designer.step.siteBuilding": {
+  "designer.step.sideFailed": {
     "status": "mt",
-    "srcHash": "478f836be019"
+    "srcHash": "66b4b694081a"
   },
   "designer.step.siteBuilt": {
     "status": "mt",
@@ -15990,6 +16046,26 @@
   "designer.step.siteFailed": {
     "status": "mt",
     "srcHash": "dd9f1f46feff"
+  },
+  "designer.step.siteLook": {
+    "status": "mt",
+    "srcHash": "efdbdd2ed6c9"
+  },
+  "designer.step.sitePlanApproved": {
+    "status": "mt",
+    "srcHash": "2845526112dc"
+  },
+  "designer.step.sitePlanChanges": {
+    "status": "mt",
+    "srcHash": "11d73876c239"
+  },
+  "designer.step.siteRead": {
+    "status": "mt",
+    "srcHash": "6983a6d41497"
+  },
+  "designer.step.siteWorking": {
+    "status": "mt",
+    "srcHash": "08ec54616909"
   },
   "designer.step.spotFillFailed": {
     "status": "mt",

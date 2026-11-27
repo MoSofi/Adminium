@@ -13,5 +13,8 @@ says, and `plainText` on the name columns.
 - Keep the template's labels and placeholders. Add an `aria-label` where an input has neither.
 - After sending, say what happens next under the button, in the template's own text styles. On
   a refusal, say a sentence of your own for its `code`.
+- Keep the form itself before the first `await` (`const form = event.currentTarget`), and reset
+  that. React clears `event.currentTarget` when the handler returns, so reading it after an
+  `await` throws, and the page says the send failed when it worked.
 - A form that asks for something the app will not keep (a password for an account that is never
   made) is left out, and is a line in the plan. Never keep a field whose answer is thrown away.

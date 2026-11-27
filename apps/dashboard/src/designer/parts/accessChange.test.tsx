@@ -69,6 +69,14 @@ describe('each change, in the person’s words', () => {
     expect(accessChangeLine({ kind: 'role', role: 'Courier', isNew: true }, true)).toBe('a new role, Courier, can sign in and use the app');
     expect(accessChangeLine({ kind: 'role', role: 'Staff', isNew: false }, false)).toBe('the role Staff could do more than before');
     expect(accessChangeLine({ kind: 'role', role: 'Staff', isNew: false }, true)).toBe('the role Staff can do more than before');
+    // What more is named: the tables with what could be done to them, the pages, a change of its limits, the rest counted.
+    const rights = { tables: [{ table: 'Bookings', actions: ['read', 'read_pii', 'create', 'update', 'delete'] }, { table: 'Classes', actions: ['read', 'export_rows'] }], pages: 2, limits: true, other: ['app:@:staff'], more: 3 };
+    expect(accessChangeLine({ kind: 'role', role: 'Staff', isNew: false, rights }, false)).toBe(
+      'the role Staff could do more than before: Bookings (read, read personal details, add, change, and delete); Classes (read and export rows); 2 pages to open; a change in what it may write; app:@:staff; 3 more rights',
+    );
+    expect(accessChangeLine({ kind: 'role', role: 'Staff', isNew: false, rights: { tables: [{ table: 'Bookings', actions: ['read'] }], pages: 1, limits: false, other: [], more: 0 } }, true)).toBe('the role Staff can do more than before: Bookings (read); 1 page to open');
+    expect(accessChangeLine({ kind: 'role', role: 'Courier', isNew: true, rights: { tables: [{ table: 'Orders', actions: ['read', 'update'] }], pages: 0, limits: false, other: [], more: 1 } }, false)).toBe('a new role, Courier, could sign in and use the app: Orders (read and change); 1 more right');
+    expect(accessChangeLine({ kind: 'role', role: 'Courier', isNew: true, rights: { tables: [{ table: 'Orders', actions: ['read'] }], pages: 0, limits: false, other: [], more: 0 } }, true)).toBe('a new role, Courier, can sign in and use the app: Orders (read)');
     expect(accessChangeLine({ kind: 'call', screen: 'shop' }, false)).toBe('the shop page calls an address outside Adminium');
     expect(accessChangeLine({ kind: 'call', screen: 'shop' }, true)).toBe('the shop page can call an address outside Adminium');
   });

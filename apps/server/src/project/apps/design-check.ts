@@ -27,7 +27,7 @@ import { contrast, inkOn, type Theme, type ThemeColours } from './theme.js';
 
 export interface DesignIssue {
   /** What kind of finding it is: a test and the page tell them apart by this. */
-  kind: 'class' | 'emoji' | 'colour' | 'font' | 'logo' | 'brief' | 'inline' | 'pictures' | 'spots' | 'contrast' | 'dashboard' | 'component' | 'address';
+  kind: 'class' | 'emoji' | 'colour' | 'font' | 'logo' | 'brief' | 'inline' | 'pictures' | 'spots' | 'contrast' | 'dashboard' | 'component' | 'address' | 'names';
   /** One line for the model, the same each time. */
   line: string;
 }
@@ -257,6 +257,127 @@ export function unbroughtPicture(source: string): string | null {
     return address.slice(0, 80);
   }
   return null;
+}
+
+interface JsxTag {
+  name: string;
+  /** What stands between the tag's name and its end. */
+  attrs: string;
+  closing: boolean;
+  selfClosing: boolean;
+  /** Where the tag starts and where it ends in the source. */
+  at: number;
+  end: number;
+}
+
+/** Elements that never hold anything: they open and close in one tag, written with a slash or without. */
+const VOID_TAGS = new Set(['input', 'img', 'br', 'hr', 'meta', 'link', 'source', 'area', 'col', 'embed', 'track', 'wbr']);
+
+/**
+ * The JSX tags of a screen, in order. A `<` right against a name or a bracket is a type's own (`useState<Item>`), not a
+ * tag; an attribute's `{…}` may hold anything (`onClick={() => a > b}`), so a tag ends at the `>` outside its braces.
+ */
+export function jsxTags(source: string): JsxTag[] {
+  const text = code(source);
+  const out: JsxTag[] = [];
+  for (let at = 0; at < text.length; at += 1) {
+    if (text[at] !== '<') continue;
+    const head = /^<(\/?)([A-Za-z][\w.-]*)/.exec(text.slice(at, at + 80));
+    if (head === null) continue;
+    // A type's own `<T>` stands right against a name (`useState<Item>(`); a tag after words has a space before it
+    // ("Phone <input …>"). A closing tag is never anything else.
+    if (head[1] !== '/' && at > 0 && /[\w$)\]]/.test(text[at - 1] as string)) continue;
+    let depth = 0;
+    let quote: string | null = null;
+    let end = -1;
+    for (let k = at + head[0].length; k < text.length && k < at + 4000; k += 1) {
+      const mark = text[k] as string;
+      if (quote !== null) {
+        if (mark === quote) quote = null;
+      } else if (depth === 0 && (mark === '"' || mark === "'")) quote = mark;
+      else if (mark === '{') depth += 1;
+      else if (mark === '}') depth -= 1;
+      else if (mark === '>' && depth === 0) {
+        end = k;
+        break;
+      } else if (mark === '<' && depth === 0) break;
+    }
+    if (end < 0) continue;
+    const selfClosing = text[end - 1] === '/';
+    out.push({ name: head[2] as string, attrs: text.slice(at + head[0].length, selfClosing ? end - 1 : end), closing: head[1] === '/', selfClosing, at, end });
+    at = end;
+  }
+  return out;
+}
+
+/** Whether a tag sets an attribute, by any value. */
+const hasAttr = (attrs: string, name: string): boolean => new RegExp(`(?:^|\\s)${name}(?:\\s*=|\\s|$)`).test(attrs);
+/** An attribute's value when it is written out in quotes (`id="x"`, `id={'x'}`); null when it is not set, or is worked out. */
+const attrText = (attrs: string, name: string): string | null => {
+  const found = new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|\\{\\s*(?:"([^"]*)"|'([^']*)')\\s*\\})`).exec(attrs);
+  return found === null ? null : (found[1] ?? found[2] ?? found[3] ?? found[4] ?? null);
+};
+
+/** Fields a person never fills in by its name: a button, a hidden value. */
+const NOT_A_FIELD = new Set(['hidden', 'submit', 'button', 'reset', 'image']);
+
+/**
+ * Fields and picture links of a screen that have no name a screen reader can say.
+ *
+ * A field is named by `aria-label`, `aria-labelledby` or `title`, by the `<label>` it stands in, or by a
+ * `<label htmlFor>` that points at its id. A placeholder is not a name: it goes when the person types. A link that
+ * holds only a picture is named by the picture's `alt`, or by its own `aria-label`.
+ *
+ * A reading, not a proof. Nothing is said of a field under a part of the app's own (`<Field label="…">` may draw the
+ * label), of one whose id is worked out (`id={id}`), or of one that takes what it is given (`{...props}`).
+ */
+export function unnamedParts(source: string): { fields: string[]; pictureLink: boolean } {
+  const tags = jsxTags(source);
+  const text = code(source);
+  const labelled = new Set<string>();
+  for (const tag of tags) {
+    const points = tag.closing ? null : (attrText(tag.attrs, 'htmlFor') ?? attrText(tag.attrs, 'for'));
+    if (points !== null) labelled.add(points);
+  }
+  const fields: string[] = [];
+  let pictureLink = false;
+  const open: JsxTag[] = [];
+  tags.forEach((tag, index) => {
+    if (tag.closing) {
+      // Back to the tag it closes; one that was never opened here closes nothing.
+      for (let k = open.length - 1; k >= 0; k -= 1) {
+        if ((open[k] as JsxTag).name === tag.name) {
+          open.length = k;
+          break;
+        }
+      }
+      return;
+    }
+    const named = (attrs: string): boolean => hasAttr(attrs, 'aria-label') || hasAttr(attrs, 'aria-labelledby') || hasAttr(attrs, 'title');
+    const spread = /\{\s*\.\.\./.test(tag.attrs);
+    if (tag.name === 'input' || tag.name === 'select' || tag.name === 'textarea') {
+      const type = attrText(tag.attrs, 'type') ?? (hasAttr(tag.attrs, 'type') ? null : 'text');
+      const inLabel = open.some((up) => up.name === 'label' || up.name === 'Label');
+      const underPart = open.some((up) => /^[A-Z]/.test(up.name) && up.name !== 'Label');
+      const id = attrText(tag.attrs, 'id');
+      const certain = !spread && !underPart && type !== null && !(hasAttr(tag.attrs, 'id') && id === null) && !hasAttr(tag.attrs, 'hidden') && !hasAttr(tag.attrs, 'aria-hidden');
+      if (certain && !NOT_A_FIELD.has(type) && !named(tag.attrs) && !inLabel && !(id !== null && labelled.has(id)) && fields.length < 4) {
+        const name = attrText(tag.attrs, 'name');
+        fields.push(`<${tag.name}${tag.name === 'input' && type !== 'text' ? ` type="${type}"` : ''}${name === null ? '' : ` name="${name.slice(0, 30)}"`}>`);
+      }
+    }
+    if ((tag.name === 'a' || tag.name === 'Link') && !tag.selfClosing && !named(tag.attrs) && !spread) {
+      // Only a picture inside it, and nothing else: no word, no other part.
+      const picture = tags[index + 1];
+      const close = tags[index + 2];
+      if (picture !== undefined && close !== undefined && picture.name === 'img' && !picture.closing && close.closing && close.name === tag.name && text.slice(tag.end + 1, picture.at).trim() === '' && text.slice(picture.end + 1, close.at).trim() === '') {
+        const alt = attrText(picture.attrs, 'alt');
+        if (!/\{\s*\.\.\./.test(picture.attrs) && !named(picture.attrs) && (alt === '' || !hasAttr(picture.attrs, 'alt'))) pictureLink = true;
+      }
+    }
+    if (!tag.selfClosing && !VOID_TAGS.has(tag.name)) open.push(tag);
+  });
+  return { fields, pictureLink };
 }
 
 /** The import that brings the page-address helper, written out: a model follows the words it is given. */
@@ -594,6 +715,23 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
         line: `- ${at(screen.name)} shows a picture from "${address}", an address nothing is at, so an empty frame shows. A page's picture is a spot (add_spots, then <Picture spot="…" />); a row's picture comes from its picture column with pictureUrl. With no picture to show, take the <img> out and leave the tile plain.`,
       });
     }
+    // A field or a picture link with no name: a person using a screen reader hears "edit text" and "link".
+    for (const screen of screens) {
+      const { fields, pictureLink } = unnamedParts(screen.text);
+      if (fields.length > 0) {
+        issues.push({
+          kind: 'names',
+          line: `- ${at(screen.name)}: ${fields.length === 1 ? `the field ${fields[0] as string} has` : `the fields ${fields.join(', ')} have`} no name a screen reader can say (a placeholder is not one: it goes when the person types). Put ${fields.length === 1 ? 'it' : 'each'} inside its <label>, point a <label htmlFor="…"> at its id, or give it an aria-label that says what to type.`,
+        });
+      }
+      if (pictureLink) {
+        issues.push({
+          kind: 'names',
+          line: `- ${at(screen.name)}: a link holds only a picture with no alt, so the link has no name: give the picture an alt that says where the link goes, or the link an aria-label.`,
+        });
+      }
+    }
+
     // More than one page, and one address for all of them. One line a side.
     {
       const reads = sources(src, /\.(?:tsx?|jsx?)$/).some((file) => readsAddress(file.text));

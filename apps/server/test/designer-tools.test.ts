@@ -972,7 +972,13 @@ describe('the Designer’s tools', () => {
     writeFileSync(join(root, 'apps/repairs/seeds/sample.json'), before);
     const wrote = await run('write_file', { path: 'apps/repairs/seeds/sample.json', content: after });
     expect(wrote.content).toContain("The rows' pictures were kept as they were");
+    // A rewrite reaches a fresh install only: the model is told, so it never says the page now shows the new rows (seen 2026-11-27).
+    expect(wrote.content).toContain('Sample rows are added once, when the app is first applied. If it was applied before, the rows it added then are still in the tables and on the page: this file is read again only by a fresh install.');
+    expect(wrote.content).toContain('never that the page now shows the new rows');
     expect(readFileSync(join(root, 'apps/repairs/seeds/sample.json'), 'utf8')).toContain('"@asset": "picture-items-1"');
+    // A file written for the first time is not a rewrite: nothing is said of rows added before.
+    rmSync(join(root, 'apps/repairs/seeds/sample.json'));
+    expect((await run('write_file', { path: 'apps/repairs/seeds/sample.json', content: after })).content).not.toContain('Sample rows are added once');
   });
 
   it('says once to give the content, and from the second empty write_file on says the way out instead of the same words', async () => {

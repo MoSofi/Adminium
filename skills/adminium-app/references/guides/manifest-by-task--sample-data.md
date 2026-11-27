@@ -31,5 +31,7 @@ outside `manifest/`.
 - `{ "@day": 2 }` is a date that many days from today; with `"@time": "09:30"`, a time on it.
 - `app` must be the app's key, and every table and column must be one the manifest declares.
 - Leave out the columns Adminium fills (`number` here). Never write a key by hand.
+- A row agrees with itself: one with a price does not also say its price is "on request" or "from
+  a quote". Where a row has no price, leave the price empty and say so in its words.
 
 Reference: [Sample data](https://docs.adminium.dev/reference/manifest/#sample-data), [Sample data](https://docs.adminium.dev/guides/apps/sample-data/).

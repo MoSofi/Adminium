@@ -79,15 +79,24 @@ for (const [dialect, available] of ENGINES) {
       expect((await h.sync())[0]).toMatchObject({ state: 'installed' });
       expect(await count('repairs_items')).toBe(0);
 
-      // The sample rows are named in the same step as public access that cannot be made (a create with nothing a stranger may write).
+      // The sample rows are named in a step whose apply stops part way: the database refuses the save of an endpoint,
+      // once. It has to be a stop only the apply can meet. A manifest the check can refuse stops before the apply, at
+      // "build", and then nothing is half-way: twice this test's refusal was one the check later learned (a create
+      // with nothing writable, a create that writes the key), and it went on passing while it tested nothing.
+      const service = h.harness.deps.publicAccess?.service as { saveEndpoint: (...args: never[]) => Promise<unknown> };
+      const save = service.saveEndpoint;
+      service.saveEndpoint = async () => {
+        throw new Error('the database went away');
+      };
       h.put('apps/repairs/manifest/sample.json', sample);
-      h.put('apps/repairs/manifest/access.json', { publicAccess: [{ table: 'requests', methods: ['POST'], select: ['id'] }] });
       const stopped = (await h.sync())[0];
-      expect(stopped?.state).not.toBe('applied');
+      expect(stopped).toMatchObject({ state: 'not-applied', stage: 'pages', message: 'the database went away' });
       expect(await count('repairs_items')).toBe(0);
 
-      // Put right: this apply goes through, and the rows are added now. "It named them before" was never "they were added".
-      h.put('apps/repairs/manifest/access.json', ACCESS);
+      // The database is back, and the folder changes: this apply goes through, and the rows are added now. "It named
+      // them before" was never "they were added".
+      service.saveEndpoint = save;
+      h.edit('apps/repairs/manifest/tables/items.json', (table) => ({ ...table, columns: [...(table['columns'] as unknown[]), { ref: 'shelf', type: 'text', maxLength: 40, nullable: true }] }));
       expect((await h.sync())[0]).toMatchObject({ state: 'applied' });
       expect(await count('repairs_items')).toBe(6);
       expect(h.lines.log.join('\n')).toContain('its sample data was added');
