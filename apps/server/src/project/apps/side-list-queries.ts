@@ -97,7 +97,7 @@ function skip(text: string, at: number): number {
 }
 
 /** The index just past the bracket that closes the one at `open`. */
-function afterBracket(text: string, open: number): number {
+export function afterBracket(text: string, open: number): number {
   let at = open + 1;
   while (at < text.length) {
     const char = text[at];
@@ -108,7 +108,7 @@ function afterBracket(text: string, open: number): number {
 }
 
 /** The parts of `text` between `from` and `to`, split at the commas outside any bracket or string. */
-function partsOf(text: string, from: number, to: number): string[] {
+export function partsOf(text: string, from: number, to: number): string[] {
   const out: string[] = [];
   let start = from;
   let at = from;

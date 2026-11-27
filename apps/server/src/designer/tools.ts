@@ -70,8 +70,9 @@ const SITE_LIST_FILES = 100;
 const SITE_KIND_WORDS = { html: 'a page', css: 'a stylesheet', js: 'a script', picture: 'a picture', svg: 'an SVG picture', font: 'a font', text: 'a licence or readme' } as const;
 import { figmaPictureOf, figmaPicturesIn, readFigmaTool, type ReadFigmaDeps } from './figma/tool.js';
 import type { DesignerSession } from './session-store.js';
+import { nameFits, nameInTitles, templateTitles } from './site/template-name.js';
 import { googleFonts, useSiteTool } from './site/use-site.js';
-import { planSide, readTemplatePlan } from './site/template-plan.js';
+import { planForSide, readTemplatePlan } from './site/template-plan.js';
 import { dataWindow, quoted } from './untrusted.js';
 import { FOLDED_MARK } from './fold.js';
 import type { AddOnGetter, AddOnLook } from './get-add-on.js';
@@ -251,6 +252,12 @@ const SHOWN_ON_MISS = 4000;
 
 /** The pieces of `text` that are `piece` but for their spacing: spaces and line ends may differ anywhere. */
 /** The HTML a few words name by entity, in one pass: `&amp;` is `&`, `&#39;` is `'`. A code that is no character stays as written. */
+/** The sessions whose model was handed its template's titles when it named the app after something else: once each. */
+const toldTemplateName = new Set<string>();
+
+/** How the answer that sends a model to its template's plan begins: found again in the transcript, it was said. */
+const PLAN_FIRST = 'Not yet: this session holds a site template';
+
 export function withoutEntities(text: string): string {
   const named: Readonly<Record<string, string>> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
   return text.replace(/&(?:([a-z]{2,4})|#(\d{1,7})|#x([0-9a-f]{1,6}));/gi, (all, name: string | undefined, decimal: string | undefined, hex: string | undefined) => {
@@ -424,7 +431,10 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
     return out;
   };
 
-  /** What the person wrote in this session: the first message of each turn. Never the engine's own notes to the model. */
+  /**
+   * What the person wrote in this session: the first block of each turn's first message. Never the engine's own notes
+   * to the model, which follow it as blocks of their own (about an attached file, a picked element, a hand edit).
+   */
   const personWords = (sessionId: string): string => {
     const seen = new Set<number>();
     const out: string[] = [];
@@ -432,7 +442,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
       if (seen.has(turn)) continue;
       seen.add(turn);
       if (message.role !== 'user') continue;
-      for (const block of message.content) if (block.type === 'text') out.push(block.text);
+      const first = message.content[0];
+      if (first?.type === 'text') out.push(first.text);
     }
     return out.join(' ');
   };
@@ -537,6 +548,45 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
     deps.designer().needsName?.(ctx.session) === true
       ? refused('Call name_app first, alone: give the app the name the business would use (two or three words, like "Crispy Bites" or "Cake Orders"). Its folder is made from that name, and nothing can be written before it.', 'The app has no name yet')
       : null;
+
+  /**
+   * From a site template, the plan comes first: the person approves what becomes a table, a form and a page before the
+   * app's tables, pages, access and sample rows are written. A model wrote all of them, and added the side (whose card
+   * asked for packages a template's side never uses), and only then proposed the plan (seen 2026-11-27).
+   *
+   * So in a new app that was never applied, in a session that holds a template with pages and no approved plan, a
+   * write of the app's manifest or sample rows, and add_side, are not taken: the model is told to propose the plan.
+   * Said in one reply, never a wall. Every such call of that reply gets the same answer (none of a batch is half
+   * written); from the next reply on they are taken, because what the person asked for may have nothing to do with the
+   * template. "Said" is read from the transcript, so a server started again does not say it twice; a use_site call that
+   * was answered counts as said too (the plan was proposed, sent back, or cannot be made with this model).
+   */
+  const planFirst = (ctx: ToolContext, path: string | null, label: string): ToolOutcome | null => {
+    if (deps.attachments === undefined || ctx.session.createdApp !== true || ctx.session.version !== null) return null;
+    if (path !== null) {
+      let normal: string;
+      try {
+        normal = jail.normalise(path);
+      } catch {
+        // A path the jail does not take is refused by the jail, in its own words.
+        return null;
+      }
+      if (!normal.startsWith(`apps/${appKey}/manifest/`) && !normal.startsWith(`apps/${appKey}/seeds/`)) return null;
+    }
+    // A zip or a folder with a page in it is a template for certain; a page attached by itself may be a sketch for something else.
+    const attachments = deps.attachments;
+    const paged = attachments.list(ctx.session.id).some((entry) => entry.kind === 'site' && (attachments.siteFiles(ctx.session.id, entry.id)?.files ?? []).some((file) => file.kind === 'html'));
+    if (!paged || hasOwnBuild(deps.root, appKey) || readTemplatePlan(deps.root, appKey) !== null) return null;
+    const blocks = deps.designer().store.messages(ctx.session.id).flatMap((entry) => entry.message.content);
+    const siteCalls = new Set(blocks.flatMap((block) => (block.type === 'tool_call' && block.name === 'use_site' ? [block.id] : [])));
+    const said = blocks.some((block) => block.type === 'tool_result' && (siteCalls.has(block.callId) || (typeof block.content === 'string' && block.content.startsWith(PLAN_FIRST))));
+    if (said) return null;
+    return refused(
+      // The first line is what the page shows under the step: short, and whole.
+      `${PLAN_FIRST}, and its plan comes first.\nThe person has not approved a plan for it. Propose the plan first: call use_site with the attachment (it says what the template holds), then again with "plan". The app's tables, pages, access and sample rows are written after the person's answer, and add_side then asks them nothing more. Nothing of this reply's writes to the app was taken. If what the person asked for is not built from the template, make the same calls again in your next reply: they are taken.`,
+      label,
+    );
+  };
 
   /** The last text refused as invalid JSON, by file: the same text again is said to be the same. */
   const refusedJson = new Map<string, string>();
@@ -881,7 +931,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         emptyWrites = 0;
         // An earlier step of this conversation, shown cut short, copied back as if it were the file.
         if (FOLDED_MARK.test(content)) return refused('That is a shortened copy of an earlier step, not the file: it ends in "… (N more characters …)". read_file gives the whole file; then write all of it.', 'Wrote nothing');
-        const notAllowed = unnamed(ctx) ?? codeWriteRefusal(path, content) ?? buildFileRefusal(path) ?? unreadHandEdit(path, ctx) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
+        const notAllowed = unnamed(ctx) ?? planFirst(ctx, path, `Could not write ${shown(path)}`) ?? codeWriteRefusal(path, content) ?? buildFileRefusal(path) ?? unreadHandEdit(path, ctx) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not write ${shown(path)}`, () => {
           const normal = jail.normalise(path);
@@ -907,8 +957,14 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
           // The sample rows' pictures are in this file as the server put them: a rewrite of the rows keeps them.
           const kept = existed && /(^|\/)seeds\/sample\.json$/.test(normal) ? keepSamplePictures(readFileSync(target, 'utf8'), content) : null;
           jail.write(path, kept?.text ?? content);
+          // The rows of a sample file are added once. A model that rewrote the file said the page "now reads 4 items" while it
+          // still showed the six rows added before (seen 2026-11-27): it is told what a rewrite reaches.
+          const sampleAgain =
+            existed && /(^|\/)seeds\/sample\.json$/.test(normal)
+              ? ' Sample rows are added once, when the app is first applied. If it was applied before, the rows it added then are still in the tables and on the page: this file is read again only by a fresh install. Say that to the person, and never that the page now shows the new rows.'
+              : '';
           return text(
-            `${existed ? 'Replaced' : 'Made'} ${normal} (${String(Buffer.byteLength(kept?.text ?? content, 'utf8'))} bytes).${kept === null ? '' : ` ${kept.said}`}`,
+            `${existed ? 'Replaced' : 'Made'} ${normal} (${String(Buffer.byteLength(kept?.text ?? content, 'utf8'))} bytes).${kept === null ? '' : ` ${kept.said}`}${sampleAgain}`,
             `Wrote ${shown(path)}`,
           );
         });
@@ -930,7 +986,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         const after = str(input, 'new');
         if (path === null || before === null || after === null || before.length === 0) return refused('Give "path", a non-empty "old", and "new".', 'Edited nothing');
         if (FOLDED_MARK.test(after) || FOLDED_MARK.test(before)) return refused('That is a shortened copy of an earlier step, not the file\'s words: it ends in "… (N more characters …)". read_file gives the file as it is; edit from that.', 'Edited nothing');
-        const notAllowed = unnamed(ctx) ?? codeWriteRefusal(path, null) ?? buildFileRefusal(path) ?? unreadHandEdit(path, ctx) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
+        const notAllowed = unnamed(ctx) ?? planFirst(ctx, path, `Could not edit ${shown(path)}`) ?? codeWriteRefusal(path, null) ?? buildFileRefusal(path) ?? unreadHandEdit(path, ctx) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not edit ${shown(path)}`, () => {
           const current = readFileSync(jail.resolve(path, 'read'), 'utf8');
@@ -1278,6 +1334,22 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
           return text(`The app already has its name and its folder, apps/${appKey}/: its key stays as it is. To change the name people read, set "name" in apps/${appKey}/manifest/app.json and leave "key" alone.`, 'The app is already named');
         }
         if (name === '' || name.length > 40 || name.split(' ').length > 4) return refused('Give a name of one to four words, 40 characters at most: what the business would call it, not the words of the request.', 'The app was not named');
+        // From a site template, the app is the business the template names. The model names the app before it has read
+        // the template, so a name that is not the one the pages' titles agree on, nor one the person's words give, is not
+        // taken at once: the titles are handed over, as data, and the next name is taken whatever it is (the person may have asked for it).
+        if (deps.attachments !== undefined && !toldTemplateName.has(ctx.session.id)) {
+          const titles = templateTitles(deps.attachments, ctx.session.id);
+          const business = nameInTitles(titles);
+          if (business !== null && !nameFits(name, business, personWords(ctx.session.id))) {
+            if (toldTemplateName.size >= 500) toldTemplateName.clear();
+            toldTemplateName.add(ctx.session.id);
+            return {
+              content: `Not named yet. This session holds a site template, and its pages are titled, as data:\n${dataWindow("the titles of the person's site template", titles.slice(0, 8).join('\n'))}\nAn app made from a template is named after the business its pages name, never after the request or this tool. Call name_app again: with that business's name, or with ${JSON.stringify(name)} once more if the person asked for that very name.`,
+              label: "Read the template's own name first",
+              facts: { outcome: 'declined' },
+            };
+          }
+        }
         try {
           const done = await deps.designer().nameApp(ctx.session.id, name);
           return text(`The app is "${done.name}", and its folder is apps/${done.key}/. Write every file under apps/${done.key}/ from now on: any other path is refused.`, `Named the app ${done.name}`);
@@ -1301,6 +1373,9 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         if (side !== 'staff' && side !== 'customer') return refused('Give "side": "staff", "customer" or "mobile".', 'Added no side');
         const nameless = unnamed(ctx);
         if (nameless !== null) return nameless;
+        // Before a template's plan is approved the side's card would ask for packages its template never uses.
+        const planned = planFirst(ctx, null, 'Added no side');
+        if (planned !== null) return planned;
         if (hasOwnBuild(deps.root, appKey)) return refused(`This app keeps its screens in apps/${appKey}/src/ and builds them itself: edit them there.`, 'Added no side');
         let written: string[];
         try {
@@ -1323,8 +1398,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         const { look, how } = await chooseStyle(ctx);
         // Everything the screens and their design need from outside, on one card.
         // A side built from an approved template plan: the plan's "Added to the project" was its answer, so no card is shown again.
-        const kept = readTemplatePlan(deps.root, appKey);
-        const plan = kept !== null && planSide(kept) === side ? kept : null;
+        const plan = planForSide(deps.root, appKey, side);
         const needs =
           plan === null
             ? await askNeeds(ctx, appKey, screenWants(deps.root, appKey, { side, publicToo: ctx.session.target === 'web', look, stylesDir }))

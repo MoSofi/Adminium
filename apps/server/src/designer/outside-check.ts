@@ -15,7 +15,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync,
 import { join } from 'node:path';
 
 import { appDir, SIDES } from '../project/apps/read-app.js';
-import type { ChangeView } from './cards.js';
+import type { ChangeView, RoleRights } from './cards.js';
 import { code } from '../project/apps/side-calls.js';
 import { DESIGNER_DIR } from './session-store.js';
 import { screenName } from './spots.js';
@@ -96,6 +96,24 @@ function outsideCalls(root: string, key: string): string[] {
   return found;
 }
 
+/**
+ * What a stranger may write to the rows below an entry's own (an order's lines, a line's options), each as
+ * `<child>.<column>`, and one level further as `<child>.<grandchild>.<column>`. A manifest names the children by
+ * their table (`"children": { "order_lines": { … } }`); read only as a list, they were not seen at all, and a
+ * create could widen what it writes to its lines with no card asked (seen 2026-11-27).
+ */
+function childColumns(children: unknown, under: string, depth = 0): string[] {
+  if (children === null || typeof children !== 'object' || depth > 2) return [];
+  const each: [string, unknown][] = Array.isArray(children)
+    ? children.map((child): [string, unknown] => [child !== null && typeof child === 'object' && typeof (child as { table?: unknown }).table === 'string' ? (child as { table: string }).table : '', child])
+    : Object.entries(children as Record<string, unknown>);
+  return each.flatMap(([table, child]) => {
+    if (child === null || typeof child !== 'object') return [];
+    const at = `${under}${table}.`;
+    return [...strings((child as { writable?: unknown }).writable).map((column) => `${at}${column}`), ...childColumns((child as { children?: unknown }).children, at, depth + 1)];
+  });
+}
+
 /** What the app's folder allows now. */
 export function currentSnapshot(root: string, key: string): AppliedSnapshot {
   const manifest = join(appDir(root, key), 'manifest');
@@ -119,12 +137,7 @@ export function currentSnapshot(root: string, key: string): AppliedSnapshot {
       if (entry === null || typeof entry !== 'object' || typeof (entry as { table?: unknown }).table !== 'string') return [];
       const one = entry as Record<string, unknown>;
       const methods = strings(one['methods']);
-      const children = Array.isArray(one['children']) ? (one['children'] as unknown[]) : [];
-      const childWritable = children.flatMap((child) => {
-        if (child === null || typeof child !== 'object') return [];
-        const ref = typeof (child as { table?: unknown }).table === 'string' ? (child as { table: string }).table : '';
-        return strings((child as { writable?: unknown }).writable).map((column) => `${ref}.${column}`);
-      });
+      const childWritable = childColumns(one['children'], '');
       const narrowing: Record<string, unknown> = {};
       for (const key of ['filters', 'claimedBy', 'visibleWith', 'claim']) if (one[key] !== undefined) narrowing[key] = one[key];
       return [
@@ -182,6 +195,58 @@ function tableName(root: string, key: string, ref: string): string {
   return typeof name === 'string' && name.trim() !== '' ? name.trim().slice(0, 60) : ref;
 }
 
+/** The order a table's actions are said in; any other comes after, as written. */
+const ACTION_ORDER = ['read', 'read_pii', 'create', 'update', 'delete'];
+/** How many tables, and how many other grants, a card names before it counts the rest. */
+const RIGHTS_TABLES = 6;
+const RIGHTS_OTHER = 4;
+
+/**
+ * A role's new grants, sorted for the card: "could do more than before" alone left the person to say yes to they knew
+ * not what (seen 2026-11-26: nine new rights, none named). A grant on a table is said by the table's name and the
+ * action; a page is counted; a change of what the role's updates may write is said as that; any other grant is shown
+ * as it is written when it is plain, and counted when it is not.
+ */
+export function roleRights(added: readonly string[], tableName: (ref: string) => string): RoleRights {
+  const byTable = new Map<string, string[]>();
+  const other: string[] = [];
+  let pages = 0;
+  let limits = false;
+  let more = 0;
+  for (const grant of added) {
+    const onTable = /^table:@([a-z][a-z0-9_]*):([a-z_]{1,30})$/.exec(grant);
+    if (onTable !== null) {
+      byTable.set(onTable[1] as string, [...(byTable.get(onTable[1] as string) ?? []), onTable[2] as string]);
+    } else if (/^page:@/.test(grant)) {
+      pages += 1;
+    } else if (grant.startsWith('limits:')) {
+      // No limits at all is how a role starts: only a limit that is there, or was taken off, is a change to say.
+      limits = true;
+    } else if (/^[a-z@:_.-]{1,60}$/.test(grant) && other.length < RIGHTS_OTHER) {
+      other.push(grant);
+    } else {
+      more += 1;
+    }
+  }
+  const rank = (action: string): number => (ACTION_ORDER.includes(action) ? ACTION_ORDER.indexOf(action) : ACTION_ORDER.length);
+  const tables = [...byTable].map(([ref, actions]) => ({ table: tableName(ref), actions: [...new Set(actions)].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)) }));
+  // Tables past the first few are counted by their grants.
+  for (const table of tables.slice(RIGHTS_TABLES)) more += table.actions.length;
+  return { tables: tables.slice(0, RIGHTS_TABLES), pages, limits, other, more };
+}
+
+/** A role's new rights in a line for the model: "bookings: read, create; 2 pages; its write limits changed". */
+function rightsLine(rights: RoleRights): string {
+  const parts = [
+    ...rights.tables.map((table) => `${table.table}: ${table.actions.join(', ')}`),
+    ...(rights.pages === 0 ? [] : [`${String(rights.pages)} ${rights.pages === 1 ? 'page' : 'pages'}`]),
+    ...(rights.limits ? ['its write limits changed'] : []),
+    ...rights.other,
+    ...(rights.more === 0 ? [] : [`${String(rights.more)} more`]),
+  ];
+  return parts.join('; ');
+}
+
 /** What `now` allows that `before` did not, each in plain words. Taking access away is not one. */
 export function outsideChanges(root: string, key: string, before: AppliedSnapshot | null, now: AppliedSnapshot): AccessChange[] {
   const was = before ?? { access: [], roles: {}, calls: [] };
@@ -223,7 +288,16 @@ export function outsideChanges(root: string, key: string, before: AppliedSnapsho
     const added = grants.filter((grant) => !had.has(grant));
     // A new role is a change by itself, rights or none: someone could sign in with it.
     if (added.length === 0 && was.roles[role] !== undefined) continue;
-    changes.push({ id: `role:${role}:${added.join(',')}`, line: was.roles[role] === undefined ? `a new role "${role}" could sign in and use the app` : `the role "${role}" could do more than before (${String(added.length)} new ${added.length === 1 ? 'right' : 'rights'})`, view: { kind: 'role', role, isNew: was.roles[role] === undefined } });
+    const isNew = was.roles[role] === undefined;
+    // A new role starts with no limits: that is no right to name. For one that was there, a limit changed or gone is.
+    const rights = roleRights(isNew ? added.filter((grant) => grant !== 'limits:null') : added, (ref) => tableName(root, key, ref));
+    const named = rightsLine(rights);
+    const count = `${String(added.length)} new ${added.length === 1 ? 'right' : 'rights'}`;
+    changes.push({
+      id: `role:${role}:${added.join(',')}`,
+      line: isNew ? `a new role "${role}" could sign in and use the app${named === '' ? '' : ` (${named})`}` : `the role "${role}" could do more than before (${count}${named === '' ? '' : `: ${named}`})`,
+      view: { kind: 'role', role, isNew, ...(named === '' ? {} : { rights }) },
+    });
   }
   const oldCalls = new Set(was.calls);
   const pages = new Set<string>();
@@ -253,7 +327,16 @@ export interface Approved {
 export function withApproved(before: AppliedSnapshot | null, now: AppliedSnapshot, approved: Approved | undefined, pageTables: ReadonlyMap<string, string> = new Map()): AppliedSnapshot | null {
   if (approved === undefined) return before;
   const base = before ?? { access: [], roles: {}, calls: [] };
-  const access = [...base.access, ...approved.access.map((entry) => ({ table: entry.table, methods: [...entry.methods], select: [...(entry.select ?? [])], writable: [...(entry.writable ?? [])] }))];
+  // A plan kept before a read's `id` was written into it: the id goes with the columns the person approved (a page links to a row by it).
+  const access = [
+    ...base.access,
+    ...approved.access.map((entry) => ({
+      table: entry.table,
+      methods: [...entry.methods],
+      select: entry.methods.includes('GET') && (entry.select ?? []).length > 0 ? [...new Set(['id', ...(entry.select ?? [])])] : [...(entry.select ?? [])],
+      writable: [...(entry.writable ?? [])],
+    })),
+  ];
   const roles = { ...base.roles };
   for (const { role, tables } of approved.roles) {
     const planned = new Set(tables);

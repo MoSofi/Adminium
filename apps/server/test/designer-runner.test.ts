@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DesignerEvent } from '../src/designer/events.js';
 import { createEventLog, TEXT_FLUSH_CHARS } from '../src/designer/events.js';
-import { createDesignerRunner, LOST_CALL_ASKS, MAX_REPAIRS, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle, pictureBlocks } from '../src/designer/runner.js';
+import { createDesignerRunner, LOST_CALL_ASKS, MAX_REPAIRS, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle, pictureBlocks, whyOf } from '../src/designer/runner.js';
 import { createSessionStore, type DesignerSession, type SessionStore } from '../src/designer/session-store.js';
 import { createAttachments, type Attachments } from '../src/designer/attachments.js';
 import type { PromptOpts } from '../src/designer/prompt.js';
@@ -526,6 +526,16 @@ describe('a Designer turn', () => {
     expect(ended[0]).toMatchObject({ tool: 'read_file', ended: 'miss' });
     expect(ended[0]).not.toHaveProperty('detail');
     expect(ended[1]).toMatchObject({ tool: 'write_file', ended: 'error', detail: 'That is not valid JSON, and nothing was written: line 3.' });
+    // A first line that only opens a list brings the list with it: "The plan does not read:" alone says nothing (seen 2026-11-26).
+    expect(whyOf('The plan does not read:\n- tables.0.table: a ref: lower-case letters, digits and _\n- forms.0.writable: Required\nFix it and call use_site again with the whole plan.')).toBe(
+      'The plan does not read:\n- tables.0.table: a ref: lower-case letters, digits and _\n- forms.0.writable: Required',
+    );
+    expect(whyOf(`The plan does not match the template:\n${['a', 'b', 'c', 'd', 'e'].map((name) => `- There is no form "${name}" in what was found.`).join('\n')}\nFix it.`)).toBe(
+      'The plan does not match the template:\n- There is no form "a" in what was found.\n- There is no form "b" in what was found.\n- There is no form "c" in what was found.\n… and 2 more',
+    );
+    // A colon with no list after it stays one line, and a long line is still cut.
+    expect(whyOf('It could not be read:\nTry again.')).toBe('It could not be read:');
+    expect(whyOf(`${'x'.repeat(300)}\nmore`)).toHaveLength(240);
     // The model is told both in full, as errors: it is the page that draws them apart.
     expect(h.model.requests[1]?.messages.at(-1)?.content[0]).toMatchObject({ isError: true, content: expect.stringContaining('- a.md') });
     expect(finished(h)).toMatchObject({ outcome: 'done' });

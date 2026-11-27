@@ -26,5 +26,9 @@ delete. Each sample row names its own picture: give every row its own `@asset` l
 two rows show the same file. A picture Adminium keeps belongs to one row, and a second row naming
 the same asset shows an empty frame.
 
+Rows whose words are on a page are the template's own, whether or not a repeated block was found
+for them: the three reviews of a slider are sample rows from the template. Only rows the template
+has no words for at all are made up, and the plan and the summary name them as such.
+
 What is written once (a hero's heading, the "why choose us" blocks with their icons) stays in the
 markup. Say in the plan that it can become a table later.

@@ -11,7 +11,7 @@
  *
  * The answer is kept in `apps/<key>/template-plan.json` (server-owned: the model never writes it), with the
  * site's sha256. A later session reads it, so it is not asked again; a build stopped by a limit goes on
- * from it; a different template asks again. What strangers may do by the plan (its public reads, its
+ * from it; a different template asks again, and its plan is kept beside the first. What strangers may do by the plan (its public reads, its
  * forms' creates) and the roles it grants are kept as `approved`: the "Check this before it goes live"
  * card asks only for what goes beyond them.
  */
@@ -102,6 +102,11 @@ export const planProposalSchema = z
             label: words(60),
             /** Where it is: "On the Order page", "On every page". */
             where: words(60),
+            /**
+             * Where the template has it: an id the finder gave (a feature, a form, a block, a link), or a few words
+             * exactly as one of its pages has them. The server looks: a thing the template does not have is not on the plan.
+             */
+            seen: z.string({ error: 'say where the template has it: an id from what was found, or a few words exactly as a page has them' }).transform((value) => plainWords(value, 80)).pipe(z.string().min(3, 'an id from what was found, or a few words exactly as a page has them')),
             status: z.enum(['works', 'add-on', 'not-available']),
             /** With `add-on`: which. */
             addOn: z.string().regex(ADD_ON).optional(),
@@ -134,7 +139,8 @@ export type PlanProposal = z.output<typeof planProposalSchema>;
 /** A table on the card: the proposal's, with the add-on as the server has it. */
 export type PlanTable = PlanProposal['tables'][number] & { addOnInfo?: { key: string; name: string; installed: boolean } };
 export type PlanForm = PlanProposal['forms'][number] & { tableLabel: string };
-export type PlanReportRow = PlanProposal['report'][number];
+/** A report row on the card. `seen` is absent in a plan kept before it was asked for. */
+export type PlanReportRow = Omit<PlanProposal['report'][number], 'seen'> & { seen?: string };
 
 /** What the card shows: every word the model's (cleaned) or the server's own. */
 export type TemplatePlanRequest = {
@@ -210,8 +216,8 @@ export interface ApprovedAccess {
   humanCheck?: true;
 }
 
-export interface TemplatePlanFile {
-  version: 1;
+/** One approved plan: the template it is for, what was asked, what the person answered, what that allows. */
+export interface TemplatePlanEntry {
   site: { attachment: string; name: string; sha256: string };
   /** The side the template is brought into. Absent in a plan kept before sides were named: the customer side. */
   side?: 'customer' | 'staff';
@@ -222,12 +228,25 @@ export interface TemplatePlanFile {
   approved: { access: ApprovedAccess[]; roles: { role: string; tables: string[] }[] };
 }
 
+/**
+ * The file: the plan the app is built by, and under `others` every other plan the person approved for this app
+ * (another template, or the other side). A plan approved later never takes away what an earlier one approved.
+ */
+export interface TemplatePlanFile extends TemplatePlanEntry {
+  version: 1;
+  others?: TemplatePlanEntry[];
+}
+
+/** The plans one app keeps besides the one it is built by: a person brings in a handful of templates, not dozens. */
+const OTHERS_MAX = 12;
+
 /** What strangers and roles may do by the plan the person approved: its ticked tables' public reads, its forms' creates. */
 export function approvedOf(plan: Omit<TemplatePlanRequest, 'type'>, answer: Pick<TemplatePlanAnswer, 'tables'>): TemplatePlanFile['approved'] {
   const ticked = new Set(answer.tables);
   const access: ApprovedAccess[] = [];
   for (const table of plan.tables) {
-    if (ticked.has(table.table) && table.publicRead.length > 0) access.push({ table: table.table, methods: ['GET'], select: [...table.publicRead] });
+    // A row's id goes with what is read of it: a page links to a row by it (the card does not name it, and the build always asks for it).
+    if (ticked.has(table.table) && table.publicRead.length > 0) access.push({ table: table.table, methods: ['GET'], select: [...new Set(['id', ...table.publicRead])] });
   }
   for (const form of plan.forms) {
     // An order's lines go with it as its children (`<lines>.<column>`), or by an entry of their own: both are the plan's.
@@ -264,12 +283,70 @@ export function writeTemplatePlan(root: string, appKey: string, file: TemplatePl
 }
 
 /** The side a plan was approved for. */
-export const planSide = (plan: Pick<TemplatePlanFile, 'side'>): 'customer' | 'staff' => plan.side ?? 'customer';
+export const planSide = (plan: Pick<TemplatePlanEntry, 'side'>): 'customer' | 'staff' => plan.side ?? 'customer';
+
+const samePlan = (a: TemplatePlanEntry, b: TemplatePlanEntry): boolean => a.site.sha256 === b.site.sha256 && planSide(a) === planSide(b);
+
+/** A plan with nothing on it: no table, form, thing to decide, link or role (a page of words only). */
+export const isEmptyPlan = (plan: TemplatePlanEntry['plan']): boolean =>
+  plan.tables.length === 0 && plan.forms.length === 0 && plan.report.length === 0 && plan.links.length === 0 && plan.roles.length === 0;
 
 /** The approved plan for this very site (same sha256) and side, or null: a different template, or side, asks again. */
 export function planFor(root: string, appKey: string, sha256: string, side: 'customer' | 'staff' = 'customer'): TemplatePlanFile | null {
-  const plan = readTemplatePlan(root, appKey);
-  return plan !== null && plan.site.sha256 === sha256 && planSide(plan) === side ? plan : null;
+  const file = readTemplatePlan(root, appKey);
+  if (file === null) return null;
+  if (file.site.sha256 === sha256 && planSide(file) === side) return file;
+  const other = (file.others ?? []).find((entry) => entry.site?.sha256 === sha256 && planSide(entry) === side);
+  return other === undefined ? null : { version: 1, ...other };
+}
+
+/** The plan kept for a side of the app, whichever template it was approved for: the one the app is built by first. */
+export function planForSide(root: string, appKey: string, side: 'customer' | 'staff'): TemplatePlanFile | null {
+  const file = readTemplatePlan(root, appKey);
+  if (file === null) return null;
+  if (planSide(file) === side) return file;
+  const other = (file.others ?? []).find((entry) => planSide(entry) === side);
+  return other === undefined ? null : { version: 1, ...other };
+}
+
+/**
+ * Keeps a plan the person just approved, beside those already kept for the app. The same template and side again
+ * replaces its own plan whole (the person's new answer is the answer). A plan for another template or side becomes
+ * the one the app is built by, and the one before it stays under `others`: what the person approved there is still
+ * approved. An empty plan never takes the place of one with something on it: it is kept under `others`, so it is not
+ * asked again, and the app is still built by the plan that says what to build (seen 2026-11-26: a stylesheet's
+ * empty plan replaced the page's, and the check then called everything on the page's plan "not on the plan").
+ */
+export function keepPlan(root: string, appKey: string, entry: TemplatePlanEntry): TemplatePlanFile {
+  const kept = readTemplatePlan(root, appKey);
+  let file: TemplatePlanFile;
+  if (kept === null) {
+    file = { version: 1, ...entry };
+  } else {
+    const { version: _version, others, ...top } = kept;
+    const rest = (others ?? []).filter((other) => !samePlan(other, entry));
+    const withOthers = (first: TemplatePlanEntry, more: TemplatePlanEntry[]): TemplatePlanFile => ({ version: 1, ...first, ...(more.length === 0 ? {} : { others: more.slice(-OTHERS_MAX) }) });
+    if (samePlan(top, entry)) file = withOthers(entry, rest);
+    else if (isEmptyPlan(entry.plan) && !isEmptyPlan(top.plan)) file = withOthers(top, [...rest, entry]);
+    else file = withOthers(entry, [...rest, top]);
+  }
+  writeTemplatePlan(root, appKey, file);
+  return file;
+}
+
+/**
+ * Everything the person approved on the plans kept for the app: the "Check this before it goes live" card asks only
+ * for what goes beyond all of them.
+ */
+export function approvedAll(file: TemplatePlanFile): TemplatePlanEntry['approved'] {
+  const access: ApprovedAccess[] = [];
+  const roles = new Map<string, Set<string>>();
+  for (const entry of [file, ...(file.others ?? [])]) {
+    if (entry.approved === undefined) continue;
+    access.push(...(entry.approved.access ?? []));
+    for (const role of entry.approved.roles ?? []) roles.set(role.role, new Set([...(roles.get(role.role) ?? []), ...role.tables]));
+  }
+  return { access, roles: [...roles].map(([role, tables]) => ({ role, tables: [...tables] })) };
 }
 
 const listed = (items: readonly string[], max: number): string => (items.length <= max ? items.join(', ') : `${items.slice(0, max).join(', ')} and ${String(items.length - max)} more`);
@@ -292,7 +369,10 @@ export function planBrief(appKey: string, file: TemplatePlanFile): string {
     `From a template: the app's ${planSide(file)} side is built from a site template by the plan the person approved (apps/${appKey}/${TEMPLATE_PLAN_FILE}; read it for the whole plan). Build only what it approved, and never ask for it again.`,
     `Tables: ${tables.length === 0 ? 'none' : listed(tables, 6)}.${fixed.length === 0 ? '' : ` Kept as fixed text: ${listed(fixed, 6)}.`}`,
     ...(forms.length === 0 ? [] : [`Forms: ${listed(forms, 6)}.`]),
+    // A basket's total with delivery quietly inside it read as a wrong sum (seen 2026-11-26: "Total: £62" for £32 + £24).
+    ...(file.plan.forms.some((form) => form.lines !== undefined) ? ['A total on a page is what its lines add up to: delivery, tax or a discount is its own figure, named, and a total that takes one in says so.'] : []),
     ...(decided.length === 0 ? [] : [`Decided: ${listed(decided, 8)}.`]),
     ...(file.plan.links.length === 0 ? [] : [`Links to nowhere: ${String(filled)} given${empty === 0 ? '' : `, ${String(empty)} left empty (${file.answer.takeOutEmpty ? 'take them out' : 'keep them as they are'})`}.`]),
+    ...((file.others ?? []).length === 0 ? [] : [`The person also approved ${String((file.others ?? []).length)} other template ${(file.others ?? []).length === 1 ? 'plan' : 'plans'} for this app (the same file, under "others"): what they approved is still approved.`]),
   ].join('\n');
 }

@@ -24,7 +24,7 @@
  * An app's manifest is read again at most every fifteen seconds.
  */
 import type { FastifyRequest } from 'fastify';
-import { publicConsentSchema, publicTextConsentsSchema, textConsentBoxes, validateManifest, type Manifest, type PublicTextConsent } from '@adminium/manifest';
+import { publicConsentSchema, publicTextConsentsSchema, textConsentBoxes, validateStoredManifest, type Manifest, type PublicTextConsent } from '@adminium/manifest';
 import { appTablesRepo, manifestsRepo, type MetaDb } from '@adminium/meta';
 
 import { publicEntryRefs, servedPublicEntries } from '../apps/manifest-public.js';
@@ -88,7 +88,7 @@ export function createConsentTicks(meta: MetaDb, now: () => number = Date.now): 
     // The app's install on this key's database.
     const row = await manifestsRepo(meta, NO_SECRETS).findInScope(appKey, connectionId);
     if (row === null || row.row.kind !== 'app' || row.row.connectionId !== connectionId) return null;
-    const checked = validateManifest(row.document, { allowLocalPublisher: true });
+    const checked = validateStoredManifest(row.document, { allowLocalPublisher: true });
     if (!checked.ok || checked.manifest.kind !== 'app') return null;
     const entries = servedPublicEntries(checked.manifest);
     // Every entry's boxes for texts, a forms entry's too (the forms door draws those): what a staff change of a box's column records.

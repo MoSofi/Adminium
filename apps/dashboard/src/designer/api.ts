@@ -177,8 +177,17 @@ export interface DesignerAttachment {
 /** One change the access card asks about, as the server names it; the page words it. */
 export type AccessChangeView =
   | { kind: 'access'; verb: 'read' | 'add' | 'change' | 'read-columns' | 'write-columns' | 'read-all' | 'no-check' | 'hidden-rows'; table: string; columns?: string[] }
-  | { kind: 'role'; role: string; isNew: boolean }
+  | { kind: 'role'; role: string; isNew: boolean; rights?: RoleRights }
   | { kind: 'call'; screen: string };
+
+/** What a role could newly do, as the server sorted it: tables with their actions, pages counted, other grants as written. */
+export interface RoleRights {
+  tables: { table: string; actions: string[] }[];
+  pages: number;
+  limits: boolean;
+  other: string[];
+  more: number;
+}
 
 /** The project's site templates (`GET /designer/site-templates`): names only, and why a folder was not copied in. */
 export interface SiteTemplates {

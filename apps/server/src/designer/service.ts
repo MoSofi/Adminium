@@ -41,7 +41,7 @@ import type { PictureDialog } from './picture-dialog.js';
 import { UNSPLASH_HOST } from './pictures.js';
 import { readSpots, SPOTS_FILE, spotScreens, spotsFileProblem, type SpotScreen } from './spots.js';
 import { currentSnapshot, outsideChanges, pageTables, readApplied, withApproved, writeApplied } from './outside-check.js';
-import { readTemplatePlan } from './site/template-plan.js';
+import { approvedAll, readTemplatePlan } from './site/template-plan.js';
 import { HAND_EDITS_MAX, noCardRefusal } from './write-guard.js';
 import { cleanSight, createSights, sightText } from './sight.js';
 import { createDesignerRunner, type Actor, type BusyKind, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle } from './runner.js';
@@ -49,7 +49,7 @@ import { createSessionStore, DESIGNER_TARGETS, type DesignerSession, type Design
 import type { DesignerTool } from './tool-types.js';
 import type { Versions } from './versions.js';
 import { anthropicEfforts, type RunEffort } from '@adminium/llm';
-import { DESIGNER_MAX_OUTPUT_TOKENS, MENTIONS_WEB, WANTS_OWN_PICTURES, asksOnlyForPhoneApp } from './prompt.js';
+import { DESIGNER_MAX_OUTPUT_TOKENS, MENTIONS_WEB, WANTS_NO_SAMPLE_ROWS, WANTS_OWN_PICTURES, asksOnlyForPhoneApp } from './prompt.js';
 import { refuseOwnCode } from '../trial/own-code.js';
 import { isOperatorAiUsedUp } from '../llm/operator-ai.js';
 import { customerFacingPath, enterScope, outsideReachRefusal, reachRefusal, recordApplied, releaseHold, SCOPE_LABEL, SCOPE_OFF_MESSAGE, scopedNow } from './operator-scope.js';
@@ -349,13 +349,15 @@ export function unreadPersonalColumns(manifest: unknown): string[] {
  * empty list. Said only before the app's first version, since sample rows
  * are added once, at the first install.
  */
-export function emptyFirstPreview(manifest: unknown): string[] {
+export function emptyFirstPreview(manifest: unknown, personWrote = ''): string[] {
   const app = manifest as { kind?: string; publicAccess?: { table?: string; methods?: string[] }[]; sampleData?: unknown } | null;
   if (app === null || app.kind !== 'app' || app.sampleData !== undefined) return [];
+  // The person asked for no sample rows: an empty first page is then what they asked for, and nothing asks to fill it.
+  if (WANTS_NO_SAMPLE_ROWS.test(personWrote)) return [];
   const read = [...new Set((app.publicAccess ?? []).filter((entry) => (entry.methods ?? []).includes('GET') && typeof entry.table === 'string').map((entry) => entry.table as string))];
   if (read.length === 0) return [];
   return [
-    `- Customers read ${read.map((table) => `"${table}"`).join(', ')} and the app brings no sample rows, so their page opens empty: write manifest/sample.json ({ "sampleData": { "file": "seeds/sample.json" } }) and seeds/sample.json with 4 to 8 believable rows for ${read.length === 1 ? 'it' : 'each'}.`,
+    `- Customers read ${read.map((table) => `"${table}"`).join(', ')} and the app brings no sample rows, so their page opens empty: write manifest/sample.json ({ "sampleData": { "file": "seeds/sample.json" } }) and seeds/sample.json with 4 to 8 believable rows for ${read.length === 1 ? 'it' : 'each'}. If the person asked for no sample rows, in whatever words or language, write none and tell them the page is empty until they add rows.`,
   ];
 }
 
@@ -399,6 +401,21 @@ export function placeholderScreens(root: string, appKey: string, tables: readonl
 
 export function createDesigner(host: DesignerHost): Designer {
   const store = createSessionStore(host.root);
+  /**
+   * What the person wrote in a session: the first block of each turn's first message. Never the engine's own notes to
+   * the model, which follow it as blocks of their own.
+   */
+  const personWrote = (sessionId: string): string => {
+    const opened = new Set<number>();
+    const wrote: string[] = [];
+    for (const { turn, message } of store.messages(sessionId)) {
+      if (opened.has(turn)) continue;
+      opened.add(turn);
+      const first = message.role === 'user' ? message.content[0] : undefined;
+      if (first?.type === 'text') wrote.push(first.text);
+    }
+    return wrote.join(' ');
+  };
   const project = (): { root: string; configFile: string } => {
     const found = findProject(host.root, {});
     if (found === null) throw new ConflictError('The project folder has no adminium.config file any more.', 'CONFLICT', { reason: 'NOT_A_PROJECT' });
@@ -712,22 +729,14 @@ export function createDesigner(host: DesignerHost): Designer {
         ...sideCallLines(sideCallIssues(host.root, session.appKey, manifest)),
         // A picture from a site this server does not let through: the person would meet it as an empty frame.
         ...(host.pictureSites === undefined ? [] : outsidePictureLines(outsidePictures(host.root, session.appKey), host.pictureSites.covers, host.pictureSites.closed() === null)),
-        ...(session.version === null ? emptyFirstPreview(manifest) : []),
+        ...(session.version === null ? emptyFirstPreview(manifest, personWrote(session.id)) : []),
         ...unnamed,
       ];
     },
     // The design, held last: a class nothing styles, an emoji for an icon, no logo, no brief.
     design: async (session) => {
       // The person brings the pictures, or asked for no pictures: a page without one is then as asked.
-      // (Only what the person wrote, the first message of each turn: never the engine's own notes to the model.)
-      const opened = new Set<number>();
-      const wrote: string[] = [];
-      for (const { turn, message } of store.messages(session.id)) {
-        if (opened.has(turn)) continue;
-        opened.add(turn);
-        if (message.role === 'user') for (const block of message.content) if (block.type === 'text') wrote.push(block.text);
-      }
-      const ownPictures = WANTS_OWN_PICTURES.test(wrote.join(' '));
+      const ownPictures = WANTS_OWN_PICTURES.test(personWrote(session.id));
       const lines = (
         await designIssues(host.root, session.appKey, {
           builtInDir: stylesDir,
@@ -914,7 +923,7 @@ export function createDesigner(host: DesignerHost): Designer {
     // What the person approved on the template's plan is not asked again: only what goes beyond it.
     const plan = readTemplatePlan(host.root, key);
     const now = currentSnapshot(host.root, key);
-    const changes = outsideChanges(host.root, key, withApproved(readApplied(host.root, key), now, plan?.approved, pageTables(host.root, key)), now);
+    const changes = outsideChanges(host.root, key, withApproved(readApplied(host.root, key), now, plan === null ? undefined : approvedAll(plan), pageTables(host.root, key)), now);
     if (changes.length === 0) return null;
     let held = outsideAnswers.get(session.id);
     if (canAsk && (held === undefined || held.turn !== handle.turn)) {

@@ -13,7 +13,7 @@ import { ArrowDown, ArrowRight, Ban, Blocks, Camera, Check, ChevronDown, CircleA
 import { AdminiumMark } from '@adminium/ui';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
-import { designerApi, LOOK_DIRECTIONS, type AccessChangeView, type DesignerCard, type LimitKind, type MakeJob, type NeedItem, type NextStep, type PictureShape, type PicturesMode, type SpendMark, type StyleChoice } from '../api.js';
+import { designerApi, LOOK_DIRECTIONS, type AccessChangeView, type DesignerCard, type LimitKind, type MakeJob, type NeedItem, type NextStep, type PictureShape, type PicturesMode, type RoleRights, type SpendMark, type StyleChoice } from '../api.js';
 import { figmaPausedLine, SUBJECT, secondsOf, shortSubject, stepCost, stepLine } from '../build/stepLine.js';
 import type { PictureLine, StepRow } from '../build/turns.js';
 import { versionName } from '../build/versionName.js';
@@ -1366,10 +1366,51 @@ export function KeepSpotCard({
   );
 }
 
+/** An action a role is granted on a table, as a person says it. One this page does not know is shown as it is written. */
+function rightAction(name: string): string {
+  switch (name) {
+    case 'read':
+      return t('designer:access.action.read', 'read');
+    case 'read_pii':
+      return t('designer:access.action.readPii', 'read personal details');
+    case 'create':
+      return t('designer:access.action.create', 'add');
+    case 'update':
+      return t('designer:access.action.update', 'change');
+    case 'delete':
+      return t('designer:access.action.delete', 'delete');
+    default:
+      return name.replace(/_/g, ' ');
+  }
+}
+
+/** A role's new rights, named: each table with what could be done to it, the pages counted, the rest as the server gave it. */
+function rightsWords(rights: RoleRights): string {
+  return [
+    ...rights.tables.map((table) => t('designer:access.rightTable', '{table} ({actions})', { table: table.table, actions: listOf(table.actions.map(rightAction)) })),
+    ...(rights.pages > 0 ? [t('designer:access.rightPages', '{count, plural, one {# page to open} other {# pages to open}}', { count: rights.pages })] : []),
+    ...(rights.limits ? [t('designer:access.rightLimits', 'a change in what it may write')] : []),
+    ...rights.other,
+    ...(rights.more > 0 ? [t('designer:access.rightMore', '{count, plural, one {# more right} other {# more rights}}', { count: rights.more })] : []),
+  ].join('; ');
+}
+
 /** One change the access card asks about, in the person's words: what could happen, or once allowed, what can. */
 export function accessChangeLine(change: AccessChangeView, allowed: boolean): string {
   if (change.kind === 'call') return allowed ? t('designer:access.callAllowed', 'the {screen} page can call an address outside Adminium', { screen: change.screen }) : t('designer:access.call', 'the {screen} page calls an address outside Adminium', { screen: change.screen });
   if (change.kind === 'role') {
+    // What more, by name: "could do more than before" alone asks for a yes to nobody knows what.
+    const rights = change.rights === undefined ? '' : rightsWords(change.rights);
+    if (rights !== '') {
+      if (change.isNew) {
+        return allowed
+          ? t('designer:access.newRoleRightsAllowed', 'a new role, {role}, can sign in and use the app: {rights}', { role: change.role, rights })
+          : t('designer:access.newRoleRights', 'a new role, {role}, could sign in and use the app: {rights}', { role: change.role, rights });
+      }
+      return allowed
+        ? t('designer:access.roleRightsAllowed', 'the role {role} can do more than before: {rights}', { role: change.role, rights })
+        : t('designer:access.roleRights', 'the role {role} could do more than before: {rights}', { role: change.role, rights });
+    }
     if (change.isNew) return allowed ? t('designer:access.newRoleAllowed', 'a new role, {role}, can sign in and use the app', { role: change.role }) : t('designer:access.newRole', 'a new role, {role}, could sign in and use the app', { role: change.role });
     return allowed ? t('designer:access.roleAllowed', 'the role {role} can do more than before', { role: change.role }) : t('designer:access.role', 'the role {role} could do more than before', { role: change.role });
   }

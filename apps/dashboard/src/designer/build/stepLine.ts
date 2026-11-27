@@ -70,12 +70,16 @@ export function stepLine(row: StepRow): string {
     case 'list_add_ons':
       return running ? t('designer:step.addOns', 'Looking at the add-ons') : t('designer:step.addOnsDone', 'Looked at the add-ons');
     case 'add_side':
-      return running ? t('designer:step.side', 'Adding screens') : t('designer:step.sideDone', 'Added screens');
+      if (running) return t('designer:step.side', 'Adding screens');
+      // A side that was not added says so: "Added screens" in red read as if it had been.
+      return row.state === 'failed' ? t('designer:step.sideFailed', 'No screens were added') : t('designer:step.sideDone', 'Added screens');
     case 'add_ui_part':
       if (running) return t('designer:step.partsAdding', 'Adding ready-made parts');
       return row.state === 'failed' ? t('designer:step.partsFailed', 'No ready-made parts were added') : t('designer:step.partsAdded', 'Added ready-made parts');
     case 'name_app':
       if (running) return t('designer:step.naming', 'Naming the app');
+      // Handed the template's own titles before a name is taken: nothing failed, and nothing is named yet.
+      if (row.outcome === 'declined') return t('designer:step.nameFromTemplate', 'Read what the template calls itself');
       return row.state === 'failed' || row.subject === undefined ? t('designer:step.notNamed', 'The app was not named') : t('designer:step.named', 'Named the app {subject}', S);
     case 'use_pictures':
       if (running) return t('designer:step.ownPicturesAdding', 'Adding your pictures');
@@ -89,8 +93,16 @@ export function stepLine(row: StepRow): string {
         ? t('designer:step.spotsRemoveFailed', 'No picture spots taken away')
         : t('designer:step.spotsRemoved', '{count, plural, one {# picture spot taken away} other {# picture spots taken away}}', { count: row.count ?? 0 });
     case 'use_site':
-      if (running) return t('designer:step.siteBuilding', 'Building the screens from {subject}', S);
-      return row.state === 'failed' || row.outcome === 'refused' ? t('designer:step.siteFailed', 'Did not build from the template') : t('designer:step.siteBuilt', 'Built {count, plural, one {# screen} other {# screens}} from {subject}', { count: row.count ?? 0, ...S });
+      // One tool, several steps: it reads what the template holds, asks the plan, and only then builds. Said as each is,
+      // where every one of them read "Built N screens" (seen 2026-11-27: "Built 5 screens" before anything was built).
+      if (running) return t('designer:step.siteWorking', 'Working from the template {subject}', S);
+      if (row.state === 'failed' || row.outcome === 'refused') return t('designer:step.siteFailed', 'Did not build from the template');
+      if (row.outcome === 'declined') return t('designer:step.sitePlanChanges', 'The plan for {subject} came back with your changes', S);
+      if (row.outcome === undefined) return t('designer:step.siteRead', 'Read what {subject} holds: {count, plural, one {# page} other {# pages}}', { count: row.count ?? 0, ...S });
+      if (row.count === undefined) return t('designer:step.sitePlanApproved', 'The plan for {subject} is approved', S);
+      // A stylesheet by itself holds no page: nothing was built from it, its look was brought in.
+      if (row.count === 0) return t('designer:step.siteLook', 'Brought in the look of {subject}', S);
+      return t('designer:step.siteBuilt', 'Built {count, plural, one {# screen} other {# screens}} from {subject}', { count: row.count, ...S });
     case 'fill_spot':
       if (running) return t('designer:step.spotFilling', 'Putting your picture in {subject}', S);
       return row.outcome === 'added' ? t('designer:step.spotFilled', 'Your picture is in {subject}', S) : t('designer:step.spotFillFailed', 'Your picture was not put in {subject}', S);

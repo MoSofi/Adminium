@@ -97,6 +97,17 @@ describe('a zip read two ways is refused whole', () => {
     });
   }
 
+  it('names the file whose name is in an old encoding, and says what helps on Windows', () => {
+    // "Make the zip again from the folder" sent a Windows user in a circle: Explorer writes "café" this way every time (seen 2026-11-27).
+    const said = refusal(makeZip([page({ name: 'images/café-mug.jpg', nameBytes: Buffer.from([0x69, 0x6d, 0x61, 0x67, 0x65, 0x73, 0x2f, 0x63, 0x61, 0x66, 0x82, 0x2d, 0x6d, 0x75, 0x67, 0x2e, 0x6a, 0x70, 0x67]), ascii: true })])) as { message: string };
+    expect(said.message).toBe(
+      'menu.zip is made in a way this reader does not take (a file name is in an old encoding, not UTF-8: "images/caf?-mug.jpg", where "?" is a letter it cannot read). Windows writes a name with an accented letter this way, so the same zip would come out again: rename that file with plain letters, then make the zip again.',
+    );
+    // A quote or a control character in the name never breaks out of the sentence.
+    const odd = refusal(makeZip([page({ name: 'x', nameBytes: Buffer.from([0x61, 0x22, 0x0a, 0xe9, 0x2e, 0x68]), ascii: true })])) as { message: string };
+    expect(odd.message).toContain('UTF-8: "a?.h", where');
+  });
+
   it('where a naive reader takes the same bytes', () => {
     // Each of these is read by fflate without a word: the cases a parser differential lives in.
     for (const index of [0, 1, 7, 9, 14]) expect(naiveTakes(cases[index]![1]), cases[index]![0]).toBe(true);

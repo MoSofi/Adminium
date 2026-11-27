@@ -15,7 +15,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { appDir, appPath, type AppSide } from './read-app.js';
-import { callOpening, listQueryMessages } from './side-list-queries.js';
+import { afterBracket, callOpening, listQueryMessages, partsOf } from './side-list-queries.js';
 
 export interface SideCallIssue {
   side: AppSide;
@@ -28,7 +28,7 @@ export interface SideCallIssue {
 interface ManifestLike {
   compatibility?: { minAdminiumVersion?: unknown } | undefined;
   requiredSchema?: { tables?: { ref: string; columns?: { ref?: string; role?: string }[] }[] } | undefined;
-  publicAccess?: { table?: string; claim?: unknown; kind?: string; select?: unknown; pictures?: unknown; methods?: unknown }[] | undefined;
+  publicAccess?: { table?: string; claim?: unknown; kind?: string; select?: unknown; pictures?: unknown; methods?: unknown; children?: unknown; expect?: unknown }[] | undefined;
 }
 
 /** How a customer screen shows a picture a table keeps, said the same way in every finding. */
@@ -57,6 +57,8 @@ export function code(text: string): string {
 
 /** A table named by a string where the endpoint's own name goes. */
 const LITERAL_TABLE = new RegExp(`${callOpening('list|create|get|update|remove')}${/\s*(?<quote>['"`])(?<name>[a-z][a-z0-9_]*)\k<quote>/.source}`, 'g');
+/** A call whose first argument is one bare name: `client.create(ORDERS, …)`. What the name holds is looked up. */
+const HELD_TABLE = new RegExp(`${callOpening('list|create|createTree|createWithRank|quote|get|update|remove')}${/\s*(?<name>[A-Za-z_$][\w$]*)\s*[,)]/.source}`, 'g');
 /** A claimed endpoint's name written out: one built from config.tables (a template with a value in it) is the right way. */
 const CLAIMED_WRITTEN_OUT = new RegExp(`${callOpening('list|get')}${/\s*(?:'[^']*claimed[^']*'|"[^"]*claimed[^"]*"|`[^`$]*claimed[^`$]*`)/.source}`);
 /** Any read a screen makes: the public client's, typed or not, or its own fetch. */
@@ -67,6 +69,207 @@ const WHERE_AS_OBJECT = /\bwhere\s*:\s*\{\s*(?!column\b|and\b|or\b|not\b|['"`]?(
 /** Where a customer screen's table names are: said the same way in every finding, since "config.tables" alone was read as the client's config. */
 const WHERE_TABLES =
   "The table names are in the CUSTOMER config, which the page gets from useCustomer(): `const loaded = useCustomer()`, then, once `loaded.state === 'ready'`, `loaded.value.tables['<table>'] ?? '<table>'` (the starter passes `loaded.value` to its screen as the prop `config`, so there it reads `config.tables[…]`). Never from `client.config()`.";
+
+/** A create a customer page makes one row at a time: `create` and `createWithRank` send the row's own values and nothing below it. */
+const BARE_CREATE = new RegExp(callOpening('create|createWithRank'), 'g');
+
+/** A name as a pattern that matches it and nothing else. */
+const asPattern = (name: string): string => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** What a name is set to where it is declared (`const orders = …`), or null. */
+const heldAs = (name: string, text: string): string | null => new RegExp(`\\b(?:const|let)\\s+${asPattern(name)}\\s*(?::[^=\\n]+)?=\\s*([^;\\n]+)`).exec(text)?.[1]?.trim() ?? null;
+
+/**
+ * The table a create's first argument names, as the starter and the guides write it: a name in quotes, `tables['orders']`,
+ * `tables[ORDERS]` with ORDERS a name in quotes, or a name held as one of these. Null when the source does not say (a prop).
+ */
+export function createdTable(target: string, text: string, depth = 0): string | null {
+  const read = /\btables\s*(?:\?\.)?(?:\[\s*(?:['"`]([a-z][a-z0-9_]*)['"`]|([A-Za-z_$][\w$]*))\s*\]|\.([a-z][a-z0-9_]*))/.exec(target);
+  if (read !== null) {
+    if (read[1] !== undefined || read[3] !== undefined) return (read[1] ?? read[3]) as string;
+    const held = depth < 3 ? heldAs(read[2] as string, text) : null;
+    return held === null ? null : (/^(['"`])([a-z][a-z0-9_]*)\1/.exec(held)?.[2] ?? null);
+  }
+  const literal = /^(['"`])([a-z][a-z0-9_]*)\1$/.exec(target.trim());
+  if (literal !== null) return literal[2] as string;
+  if (depth >= 3 || !/^[A-Za-z_$][\w$]*$/.test(target.trim())) return null;
+  const held = heldAs(target.trim(), text);
+  return held === null ? null : createdTable(held, text, depth + 1);
+}
+
+/** The public creates that must come with rows below them: an order with at least one line. */
+function entriesNeedingChildren(app: ManifestLike): { table: string; child: string; min: number; writable: string[]; expects: boolean }[] {
+  const out: { table: string; child: string; min: number; writable: string[]; expects: boolean }[] = [];
+  for (const entry of app.publicAccess ?? []) {
+    if (typeof entry.table !== 'string' || !Array.isArray(entry.methods) || !entry.methods.includes('POST')) continue;
+    if (entry.children === null || typeof entry.children !== 'object' || Array.isArray(entry.children)) continue;
+    for (const [child, shape] of Object.entries(entry.children as Record<string, { min?: unknown; writable?: unknown } | null>)) {
+      const min = shape?.min;
+      if (typeof min !== 'number' || min < 1) continue;
+      const writable = Array.isArray(shape?.writable) ? shape.writable.filter((column): column is string => typeof column === 'string') : [];
+      out.push({ table: entry.table, child, min, writable, expects: entry.expect !== undefined });
+      break;
+    }
+  }
+  return out;
+}
+
+/**
+ * A row made with `create` where access.json asks for rows below it with every one (an order and its lines, `min: 1`):
+ * `create` sends the row alone, so the server refuses each one (`PUBLIC_WRITE_REFUSED`, "too-few") and the shop's
+ * checkout can never succeed, while check, build and the look at the page all pass. Seen 2026-11-26.
+ * Found by the table the call names; or, when it names none this can read, by the child's name among what it sends.
+ */
+export function createsWithoutChildren(text: string, app: ManifestLike): { table: string; child: string; min: number; writable: string[]; expects: boolean }[] {
+  const needing = entriesNeedingChildren(app);
+  if (needing.length === 0) return [];
+  const found = new Map<string, (typeof needing)[number]>();
+  for (const call of text.matchAll(BARE_CREATE)) {
+    const open = call.index + call[0].length - 1;
+    const args = partsOf(text, open + 1, afterBracket(text, open) - 1);
+    if (args.length === 0) continue;
+    const table = createdTable(args[0] as string, text);
+    const byTable = table === null ? undefined : needing.find((entry) => entry.table === table);
+    // Not said by the first argument: the values sent name the child themselves (`order_lines: [...]`).
+    const byChild = table !== null || args[1] === undefined ? undefined : needing.find((entry) => new RegExp(`(?:^|[{,\\s])['"]?${entry.child}['"]?\\s*:`).test(args[1] as string));
+    const entry = byTable ?? byChild;
+    if (entry !== undefined) found.set(entry.table, entry);
+  }
+  return [...found.values()];
+}
+
+/** Calls that run a callback later, when the handler that made them has long returned. */
+const LATER = /(?:\.\s*(?:then|catch|finally)|\b(?:setTimeout|setInterval|requestAnimationFrame|queueMicrotask|requestIdleCallback)|\bset[A-Z][\w$]*)\s*\(\s*(?:async\s*)?$/;
+
+/** Source with what is inside its quotes blanked, so a word in a sentence is never read as code. Lengths are kept. */
+function unquoted(text: string): string {
+  return text.replace(/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/g, (found) => found[0] + ' '.repeat(found.length - 2) + found[0]);
+}
+
+/** The index of the bracket that closes the one at `open` (`{`, `(` or `[`), or -1. */
+function closes(text: string, open: number): number {
+  let depth = 0;
+  for (let at = open; at < text.length; at += 1) {
+    const mark = text[at];
+    if (mark === '{' || mark === '(' || mark === '[') depth += 1;
+    else if (mark === '}' || mark === ')' || mark === ']') {
+      depth -= 1;
+      if (depth === 0) return at;
+    }
+  }
+  return -1;
+}
+
+interface FunctionSpan {
+  /** Where its head starts, and where its body starts and ends. */
+  head: number;
+  from: number;
+  to: number;
+  params: string;
+}
+
+/** Every function in a source: `function f(a) {…}`, a method, `(a) => {…}`, `a => …` and an arrow whose body is one expression. */
+function functionsIn(text: string): FunctionSpan[] {
+  const out: FunctionSpan[] = [];
+  // function f(…) {…}  and  name(…) {…}  (never if/for/while/switch/catch, which only look like one).
+  for (const found of text.matchAll(/(?:\bfunction\b\s*\*?\s*[\w$]*|\b(?!(?:if|for|while|switch|catch|return|await|typeof|function)\b)[\w$]+)\s*(?:<[^<>()]*>)?\s*\(/g)) {
+    const open = found.index + found[0].length - 1;
+    const close = closes(text, open);
+    if (close < 0) continue;
+    const after = /^\s*(?::[^{};=]{1,200})?\s*\{/.exec(text.slice(close + 1, close + 260));
+    if (after === null) continue;
+    const from = close + 1 + after[0].length - 1;
+    const to = closes(text, from);
+    if (to > from) out.push({ head: found.index, from, to, params: text.slice(open + 1, close) });
+  }
+  // Arrows: `(a, b) => …` and `a => …`.
+  for (const found of text.matchAll(/=>/g)) {
+    let at = found.index - 1;
+    while (at >= 0 && /\s/.test(text[at] as string)) at -= 1;
+    let head: number;
+    let params: string;
+    if (text[at] === ')') {
+      // Back to its opening bracket (a return type between is passed over by the caller's own `)`).
+      let depth = 0;
+      let open = at;
+      for (; open >= 0; open -= 1) {
+        if (text[open] === ')') depth += 1;
+        else if (text[open] === '(') {
+          depth -= 1;
+          if (depth === 0) break;
+        }
+      }
+      if (open < 0) continue;
+      head = open;
+      params = text.slice(open + 1, at);
+    } else {
+      const name = /[\w$]+$/.exec(text.slice(Math.max(0, at - 60), at + 1));
+      if (name === null) continue;
+      head = at + 1 - name[0].length;
+      params = name[0];
+    }
+    let from = found.index + 2;
+    while (from < text.length && /\s/.test(text[from] as string)) from += 1;
+    if (text[from] === '{') {
+      const to = closes(text, from);
+      if (to > from) out.push({ head, from, to, params });
+      continue;
+    }
+    // One expression: up to the comma, semicolon or closing bracket that ends it.
+    let to = from;
+    for (; to < text.length; to += 1) {
+      const mark = text[to] as string;
+      if (mark === '(' || mark === '[' || mark === '{') {
+        const end = closes(text, to);
+        if (end < 0) break;
+        to = end;
+      } else if (mark === ')' || mark === ']' || mark === '}' || mark === ',' || mark === ';') break;
+    }
+    out.push({ head, from: from - 1, to, params });
+  }
+  return out;
+}
+
+/**
+ * An event's `currentTarget` read after the handler has let go: after an `await` whose statement has ended, or
+ * inside a callback that runs later (`.then(…)`, a timer, a state updater). React clears `currentTarget` when the
+ * handler returns, so the read is null, the line throws, and a send that worked is told to the visitor as one that
+ * failed ("Something went wrong", and the message was saved: seen 2026-11-26). The event's name, or null.
+ * `await send(new FormData(event.currentTarget))` is read before the wait, and is fine.
+ */
+export function currentTargetAfterAwait(source: string): string | null {
+  const text = unquoted(code(source));
+  const functions = functionsIn(text);
+  const declares = (span: FunctionSpan, name: string): boolean => new RegExp(`(?:^|[\\s,({])${asPattern(name)}\\s*(?:[:,=)]|$)`).test(span.params);
+  for (const use of text.matchAll(/(?<![\w$.])([A-Za-z_$][\w$]*)\s*\.\s*currentTarget\b/g)) {
+    const name = use[1] as string;
+    const at = use.index;
+    const around = functions.filter((span) => span.from < at && at < span.to).sort((a, b) => b.from - a.from);
+    const ownerAt = around.findIndex((span) => declares(span, name));
+    if (ownerAt < 0) continue;
+    const owner = around[ownerAt] as FunctionSpan;
+    // The functions between the read and the handler that was given the event, the outermost first.
+    const between = around.slice(0, ownerAt).reverse();
+    if (between.some((span) => LATER.test(text.slice(owner.from, span.head)))) return name;
+    // Where the handler itself reaches the read: the read, or the start of the function that holds it.
+    const reached = between[0]?.head ?? at;
+    const inner = functions.filter((span) => span.from > owner.from && span.to <= owner.to && span !== owner);
+    for (const wait of text.slice(owner.from, reached).matchAll(/\bawait\b/g)) {
+      const from = owner.from + wait.index;
+      // An await of a function inside the handler is that function's own wait.
+      if (inner.some((span) => span.from < from && from < span.to)) continue;
+      // Its statement has ended before the read: a `;` at its own depth, or the block it stands in has closed.
+      let depth = 0;
+      for (let k = from; k < reached; k += 1) {
+        const mark = text[k] as string;
+        if (mark === '(' || mark === '[' || mark === '{') depth += 1;
+        else if (mark === ')' || mark === ']' || mark === '}') depth -= 1;
+        if ((mark === ';' && depth <= 0) || depth < 0) return name;
+      }
+    }
+  }
+  return null;
+}
 
 /** A component: a function whose name starts with a capital, declared at the start of a line. */
 const COMPONENT = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Z]\w*)\s*\(|^(?:export\s+)?const\s+([A-Z]\w*)\s*(?::[^=]+)?=\s*(?:\([^)]*\)|\w+)\s*(?::[^=]+)?=>\s*\{/;
@@ -125,6 +328,16 @@ export function hooksAfterReturn(text: string): { component: string; hook: strin
   return out;
 }
 
+/** What a create without its rows below it is told, the same way each time. */
+function createWithoutChildrenMessage(entry: { table: string; child: string; min: number; writable: string[]; expects: boolean }): string {
+  const row = entry.writable.length === 0 ? '{ … }' : `{ ${entry.writable.slice(0, 4).join(', ')} }`;
+  return (
+    `makes a row of "${entry.table}" with client.create, and access.json asks for at least ${String(entry.min)} row${entry.min === 1 ? '' : 's'} of "${entry.child}" with each one. ` +
+    `create sends the row alone, so the server refuses every one (PUBLIC_WRITE_REFUSED, "too-few") and nothing is ever saved. ` +
+    `Send the row and its ${entry.child} in one write: client.createTree(ref, { values: { … }, children: { ${entry.child}: [{ values: ${row} }] }${entry.expects ? ', expect: { total } (the total from client.quote(ref, { values, children }) first)' : ''} }), with ref the same endpoint name the create was given. The values it sends for "${entry.table}" never hold the ${entry.child}.`
+  );
+}
+
 export function sideCallIssues(root: string, key: string, manifest: unknown): SideCallIssue[] {
   const app = (manifest ?? {}) as ManifestLike;
   const tables = new Set((app.requiredSchema?.tables ?? []).map((table) => table.ref));
@@ -132,6 +345,18 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
   const out: SideCallIssue[] = [];
 
   const customer = sources(root, key, 'customer').map((source) => ({ ...source, text: code(source.text) }));
+  // Names the side sets to a table's short name and to nothing else: `const ORDERS = 'orders'`. A name that is anywhere
+  // set to something worked out (`const orders = config.tables[ORDERS] ?? ORDERS`) is the endpoint's name, and is left alone.
+  const heldShortNames = new Map<string, string>();
+  const workedOut = new Set<string>();
+  for (const { text } of customer) {
+    for (const found of text.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=\n]+)?=\s*([^;\n]+)/g)) {
+      const literal = /^(['"`])([a-z][a-z0-9_]*)\1(?:\s+as\s+const)?\s*$/.exec((found[2] as string).trim());
+      if (literal !== null && tables.has(literal[2] as string)) heldShortNames.set(found[1] as string, literal[2] as string);
+      else workedOut.add(found[1] as string);
+    }
+  }
+  for (const name of workedOut) heldShortNames.delete(name);
   // Customers may read a table, and no screen reads anything at all: the page shows none of what it was made to show.
   const read = (app.publicAccess ?? []).filter((entry) => typeof entry.table === 'string' && entry.claim === undefined && Array.isArray(entry.methods) && entry.methods.includes('GET')).map((entry) => entry.table as string);
   const screens = customer.filter((source) => /\.(tsx|jsx)$/.test(source.file));
@@ -171,12 +396,55 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
     }
     const named = new Set<string>();
     for (const found of text.matchAll(LITERAL_TABLE)) if (tables.has(found.groups?.name as string)) named.add(found.groups?.name as string);
+    // The short name kept in a name of the side's own (`export const ORDERS = 'orders'`, in this file or another) and given
+    // to the call as it is: the same call, one step away. (Seen 2026-11-27: every form of a site answered PUBLIC_REF_NOT_FOUND.)
+    for (const found of text.matchAll(HELD_TABLE)) {
+      const table = heldShortNames.get(found.groups?.name as string);
+      if (table !== undefined) named.add(table);
+    }
     if (named.size > 0) {
       const one = [...named][0] as string;
       out.push({
         side: 'customer',
         file,
         message: `calls the public client with the table's short name (${[...named].map((name) => `"${name}"`).join(', ')}). A public endpoint goes by another name on each install, so the call finds nothing: \`loaded.value.tables['${one}'] ?? '${one}'\`. ${WHERE_TABLES}`,
+      });
+    }
+  }
+  // A row that must come with rows below it, made with a create that sends none.
+  {
+    const said = new Set<string>();
+    let unread = false;
+    for (const { file, text } of customer) {
+      for (const entry of createsWithoutChildren(text, app)) {
+        if (said.has(entry.table)) continue;
+        said.add(entry.table);
+        out.push({ side: 'customer', file, message: createWithoutChildrenMessage(entry) });
+      }
+      // A create whose table this cannot read (a prop, a value passed in).
+      for (const call of text.matchAll(BARE_CREATE)) {
+        const open = call.index + call[0].length - 1;
+        const first = partsOf(text, open + 1, afterBracket(text, open) - 1)[0];
+        // (Never `Object.create(null)`, which is no write at all.)
+        if (first !== undefined && /^[A-Za-z_$][\w$.]*$/.test(first) && !/^(?:null|undefined|true|false|this)$/.test(first) && !/\b(?:Object|Reflect)\s*$/.test(text.slice(0, call.index)) && createdTable(first, text) === null) unread = true;
+      }
+    }
+    // Nothing on the side sends a row with its rows below it, and some create names a table this cannot read: said of the side.
+    const tree = customer.some(({ text }) => /\.\s*createTree\s*(?:<[^()]*>)?\s*\(/.test(text));
+    for (const entry of entriesNeedingChildren(app)) {
+      if (said.has(entry.table) || tree || !unread) continue;
+      out.push({ side: 'customer', file: appPath(key, 'customer', 'src'), message: `never calls client.createTree, and ${createWithoutChildrenMessage(entry).replace(/^makes a row of /, 'access.json lets customers make a row of ').replace(' with client.create, and access.json asks', ' and asks')}` });
+    }
+  }
+  // An event read after its handler has let go: the send works, and the visitor is told it failed.
+  for (const side of ['customer', 'staff'] as const) {
+    for (const { file, text } of side === 'customer' ? customer : sources(root, key, side).map((source) => ({ ...source, text: code(source.text) }))) {
+      const name = currentTargetAfterAwait(text);
+      if (name === null) continue;
+      out.push({
+        side,
+        file,
+        message: `reads ${name}.currentTarget after the handler has let go (after an await, or in a callback that runs later). React has cleared it by then: the read is null, the line throws, and a send that worked is told to the person as one that failed. Keep the element first, before any await: const form = ${name}.currentTarget; then use form (form.reset(), new FormData(form)).`,
       });
     }
   }

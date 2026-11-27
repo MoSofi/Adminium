@@ -11,9 +11,22 @@ import type { NeedItem } from './needs.js';
 import { planAnswerFor, type TemplatePlanAnswer, type TemplatePlanRequest } from './site/template-plan.js';
 
 /** A change to who may do what, as the "Check this before it goes live" card words it. */
+/**
+ * What a role could newly do, for the card to say: each table with the actions on it (as the grant names them: read,
+ * read_pii, create, update, delete…), how many pages open to it, whether what its changes may write was changed,
+ * a few other grants as they are written, and how many more there are.
+ */
+export interface RoleRights {
+  tables: { table: string; actions: string[] }[];
+  pages: number;
+  limits: boolean;
+  other: string[];
+  more: number;
+}
+
 export type ChangeView =
   | { kind: 'access'; verb: 'read' | 'add' | 'change' | 'read-columns' | 'write-columns' | 'read-all' | 'no-check' | 'hidden-rows'; table: string; columns?: string[] }
-  | { kind: 'role'; role: string; isNew: boolean }
+  | { kind: 'role'; role: string; isNew: boolean; rights?: RoleRights }
   | { kind: 'call'; screen: string };
 
 export type DesignerCard =

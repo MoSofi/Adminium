@@ -11,6 +11,9 @@
  *  4. The starter's own screens, and a call quoted in a comment, raise nothing.
  *  5. A picture a table keeps, shown by the column's own value, or through an
  *     entry whose rows carry no id, is told, with how its address is built.
+ *  6. A row that must come with rows below it (an order and its lines), made
+ *     with a create that sends none, is told to send them in one write.
+ *  7. An event's currentTarget read after the handler has let go is told.
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -19,7 +22,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { addSide, scaffoldApp } from '../src/project/apps/scaffold-app.js';
-import { hooksAfterReturn, sideCallIssues } from '../src/project/apps/side-calls.js';
+import { currentTargetAfterAwait, hooksAfterReturn, sideCallIssues } from '../src/project/apps/side-calls.js';
 import { APP_VERSION } from '../src/version.js';
 
 let root: string;
@@ -468,6 +471,119 @@ describe('a hook called after a component may already have returned', () => {
     ]) {
       write('customer/src/App.tsx', fine);
       expect(messages(), fine).toEqual([]);
+    }
+  });
+});
+
+describe('a table’s short name kept in a name of the side’s own', () => {
+  it('is told as the short name in the call is: the page’s every write would answer PUBLIC_REF_NOT_FOUND', () => {
+    // Seen 2026-11-27: data.ts held `export const ENQUIRIES = 'enquiries'`, the pages called client.create(ENQUIRIES, …),
+    // and the contact form, the newsletter and the order all failed, while the list (through config.tables) worked.
+    write('customer/src/data.ts', `export const CAKES = 'cakes';\nexport const ORDERS = 'orders';\nexport const SHOP = 'the-shop';`);
+    write('customer/src/pages/contact.tsx', `import { CAKES, ORDERS } from '../data';\nconst menu = await client.list(config.tables[CAKES] ?? CAKES, { limit: 50 });\nawait s.client.create(ORDERS, { name });`);
+    const found = messages();
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain('customer: calls the public client with the table\'s short name ("orders")');
+    expect(found[0]).toContain("loaded.value.tables['orders'] ?? 'orders'");
+    // Fine: the endpoint's name worked out from the config and held in a name, also one that shares the constant's name elsewhere.
+    for (const fine of [
+      `import { ORDERS } from '../data';\nconst orders = config.tables[ORDERS] ?? ORDERS;\nawait client.create(orders, { name });`,
+      `const ORDERS = site.config.tables['orders'] ?? 'orders';\nawait client.create(ORDERS, { name });`,
+      `import { SHOP } from '../data';\nawait things.create(SHOP, { name });`,
+    ]) {
+      write('customer/src/pages/contact.tsx', fine);
+      // (The second case sets ORDERS to something worked out in one file: the name is then never taken for the short name.)
+      // (An app customers only write to: the page reading no list is then nothing to say.)
+      expect(messages({ ...MANIFEST, publicAccess: [{ table: 'orders', methods: ['POST'] }] }), fine).toEqual([]);
+    }
+  });
+});
+
+describe('a write the page makes that cannot work, read from its source', () => {
+  it('says when a row that must come with rows below it is made with a create that sends none', () => {
+    // An order must have a line (access.json: children.order_lines.min 1); client.create sends the order alone, and the
+    // server refuses every one: PUBLIC_WRITE_REFUSED "too-few". Check, build and the look at the page all passed it (seen 2026-11-26).
+    const ORDERS = {
+      requiredSchema: { tables: [{ ref: 'orders' }, { ref: 'order_lines' }, { ref: 'messages' }] },
+      publicAccess: [
+        { table: 'orders', methods: ['POST'], writable: ['name'], children: { order_lines: { via: 'order_id', writable: ['product_id', 'quantity'], min: 1, max: 40 } } },
+        { table: 'messages', methods: ['POST'], writable: ['body'] },
+      ],
+    };
+    // As the walk's page wrote it.
+    write('customer/src/pages/cart.tsx', `await site.client.create(site.config.tables['orders'] ?? 'orders', {\n  name,\n  order_lines: lines.map((l) => ({ product_id: l.id, quantity: l.qty })),\n});`);
+    const found = messages(ORDERS);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain('customer: makes a row of "orders" with client.create, and access.json asks for at least 1 row of "order_lines" with each one.');
+    expect(found[0]).toContain('PUBLIC_WRITE_REFUSED, "too-few"');
+    expect(found[0]).toContain('client.createTree(ref, { values: { … }, children: { order_lines: [{ values: { product_id, quantity } }] } })');
+    // An entry that declares `expect` is told to quote first; one that does not is never told to send it (it would be refused).
+    expect(found[0]).not.toContain('expect');
+    write('customer/src/pages/cart.tsx', `await client.createWithRank(config.tables['orders'] ?? 'orders', { name });`);
+    expect(messages({ ...ORDERS, publicAccess: [{ ...ORDERS.publicAccess[0], expect: { total: 'total' } }] })[0]).toContain(', expect: { total } (the total from client.quote(ref, { values, children }) first)');
+    // The table named as the starter and the guides name it: through a name held, and a name in capitals.
+    for (const named of [
+      `const ORDERS = 'orders';\nconst orders = config.tables[ORDERS] ?? ORDERS;\nawait client.create(orders, { name });`,
+      `const orders = loaded.value.tables.orders;\nawait client.create<Order>(orders, { name });`,
+      `await client.create('orders', { name });`,
+      // A table this cannot read (a prop), told by the child's own name among what is sent.
+      `export function Checkout({ ordersRef }) {\n  return client.create(ordersRef, { name, order_lines: lines });\n}`,
+    ]) {
+      write('customer/src/pages/cart.tsx', named);
+      expect(messages(ORDERS).filter((line) => line.includes('order_lines')), named).toHaveLength(1);
+    }
+    // A table this cannot read and nothing that says: said of the side, once, when no screen sends a tree at all.
+    write('customer/src/pages/cart.tsx', `export function Checkout({ ordersRef }) {\n  return client.create(ordersRef, { name });\n}`);
+    expect(messages(ORDERS)).toEqual([expect.stringContaining('never calls client.createTree, and access.json lets customers make a row of "orders" and asks for at least 1 row of "order_lines" with each one.')]);
+    // Fine: the tree write, a create of another table, an entry that asks for no child, a staff screen, and what only looks like a create.
+    for (const fine of [
+      `await client.createTree(config.tables['orders'] ?? 'orders', { values: { name }, children: { order_lines: lines } });`,
+      `await client.create(config.tables['messages'] ?? 'messages', { body });`,
+      `const el = document.createElement('orders'); const o = Object.create(null); await things.createOrder('orders', {});`,
+      `export function Checkout({ ordersRef }) {\n  client.create(ordersRef, { name });\n  return client.createTree(ordersRef, { values: { name }, children: { order_lines: lines } });\n}`,
+    ]) {
+      write('customer/src/pages/cart.tsx', fine);
+      expect(messages(ORDERS), fine).toEqual([]);
+    }
+    write('customer/src/pages/cart.tsx', `await client.create(config.tables['orders'] ?? 'orders', { name });`);
+    expect(messages({ ...ORDERS, publicAccess: [{ table: 'orders', methods: ['POST'], writable: ['name'], children: { order_lines: { via: 'order_id', writable: ['quantity'], min: 0, max: 40 } } }] })).toEqual([]);
+    rmSync(join(root, 'apps', 'cakes', 'customer'), { recursive: true });
+    write('staff/src/Desk.tsx', `await loaded.value.create('orders', { name });`);
+    expect(messages(ORDERS)).toEqual([]);
+  });
+
+  it('says when an event’s currentTarget is read after the handler has let go: the send worked, and the visitor is told it failed', () => {
+    // As the walk's contact page wrote it: the message was saved (201), `event.currentTarget.reset()` threw, and the page said "Something went wrong".
+    const broken = `async function send(event: FormEvent<HTMLFormElement>) {\n  event.preventDefault();\n  const form = new FormData(event.currentTarget);\n  try {\n    await client.create(messagesRef, { body: String(form.get('body')) });\n    event.currentTarget.reset();\n    setStatus('ok');\n  } catch (error) {\n    setStatus('failed');\n  }\n}`;
+    expect(currentTargetAfterAwait(broken)).toBe('event');
+    write('customer/src/pages/contact.tsx', broken);
+    expect(messages()).toEqual([expect.stringContaining('customer: reads event.currentTarget after the handler has let go (after an await, or in a callback that runs later).')]);
+    expect(messages()[0]).toContain('const form = event.currentTarget; then use form (form.reset(), new FormData(form)).');
+    // A staff screen is told the same.
+    write('staff/src/Desk.tsx', broken.replace(/\bevent\b/g, 'e'));
+    expect(messages().map((line) => line.split(':')[0])).toEqual(['customer', 'staff']);
+    // Later by another way: a promise's callback, a timer, a state updater.
+    for (const later of [
+      `function send(e) {\n  client.create(ref, {}).then(() => e.currentTarget.reset());\n}`,
+      `function onChange(e) {\n  setTimeout(() => { setValue(e.currentTarget.value); }, 200);\n}`,
+      `const view = <input onChange={(e) => setForm((prev) => ({ ...prev, [e.currentTarget.name]: e.currentTarget.value }))} />;`,
+      `const send = async (ev) => {\n  await save();\n  rows.forEach((row) => mark(row, ev.currentTarget));\n};`,
+    ]) {
+      expect(currentTargetAfterAwait(later), later).not.toBeNull();
+    }
+    // Fine: read before the wait, read in the very call that waits, kept in a name first, an await that belongs to a
+    // function inside the handler, another function's own event, and the words in a comment or a sentence.
+    for (const fine of [
+      `async function send(event) {\n  const form = event.currentTarget;\n  await client.create(ref, new FormData(form));\n  form.reset();\n}`,
+      `async function send(event) {\n  event.preventDefault();\n  await client.create(ref, Object.fromEntries(new FormData(event.currentTarget)));\n}`,
+      `function onChange(e) {\n  const save = async (v) => { await client.update('x', '1', { v }); };\n  void save(e.currentTarget.value);\n}`,
+      `async function load() {\n  await client.list(ref);\n}\nfunction onChange(e) {\n  setValue(e.currentTarget.value);\n}`,
+      `async function send(event) {\n  await save();\n  return <input onChange={(e) => setValue(e.currentTarget.value)} />;\n}`,
+      `async function send(event) {\n  await save();\n  // event.currentTarget is gone by now\n  setNote('event.currentTarget is cleared after an await');\n}`,
+      `function onChange(e) {\n  setValue(e.currentTarget.value);\n  rows.map((row) => row.id === e.currentTarget.name);\n}`,
+      `async function send(event) {\n  if (event.currentTarget.checkValidity()) await save();\n}`,
+    ]) {
+      expect(currentTargetAfterAwait(fine), fine).toBeNull();
     }
   });
 });

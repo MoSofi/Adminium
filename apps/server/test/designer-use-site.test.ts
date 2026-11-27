@@ -12,7 +12,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createAttachments, type Attachments } from '../src/designer/attachments.js';
+import { attachmentNote, createAttachments, type Attachments } from '../src/designer/attachments.js';
 import type { CardAnswer, CardRequest } from '../src/designer/cards.js';
 import { createEventLog } from '../src/designer/events.js';
 import { designSection } from '../src/designer/prompt.js';
@@ -25,8 +25,9 @@ import type { DesignerSession } from '../src/designer/session-store.js';
 import { judgeSite, type SiteEntry } from '../src/designer/site/judge.js';
 import { picturesState, prepareFills, writeFills } from '../src/designer/pictures-apply.js';
 import { readSpots } from '../src/designer/spots.js';
-import { readTemplatePlan, type TemplatePlanAnswer } from '../src/designer/site/template-plan.js';
-import { SMALL_WINDOW_SENTENCE } from '../src/designer/site/plan-step.js';
+import { approvedAll, planFor, readTemplatePlan, writeTemplatePlan, type TemplatePlanAnswer, type TemplatePlanFile } from '../src/designer/site/template-plan.js';
+import { notFoundLine, PLAN_GUIDE, seenInSite, SMALL_WINDOW_SENTENCE } from '../src/designer/site/plan-step.js';
+import { nameFits, nameInTitles, titleOf } from '../src/designer/site/template-name.js';
 import { pageRoutes } from '../src/designer/site/use-site.js';
 import type { DesignerTool, ToolContext } from '../src/designer/tool-types.js';
 import { createDesignerTools } from '../src/designer/tools.js';
@@ -160,9 +161,9 @@ const PLAN = {
   ],
   forms: [{ form: 'form-1', label: 'Newsletter', table: 'subscribers', writable: ['email'], perHour: 5 }],
   report: [
-    { id: 'nav', label: 'Navigation bar', where: 'On every page', status: 'works' },
-    { id: 'payments', label: 'Card payments', where: 'On the Checkout page', status: 'not-available', build: 'a payment link emailed for each order', buildServerCode: true, replace: 'pay on delivery, marked paid by staff', leave: 'the card form comes off the page' },
-    { id: 'chat', label: 'Chat widget', where: 'On every page', status: 'not-available', build: 'a contact form in place of the chat', leave: 'the chat bubble comes off the page' },
+    { id: 'nav', label: 'Navigation bar', where: 'On every page', seen: 'Shop', status: 'works' },
+    { id: 'payments', label: 'Card payments', where: 'On the Checkout page', seen: 'product-price', status: 'not-available', build: 'a payment link emailed for each order', buildServerCode: true, replace: 'pay on delivery, marked paid by staff', leave: 'the card form comes off the page' },
+    { id: 'chat', label: 'Chat widget', where: 'On every page', seen: 'form-1', status: 'not-available', build: 'a contact form in place of the chat', leave: 'the chat bubble comes off the page' },
   ],
   links: [{ id: 'link-1', label: '“Learn more” on Home' }],
   roles: [{ role: 'staff', tables: ['products', 'subscribers'] }],
@@ -212,6 +213,104 @@ describe('the plan', () => {
     const outside = await useSite({ attachment: site, plan: { ...PLAN, roles: [{ role: 'staff', tables: ['payments'] }] } });
     expect(outside.content).toContain('names tables that are not in the plan');
     expect(asked).toEqual([]);
+  });
+
+  it('lists only what the template has: a report row says where it was seen, and one the template does not have is refused', async () => {
+    const row = (seen: unknown) => ({ id: 'search', label: 'Search', where: 'On the Shop page', status: 'works', ...(seen === undefined ? {} : { seen }) });
+    // A row that does not say where is not read at all.
+    const unsaid = await useSite({ attachment: site, plan: { report: [row(undefined)] } });
+    expect(unsaid.content).toContain('report.0.seen: say where the template has it');
+    // Thought up, not found: the template has no search box and no card payment (seen 2026-11-26, on a shop with filter buttons and a plain order form).
+    const made = await useSite({ attachment: site, plan: { report: [row('Search products'), { ...row('feature-9'), id: 'pay', label: 'Card or PayPal payment' }] } });
+    expect(made.isError).toBe(true);
+    expect(made.content).toContain('"search": the template does not have "Search products". In "seen" give an id from what was found, or a few words exactly as a page has them; if the template does not have this, take the row out.');
+    expect(made.content).toContain('"pay": the template does not have "feature-9".');
+    expect(asked).toEqual([]);
+    // Found: an id the server gave, words of a page (whatever their case or spacing), a placeholder in the markup.
+    for (const seen of ['form-1', 'block-1', 'link-1', 'modern   INTERIOR', 'Your email', 'Learn more']) {
+      answers.push({ type: 'template-plan', tables: [], decisions: {}, links: {}, takeOutEmpty: true, added: [], changes: 'not yet' });
+      const fine = await useSite({ attachment: site, plan: { report: [row(seen)] } });
+      expect(fine.isError, `${seen}: ${fine.content}`).toBeUndefined();
+    }
+  });
+
+  it('finds what a row saw in a page’s text, its markup and its comments, with entities and quotes read as a person reads them', () => {
+    const pages = [{ html: '<!-- Please add a loyalty points scheme --><p>Tea &amp; cake, &#8220;fresh&#8221; daily</p><input placeholder="Search the shop…"><a class="pay-with-paypal">Pay</a>' }];
+    const ids = new Set(['feature-1']);
+    for (const seen of ['feature-1', 'Tea & cake', '"fresh" daily', 'loyalty points scheme', 'Search the shop...', 'search the shop…', 'pay-with-paypal']) expect(seenInSite(seen, ids, pages), seen).toBe(true);
+    for (const seen of ['feature-2', 'Card or PayPal payment', 'Search products', 'ab', '   ']) expect(seenInSite(seen, ids, pages), seen).toBe(false);
+  });
+
+  it('is told, with what was found, what the server did not find, as the server’s own word outside the template’s data', async () => {
+    const first = await useSite({ attachment: site });
+    const line = 'The server found none of these in the template: a card payment, a sign-in with a password, a search box, a chat widget, analytics, a video, a map. Leave them out of the plan, unless you read one in a page yourself and can give its words in "seen".';
+    expect(first.content).toContain(line);
+    // After the fence that holds the template's own words, never inside it.
+    expect(first.content.indexOf(line)).toBeGreaterThan(first.content.lastIndexOf('```'));
+    // Said only of what is missing: a template with a search box and a password field is not told it has none.
+    const facts = { pages: [], blocks: [], forms: [{ id: 'form-1', page: 'a.html', purpose: 'search' as const, method: 'get' as const, action: null, fields: [] }], cart: null, features: [{ id: 'feature-1', kind: 'password' as const, pages: ['a.html'], detail: 'password field' }], links: [] };
+    expect(notFoundLine(facts)).toBe('The server found none of these in the template: a card payment, a chat widget, analytics, a video, a map. Leave them out of the plan, unless you read one in a page yourself and can give its words in "seen".');
+  });
+
+  it('writes the template’s checkout as an order with its lines, and lets no page send a price or a total', async () => {
+    // Seen 2026-11-27: "Place an order → orders: customer_name, …, items, total", one flat row with the total written by the stranger's page.
+    const field = (name: string, label: string): string => `<label>${label} <input name="${name}" required></label>`;
+    const checkout = `<form method="post" action="#">${field('name', 'Full name')}${field('email', 'Email')}${field('address', 'Delivery address')}${field('postcode', 'Postcode')}<button>Place order</button></form>`;
+    const shop = attachments.addSite(session.id, {
+      label: 'pots',
+      judged: await judgeSite('pots.zip', [
+        at('index.html', `${HEAD('Pots')}<body><h1>Pots</h1><a href="cart.html">Basket</a></body></html>`),
+        at('cart.html', `${HEAD('Your basket')}<body><h1>Your basket</h1>${checkout}</body></html>`),
+        // The same fields on a page that is no basket: a form the finder also calls a checkout, and no order.
+        at('visit.html', `${HEAD('Visit us')}<body><h1>Book a visit</h1>${checkout}</body></html>`),
+      ]),
+    }).attachment.id;
+    make();
+    const facts = (await useSite({ attachment: shop })).content;
+    const basket = /\b(form-\d+) on cart\.html: checkout/.exec(facts)?.[1] as string;
+    const visit = /\b(form-\d+) on visit\.html: checkout/.exec(facts)?.[1] as string;
+    expect(basket).toBeDefined();
+    expect(visit).toBeDefined();
+    const order = { form: basket, label: 'Place an order', table: 'orders', writable: ['name', 'email', 'address', 'postcode'] };
+    const flat = await useSite({ attachment: shop, plan: { forms: [{ ...order, writable: [...order.writable, 'items', 'total'] }] } });
+    expect(flat.isError).toBe(true);
+    expect(flat.content).toContain(`"${basket}" is the template's checkout: an order is written with its lines. Give "lines" (the table of its lines) and "linesWritable" (the product and the quantity of a line).`);
+    expect(flat.content).toContain(`"${basket}": a customer's page never sends "total". The server works a price or a total out (each line copies its price from the product): take it out of what is writable.`);
+    // Lines that send a price, or nothing at all, are no lines.
+    const priced = await useSite({ attachment: shop, plan: { forms: [{ ...order, lines: 'order_lines', linesWritable: ['product', 'quantity', 'unit_price', 'line_total', 'tax_amount'] }] } });
+    expect(priced.content).toContain(`a customer's page never sends "unit_price", "line_total", "tax_amount".`);
+    const empty = await useSite({ attachment: shop, plan: { forms: [{ ...order, lines: 'order_lines' }] } });
+    expect(empty.content).toContain(`"${basket}": "linesWritable" names what a line sends (the product and the quantity). With none, no line could be written.`);
+    expect(asked).toEqual([]);
+    // As the guide asks: the order, its lines, the product and the quantity. A form that is no basket's is left alone,
+    // whatever the finder called it; so are names that only look like sums.
+    const later = { type: 'template-plan' as const, tables: [], decisions: {}, links: {}, takeOutEmpty: true, added: [], changes: 'not yet' };
+    answers.push(later);
+    const sound = await useSite({
+      attachment: shop,
+      plan: { forms: [{ ...order, lines: 'order_lines', linesWritable: ['product', 'quantity'] }, { form: visit, label: 'Book a visit', table: 'visits', writable: ['name', 'email', 'address', 'total_guests', 'discount_code', 'amount', 'donation_amount', 'vat_number', 'price_range'] }] },
+    });
+    expect(sound.isError, sound.content).toBeUndefined();
+    expect(asked).toHaveLength(1);
+    // Said once, never a wall: a form on the basket page that sells no basket (one thing, a gift) goes to the person the second time.
+    answers.push(later);
+    const again = await useSite({ attachment: shop, plan: { forms: [order] } });
+    expect(again.isError, again.content).toBeUndefined();
+    expect(asked).toHaveLength(2);
+    // And still no price from the page, however often it is sent.
+    expect((await useSite({ attachment: shop, plan: { forms: [{ ...order, writable: [...order.writable, 'total'] }] } })).content).toContain('never sends "total"');
+  });
+
+  it('is guided to call the template’s own rows the template’s, and to report only what is there', () => {
+    // The model called a slider's three reviews "made up" and listed a payment and a search the template never had.
+    expect(PLAN_GUIDE).toContain('"fromTemplate" (one sample row for each one the template shows, filler included: with a block id, or without one when its words are on a page, as the three reviews of a slider are)');
+    expect(PLAN_GUIDE).toContain('"madeUp" (only rows the template has no words for at all, which you would invent; the template\'s own testimonials, team or prices are never made up)');
+    expect(PLAN_GUIDE).toContain('"report": only what the template has');
+    expect(PLAN_GUIDE).toContain('Never report what a site of this kind usually has: a checkout form with no payment fields has no payment to decide, and filter buttons are not a search.');
+    expect(PLAN_GUIDE).not.toContain('The usual ones');
+    // A working basket was reported "not available", with Replace picked (seen 2026-11-27).
+    expect(PLAN_GUIDE).toContain('a basket kept in the browser (works: the screens keep it, and its checkout is the order)');
+    expect(PLAN_GUIDE).not.toContain('rows you would invent: testimonials');
   });
 
   it('is asked on one card with the server’s own counts and what the project needs added, and its changes approve nothing', async () => {
@@ -292,7 +391,39 @@ describe('the plan', () => {
     answers.push(approve());
     await useSite({ attachment: other, plan: { report: [] } });
     expect(asked.at(-1)?.type).toBe('template-plan');
-    expect(readTemplatePlan(root, 'repairs')?.site.name).toBe('corner-cafe');
+    // An empty plan never takes the place of one with something on it: the app is still built by the first, and the
+    // second is kept beside it, so it is not asked again (seen 2026-11-26: an empty plan replaced the approved one).
+    const kept = readTemplatePlan(root, 'repairs');
+    expect(kept?.site.name).toBe('furni');
+    expect(kept?.plan.tables).toHaveLength(2);
+    expect(kept?.others?.map((entry) => entry.site.name)).toEqual(['corner-cafe']);
+    asked = [];
+    expect((await useSite({ attachment: other })).isError).toBeUndefined();
+    expect(asked).toEqual([]);
+  });
+
+  it('keeps what an earlier plan approved when another template’s plan becomes the one the app is built by', async () => {
+    answers.push(approve());
+    await useSite({ attachment: site, plan: PLAN });
+    const other = attachments.addSite(session.id, { label: 'corner-cafe', judged: await judgeSite('corner-cafe.zip', [at('index.html', `${HEAD('Cafe')}<body><h1>Cafe</h1></body></html>`)]) }).attachment.id;
+    make();
+    answers.push((request) => ({ ...(approve()(request) as TemplatePlanAnswer), links: {} }));
+    await useSite({ attachment: other, plan: { tables: [{ table: 'dishes', label: 'Dishes', columns: [{ column: 'name', label: 'name' }], madeUp: 2, publicRead: ['name'] }], roles: [{ role: 'staff', tables: ['dishes'] }] } });
+    const kept = readTemplatePlan(root, 'repairs') as TemplatePlanFile;
+    expect(kept.site.name).toBe('corner-cafe');
+    expect(kept.others?.map((entry) => entry.site.name)).toEqual(['furni']);
+    // The check before going live reads every plan the person approved: nothing of the first is "not on the plan".
+    const all = approvedAll(kept);
+    expect(all.access.map((entry) => `${entry.table}:${entry.methods.join()}`)).toEqual(['dishes:GET', 'products:GET', 'subscribers:POST']);
+    expect(all.roles).toEqual([{ role: 'staff', tables: ['dishes', 'products', 'subscribers'] }]);
+    // The first template again, with a narrower answer, replaces its own plan whole: its old yes does not outlive it.
+    answers.push(approve({ tables: [] }));
+    expect(planFor(root, 'repairs', kept.others?.[0]?.site.sha256 ?? '', 'customer')?.site.name).toBe('furni');
+    writeTemplatePlan(root, 'repairs', { ...kept, others: [] });
+    await useSite({ attachment: site, plan: PLAN });
+    const again = readTemplatePlan(root, 'repairs') as TemplatePlanFile;
+    expect(again.site.name).toBe('furni');
+    expect(approvedAll(again).access.map((entry) => `${entry.table}:${entry.methods.join()}`)).toEqual(['subscribers:POST', 'dishes:GET']);
   });
 
   it('waits for the side: approved first, then add_side asks nothing more, then the template comes in', async () => {
@@ -434,7 +565,9 @@ describe.skipIf(!canBuildSides)('the side the template became', () => {
     expect(assets.some((file) => /^chair-[A-Z0-9]+\.png$/.test(file))).toBe(true);
     // Of the template's pages: no colour, font, inline-style or class finding (a template side keeps its own look).
     const issues = (await designIssues(root, 'repairs')).filter((issue) => /customer\/src\/pages\//.test(issue.line));
-    expect(issues.map((issue) => issue.line)).toEqual([]);
+    expect(issues.filter((issue) => issue.kind !== 'names').map((issue) => issue.line)).toEqual([]);
+    // What is no matter of look is still said: the template's own newsletter box has a placeholder and no name.
+    expect(issues.filter((issue) => issue.kind === 'names').map((issue) => issue.line)).toEqual([expect.stringContaining('pages/index.tsx: the field <input type="email" name="email"> has no name a screen reader can say')]);
     // A class the model adds later is still checked.
     writeFileSync(side('pages/shop.tsx'), `${readFileSync(side('pages/shop.tsx'), 'utf8').replace('className={"row"}', 'className={"row my-new-grid"}')}`);
     expect((await designIssues(root, 'repairs')).map((issue) => issue.line).join('\n')).toContain('"my-new-grid"');
@@ -518,6 +651,254 @@ describe('a page too deep or too wide to convert in one go', () => {
     expect(existsSync(side('pages/index.tsx'))).toBe(true);
     // Refused for its size, as a page too large is, not lost to a stack that ran out.
     expect(done.content).toMatch(/Not made into screens: wide\.html[^;]*256/);
+  });
+});
+
+describe('the name of an app made from a template', () => {
+  const TITLES = ['Fernhill Ceramics — Handmade stoneware from the Peak Distri…', 'Your basket — Fernhill Ceramics', 'Visit & contact — Fernhill Ceramics', 'Speckled Mug — Fernhill Ceramics', 'Shop — Fernhill Ceramics'];
+
+  it('is the business its pages’ titles agree on, or nothing when they agree on none', () => {
+    expect(nameInTitles(TITLES)).toBe('Fernhill Ceramics');
+    expect(nameInTitles(['Home | Shopwise', 'Shop | Shopwise', 'About us'])).toBe('Shopwise');
+    // One page, or titles with no word in common, name no business for certain.
+    expect(nameInTitles(['Fernhill Ceramics — Handmade stoneware'])).toBeNull();
+    expect(nameInTitles(['Home', 'Shop', 'Contact'])).toBeNull();
+    expect(nameInTitles([])).toBeNull();
+    expect(titleOf('<html><head><TITLE>Tea &amp; Cake &#8212; <b>Harbor</b></TITLE></head>')).toBe('Tea & Cake — Harbor');
+    expect(titleOf('<html><head></head><body><title>too late</title>'.padStart(20_000, ' '))).toBeNull();
+  });
+
+  it('fits when it is that business’s name, or one the person wrote, and never by one shared word or the request’s own words', () => {
+    // The name, a short form of it, or the name with a word more.
+    expect(nameFits('Fernhill Ceramics', 'Fernhill Ceramics', '')).toBe(true);
+    expect(nameFits('fernhill', 'Fernhill Ceramics', 'Make an app from it.')).toBe(true);
+    expect(nameFits('Fernhill Ceramics Shop', 'Fernhill Ceramics', '')).toBe(true);
+    // Half the business's and half the model's own (seen 2026-11-27: "Fernhill Pottery").
+    expect(nameFits('Fernhill Pottery', 'Fernhill Ceramics', 'Make an app from it.')).toBe(false);
+    expect(nameFits('Ceramics Shop', 'Fernhill Ceramics', '')).toBe(false);
+    expect(nameFits('Site Studio', 'Fernhill Ceramics', 'Make an app from it.')).toBe(false);
+    expect(nameFits('Site App', 'Fernhill Ceramics', 'Make an app from this site template.')).toBe(false);
+    expect(nameFits('Anna Flowers', 'Shopwise', 'A shop for Anna’s flowers from this template.')).toBe(true);
+  });
+
+  it('is not taken at once when it has nothing to do with the template: the titles are handed over once, as data, and the next name is taken', async () => {
+    const named: string[] = [];
+    const said = { text: 'Make an app from it.', note: '' };
+    const mine = createDesignerTools(
+      {
+        root,
+        version: APP_VERSION,
+        designer: () =>
+          ({
+            store: { messages: () => [{ turn: 1, message: { role: 'user', content: [{ type: 'text', text: said.text }, ...(said.note === '' ? [] : [{ type: 'text', text: said.note }])] } }] },
+            needsName: () => true,
+            nameApp: async (_id: string, name: string) => {
+              named.push(name);
+              return { key: name.toLowerCase().replace(/\s+/g, '-'), name };
+            },
+          }) as never,
+        skills: createSkills(),
+        listAddOns: async () => [],
+        attachments,
+      },
+      'repairs',
+      session.id,
+    );
+    const nameApp = (name: string, id = session.id) => (mine.find((tool) => tool.name === 'name_app') as DesignerTool).run({ name }, { ...context(), session: { ...session, id } as DesignerSession });
+    // The furni template's four pages are titled Furni, Shop, About, About too: they agree on no name, so nothing is said.
+    expect((await nameApp('Site Studio')).label).toBe('Named the app Site Studio');
+    // A template whose pages all name the business.
+    const other = 'ds_000000000000000000000001';
+    attachments.addSite(other, { label: 'fernhill', judged: await judgeSite('fernhill.zip', TITLES.map((title, n) => at(n === 0 ? 'index.html' : `p${String(n)}.html`, `<!doctype html><html><head><title>${title.replace(/&/g, '&amp;')}</title></head><body><p>x</p></body></html>`))) });
+    named.length = 0;
+    const told = await nameApp('Site Studio', other);
+    expect(told.isError).toBeUndefined();
+    expect(told.label).toBe('Read the template\'s own name first');
+    expect(told.facts).toEqual({ outcome: 'declined' });
+    expect(named).toEqual([]);
+    // The titles are the template's words: fenced as data, and the instruction is the server's own, outside the fence.
+    expect(told.content).toContain('Your basket — Fernhill Ceramics');
+    expect(told.content.indexOf('Your basket — Fernhill Ceramics')).toBeLessThan(told.content.lastIndexOf('```'));
+    expect(told.content).toContain('Call name_app again: with that business\'s name, or with "Site Studio" once more if the person asked for that very name.');
+    // The next name is taken, whatever it is: said once, never a wall.
+    expect((await nameApp('Site Studio', other)).label).toBe('Named the app Site Studio');
+    expect(named).toEqual(['Site Studio']);
+    // The server's own note about the attached file is not the person's words: "customer" in it makes no name theirs.
+    const fourth = 'ds_000000000000000000000003';
+    attachments.addSite(fourth, { label: 'fernhill', judged: await judgeSite('fernhill.zip', TITLES.map((title, n) => at(n === 0 ? 'index.html' : `p${String(n)}.html`, `<!doctype html><html><head><title>${title.replace(/&/g, '&amp;')}</title></head><body><p>x</p></body></html>`))) });
+    said.note = '\n\nAttached: a site template (fernhill). Its pages become the customer side of an app.';
+    expect((await nameApp('Customer Portal', fourth)).label).toBe('Read the template\'s own name first');
+    said.note = '';
+    // A name of the business, or one the person asked for, is taken at once.
+    const third = 'ds_000000000000000000000002';
+    attachments.addSite(third, { label: 'fernhill', judged: await judgeSite('fernhill.zip', TITLES.map((title, n) => at(n === 0 ? 'index.html' : `p${String(n)}.html`, `<!doctype html><html><head><title>${title.replace(/&/g, '&amp;')}</title></head><body><p>y</p></body></html>`))) });
+    expect((await nameApp('Fernhill Ceramics', third)).label).toBe('Named the app Fernhill Ceramics');
+  });
+});
+
+describe('the plan before the app, in a session that holds a template', () => {
+  // A new app this session made, never applied: the furni zip is attached, no plan is approved.
+  const fresh = { ...session, createdApp: true, version: null } as DesignerSession;
+  const TABLE = JSON.stringify({ ref: 'products', columns: [{ ref: 'name', type: 'text' }] });
+  const NOT_YET = 'Not yet: this session holds a site template, and its plan comes first.\nThe person has not approved a plan for it.';
+  let transcript: { turn: number; message: { role: string; content: Record<string, unknown>[] } }[];
+  const mine = (): DesignerTool[] =>
+    createDesignerTools(
+      { root, version: APP_VERSION, designer: () => ({ store: { messages: () => transcript } }) as never, skills: createSkills(), listAddOns: async () => [], attachments, windowOf: async () => window },
+      'repairs',
+      session.id,
+    );
+  const call = (name: string, input: Record<string, unknown>, as: DesignerSession = fresh) => (mine().find((tool) => tool.name === name) as DesignerTool).run(input, { ...context(), session: as });
+  beforeEach(() => {
+    transcript = [];
+  });
+
+  it('is asked for first: the app’s tables, access and sample rows, and its side, are not written before it', async () => {
+    // Seen 2026-11-27: the side added (its card asking for packages a template's side never uses), 11 files written, and only then the plan.
+    const before = readFileSync(app('manifest/tables/items.json'), 'utf8');
+    for (const [name, input] of [
+      ['write_file', { path: 'apps/repairs/manifest/tables/products.json', content: TABLE }],
+      ['write_file', { path: 'apps/repairs/seeds/sample.json', content: '{}' }],
+      ['edit_file', { path: 'apps/repairs/manifest/tables/items.json', old: '"items"', new: '"things"' }],
+      ['add_side', { side: 'staff' }],
+    ] as const) {
+      const said = await call(name, input);
+      // Every call of the reply gets the same answer: none of a batch is half written.
+      expect(said.isError, `${name}: ${said.content}`).toBe(true);
+      expect(said.content).toContain(NOT_YET);
+      expect(said.content).toContain('call use_site with the attachment');
+    }
+    expect(existsSync(app('manifest/tables/products.json'))).toBe(false);
+    expect(readFileSync(app('manifest/tables/items.json'), 'utf8')).toBe(before);
+    expect(existsSync(app('staff'))).toBe(false);
+    expect(asked).toEqual([]);
+    // The app's own screens and its brief are not the plan's to hold.
+    expect((await call('write_file', { path: 'apps/repairs/design.md', content: 'A brief of eighty characters or more, for the test to have something to write down.' })).isError).toBeUndefined();
+  });
+
+  it('is said in one reply and never a wall: from the next reply on the same calls are taken', async () => {
+    const said = await call('write_file', { path: 'apps/repairs/manifest/tables/products.json', content: TABLE });
+    expect(said.isError).toBe(true);
+    // The reply's answers are in the transcript now: the person may have asked for something the template has no part in.
+    transcript = [
+      { turn: 1, message: { role: 'assistant', content: [{ type: 'tool_call', id: 'c1', name: 'write_file', input: {} }] } },
+      { turn: 1, message: { role: 'user', content: [{ type: 'tool_result', callId: 'c1', content: said.content, isError: true }] } },
+    ];
+    expect((await call('write_file', { path: 'apps/repairs/manifest/tables/products.json', content: TABLE })).isError).toBeUndefined();
+    expect(existsSync(app('manifest/tables/products.json'))).toBe(true);
+  });
+
+  it('is not said once use_site was answered, with a plan kept, for an app that was applied, or with no template to plan', async () => {
+    const write = (as?: DesignerSession) => call('write_file', { path: 'apps/repairs/manifest/tables/products.json', content: TABLE }, as);
+    // use_site answered (the plan was proposed, sent back, or this model cannot build from a template): the model knows.
+    transcript = [
+      { turn: 1, message: { role: 'assistant', content: [{ type: 'tool_call', id: 'u1', name: 'use_site', input: {} }] } },
+      { turn: 1, message: { role: 'user', content: [{ type: 'tool_result', callId: 'u1', content: 'What the template holds…' }] } },
+    ];
+    expect((await write()).isError).toBeUndefined();
+    // A use_site call of this very reply, not answered yet, is no answer: the writes beside it are still held.
+    transcript = [{ turn: 1, message: { role: 'assistant', content: [{ type: 'tool_call', id: 'u1', name: 'use_site', input: {} }] } }];
+    expect((await write()).isError).toBe(true);
+    transcript = [];
+    // An app that was there before, or was applied: what it lets strangers do is asked by the card before it goes live.
+    expect((await write({ ...fresh, createdApp: false } as DesignerSession)).isError).toBeUndefined();
+    expect((await write({ ...fresh, version: 2 } as DesignerSession)).isError).toBeUndefined();
+    // A plan is kept.
+    rmSync(app('manifest/tables/products.json'), { force: true });
+    answers.push(approve());
+    await useSite({ attachment: site, plan: PLAN });
+    expect((await write()).isError).toBeUndefined();
+  });
+
+  it('is not said of a page attached by itself, which may be a sketch for something else', async () => {
+    rmSync(join(root, '.adminium'), { recursive: true, force: true });
+    attachments = createAttachments(root);
+    attachments.add(session.id, { filename: 'sketch.html', bytes: Buffer.from('<!doctype html><html><head><title>Sketch</title></head><body><h1>Like this</h1></body></html>') });
+    expect((await call('write_file', { path: 'apps/repairs/manifest/tables/products.json', content: TABLE })).isError).toBeUndefined();
+  });
+});
+
+describe('a page and its stylesheet, attached one by one', () => {
+  const PAGE = `<!doctype html><html lang="en"><head><title>Fernhill</title><link rel="stylesheet" href="css/style.css"></head><body><h1 class="hero">Pots</h1><form><input type="email" name="email" required><button>Join</button></form></body></html>`;
+  let page: string;
+  let sheet: string;
+  beforeEach(() => {
+    attachments = createAttachments(root);
+    page = attachments.add(session.id, { filename: 'index.html', bytes: Buffer.from(PAGE) }).id;
+    sheet = attachments.add(session.id, { filename: 'style.css', bytes: Buffer.from('.hero{color:teal}') }).id;
+    make();
+  });
+
+  it('are one template with one plan: the stylesheet is never a template of its own', async () => {
+    // Called with the stylesheet, it speaks of the page's template: one page, not none.
+    const first = await useSite({ attachment: sheet });
+    expect(first.content).toContain('form-1 on index.html');
+    answers.push(approve({ links: {} }));
+    await useSite({ attachment: page, plan: { forms: [{ form: 'form-1', label: 'Newsletter', table: 'subscribers', writable: ['email'] }] } });
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).toMatchObject({ type: 'template-plan', site: { name: 'index', pages: 1, files: 2 } });
+    // The stylesheet goes where the page names it, and comes in with the page.
+    expect(readFileSync(side('site/css/style.css'), 'utf8')).toContain('.hero');
+    expect(readFileSync(side('site/index.css'), 'utf8')).toContain('"./css/style.css"');
+    // With the stylesheet again: no second card, no second plan, the same template.
+    asked = [];
+    const again = await useSite({ attachment: sheet });
+    expect(again.isError, again.content).toBeUndefined();
+    expect(asked).toEqual([]);
+    const kept = readTemplatePlan(root, 'repairs');
+    expect(kept?.plan.forms).toHaveLength(1);
+    expect(kept?.others).toBeUndefined();
+  });
+
+  it('says in the message that they are one template, by counts and never by a name', () => {
+    const note = attachmentNote(attachments, session.id, [page, sheet]);
+    expect(note).toContain('The pages and stylesheets attached to this session are one template: that one call brings them all in, by one plan.');
+    expect(note).toContain('call use_site once, with the page, and this stylesheet comes in with it. Never call use_site with the stylesheet by itself.');
+    for (const word of ['style.css', 'index.html', 'Fernhill']) expect(note).not.toContain(word);
+  });
+});
+
+describe('a stylesheet by itself', () => {
+  it('is brought in with no plan asked and none written', async () => {
+    attachments = createAttachments(root);
+    const sheet = attachments.add(session.id, { filename: 'look.css', bytes: Buffer.from('.badge{color:teal}') }).id;
+    make();
+    const done = await useSite({ attachment: sheet });
+    expect(done.isError, done.content).toBeUndefined();
+    expect(asked).toEqual([]);
+    expect(existsSync(app('template-plan.json'))).toBe(false);
+    expect(done.content).toContain('Nothing was planned or asked');
+    expect(readFileSync(side('site/look.css'), 'utf8')).toContain('.badge');
+    expect(readFileSync(side('site/index.css'), 'utf8')).toContain('"./look.css"');
+  });
+
+  it('comes in beside the template a side already follows: its files, screens, plan and class names stay', async () => {
+    answers.push(approve());
+    await useSite({ attachment: site, plan: PLAN });
+    const before = { written: JSON.parse(readFileSync(side('site/.written.json'), 'utf8')) as Record<string, string>, classes: readFileSync(side('site/.classes.json'), 'utf8'), spots: readFileSync(side('site/.spots.json'), 'utf8') };
+    const sheet = attachments.add(session.id, { filename: 'extra.css', bytes: Buffer.from('.badge{color:teal}') }).id;
+    make();
+    asked = [];
+    const done = await useSite({ attachment: sheet });
+    expect(done.isError, done.content).toBeUndefined();
+    expect(asked).toEqual([]);
+    expect(readTemplatePlan(root, 'repairs')?.site.name).toBe('furni');
+    expect(readTemplatePlan(root, 'repairs')?.others).toBeUndefined();
+    // The template's own files and screens are where they were, and the new stylesheet loads after them.
+    for (const kept of ['site/css/style.css', 'site/images/chair.png', 'pages/index.tsx', 'pages/shop.tsx']) expect(existsSync(side(kept)), kept).toBe(true);
+    const index = readFileSync(side('site/index.css'), 'utf8');
+    expect(index.indexOf('"./css/style.css"')).toBeGreaterThan(-1);
+    expect(index.indexOf('"./extra.css"')).toBeGreaterThan(index.indexOf('"./css/style.css"'));
+    const after = JSON.parse(readFileSync(side('site/.written.json'), 'utf8')) as Record<string, string>;
+    expect(after['.template']).toBe(before.written['.template']);
+    expect(after['pages/index.tsx']).toBe(before.written['pages/index.tsx']);
+    expect(after['site/extra.css']).toBeDefined();
+    expect(readFileSync(side('site/.classes.json'), 'utf8')).toBe(before.classes);
+    expect(readFileSync(side('site/.spots.json'), 'utf8')).toBe(before.spots);
+    // The template again finds its own copy, and asks nothing.
+    const again = await useSite({ attachment: site });
+    expect(again.isError, again.content).toBeUndefined();
+    expect(asked).toEqual([]);
   });
 });
 

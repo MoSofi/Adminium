@@ -11,13 +11,18 @@ its children, a quote first, a price check and a retry key, all as
   kept or sent by the page: each line copies its price from the product, and the order adds them
   up.
 - The cart and checkout pages show the quote's figures in the template's markup: each line's
-  amount, the subtotal, the total. A quote fills in the columns the guest has not typed yet;
+  amount, the subtotal, the total. A total is what the lines listed add up to. Delivery, tax or a
+  discount is a figure of its own, named beside it, and a total that takes one in says so
+  ("Total, with £6 delivery"): a total that is more than its lines, with nothing to say why, reads
+  as a mistake. A quote fills in the columns the guest has not typed yet;
   older versions fill only text, not a choice, so send a value for a required choice column (the
   country) with the quote.
 - On some databases a money figure comes back as a number (`50`), on others as a string
   (`"50.00"`). Read either, and format it with `formatTenantMoney` and the venue's currency.
-- "Place order" sends the order with `expect` set to the total the guest was shown and the cart's
-  retry key, then empties the cart and opens the thank-you page with the order's number.
+- "Place order" sends the order and its lines in one write, `client.createTree`, with `expect` set
+  to the total the guest was shown and the cart's retry key, then empties the cart and opens the
+  thank-you page with the order's number. `client.create` sends the order alone, and an entry that
+  asks for at least one line refuses it.
 - The template's ways to pay are a choice column on the order. Only the ones the shop takes without
   a card (a bank transfer, a cheque, paying on delivery) are in the entry's `writableValues`.
 

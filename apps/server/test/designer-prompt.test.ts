@@ -16,7 +16,7 @@ import { ASSISTANT_INPUT_TOKEN_LIMIT, estimateTokens, type RunMessage } from '@a
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createDesignerTools } from '../src/designer/tools.js';
-import { ADDRESSES, appNow, asksOnlyForPhoneApp, createPrompt, toolTokens, MENTIONS_ADD_ON, MENTIONS_OWN_ROW, MENTIONS_PHONE_APP, MENTIONS_SCREENS, OWN_ROW_GUIDE, skillsFor, taskGuides, trimTranscript, WANTS_OWN_PICTURES } from '../src/designer/prompt.js';
+import { ADDRESSES, appNow, asksOnlyForPhoneApp, createPrompt, toolTokens, MENTIONS_ADD_ON, MENTIONS_OWN_ROW, MENTIONS_PHONE_APP, MENTIONS_SCREENS, OWN_ROW_GUIDE, skillsFor, taskGuides, trimTranscript, WANTS_NO_SAMPLE_ROWS, WANTS_OWN_PICTURES } from '../src/designer/prompt.js';
 import { scaffoldApp } from '../src/project/apps/scaffold-app.js';
 import { emptyFirstPreview, placeholderScreens, unopenedTables, unreadPersonalColumns } from '../src/designer/service.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
@@ -403,6 +403,11 @@ describe('a screen that shows nothing', () => {
     const app = { kind: 'app', publicAccess: [{ table: 'cakes', methods: ['GET'] }, { table: 'orders', methods: ['POST'] }] };
     expect(emptyFirstPreview(app)).toEqual([expect.stringContaining('Customers read "cakes"')]);
     expect(emptyFirstPreview({ ...app, sampleData: { file: 'seeds/sample.json' } })).toEqual([]);
+    // The person asked for none: the empty page is theirs, and the model is not sent back to fill it (seen 2026-11-27).
+    expect(emptyFirstPreview(app, 'A cake shop. Add no sample rows yet: I will ask for them later.')).toEqual([]);
+    expect(emptyFirstPreview(app, 'A cake shop with a menu.')).toHaveLength(1);
+    // The words heard are English: in any other language the reminder itself leaves the choice to what the person asked.
+    expect(emptyFirstPreview(app, 'Eine Konditorei. Bitte noch keine Beispieldaten.')[0]).toContain('If the person asked for no sample rows, in whatever words or language, write none and tell them the page is empty until they add rows.');
     expect(emptyFirstPreview({ kind: 'app', publicAccess: [{ table: 'orders', methods: ['POST'] }] })).toEqual([]);
     expect(emptyFirstPreview(null)).toEqual([]);
   });
@@ -588,6 +593,26 @@ describe('a person who brings the pictures', () => {
     for (const said of ['A site for my bakery with nice pictures of the cakes.', 'Customers send a photo of the damage with the form.', 'I will give you the menu tomorrow.']) {
       expect(WANTS_OWN_PICTURES.test(said), said).toBe(false);
     }
+  });
+
+  it('hears a person who wants no sample rows, so the empty first page they asked for is not filled against their word', async () => {
+    // Seen 2026-11-27: "Add no sample rows yet: I will ask for them in a later step." and six services were seeded all the same.
+    for (const said of [
+      'A bike repair shop. Add no sample rows yet: I will ask for them in a later step.',
+      'Build it without any sample data, I import my own.',
+      "Don't add example rows.",
+      'Do not write demo content for now.',
+      'Please skip the dummy data.',
+      'Leave out the sample records.',
+    ]) {
+      expect(WANTS_NO_SAMPLE_ROWS.test(said), said).toBe(true);
+    }
+    for (const said of ['A bakery with a menu of cakes.', 'Add sample rows for the services.', 'No rows should be deleted when I import.', 'There is no data yet, so make some.', 'I have no sample data so make some up.', 'There is no demo content yet, please add some.', 'The shop has no test data, write a few rows.']) {
+      expect(WANTS_NO_SAMPLE_ROWS.test(said), said).toBe(false);
+    }
+    // The rule the model is given says so too.
+    const prompt = createPrompt({ root, version: APP_VERSION, skills: createSkills(), providerOf: async () => 'openai-compatible' });
+    expect((await prompt(session({ target: 'web' }), [say('user', 'A bakery.')])).system).toContain('unless the person asks for no sample rows, write 4 to 8 believable ones for each table customers read');
   });
 });
 

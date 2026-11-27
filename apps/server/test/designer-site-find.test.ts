@@ -130,6 +130,22 @@ describe('repeated blocks', () => {
     expect(block?.samples[0]).toEqual({ link: 'cart.html', picture: 'images/product-A.png', name: 'Nordic Chair', price: '$50.00', picture_2: 'images/cross.svg' });
   });
 
+  it('finds the reviews of a slider whose slides are a line of words and who said it', async () => {
+    // Seen 2026-11-26: read as one run of text, each slide was one field and the three were no block at all, so the
+    // plan had no rows "from the template" to count and a model called the template's own reviews "made up".
+    const slide = (words: string, who: string, active = false): string => `<p class="slide${active ? ' active' : ''}">"${words}"<cite>${who}</cite></p>`;
+    const facts = await findInSite([
+      { path: 'index.html', html: `<!doctype html><html><head><title>Pots</title></head><body><section><h2>What people say</h2><div class="slider">${slide('My morning coffee tastes better from this mug.', 'Ruth, Sheffield', true)}${slide('The teapot pours without a drip.', 'Graham, Bakewell')}${slide('We left with a car full of bowls.', 'Anna & Tom, Leeds')}<div class="dots"><button aria-label="Show review 1"></button><button aria-label="Show review 2"></button></div></div></section></body></html>` },
+    ]);
+    const reviews = blockOn(facts, 'author', 'Ruth, Sheffield');
+    expect(reviews).toMatchObject({ shape: 'p.slide', pages: ['index.html'], count: 3, filler: 0 });
+    expect(reviews?.fields).toEqual([
+      { name: 'quote', kind: 'text' },
+      { name: 'author', kind: 'text' },
+    ]);
+    expect(reviews?.samples[1]).toEqual({ quote: '"The teapot pours without a drip."', author: 'Graham, Bakewell' });
+  });
+
   it('finds testimonials and a team, with quotes, roles and star ratings', async () => {
     const facts = await findInSite(SITE);
     const quotes = blockOn(facts, 'name', 'Maria Jones');
