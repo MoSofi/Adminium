@@ -3648,7 +3648,17 @@ export default {
     "phoneBuild": "Aplikace pro telefon sestavená pro obchod potřebuje od tohoto serveru dvě věci: jeho adresu, jak se na ni telefon dostane, a klíč aplikace „aplikace pro telefon“.",
     "phoneKeys": "Otevřít klíče API",
     "customerNotAllowed": "Tyto stránky se otevřou, ale nemohou nic číst ani ukládat: veřejný přístup aplikace zatím nikdo nepovolil. Povolte ho na této stránce v části „Veřejný přístup“.",
-    "customerConfigDecides": "Tyto stránky se otevřou, ale nemohou nic číst ani ukládat: soubor adminium.config.ts tohoto serveru veřejný přístup aplikace nepovoluje. Nastavte v něm apps.{key}.publicAccess na true a server restartujte."
+    "customerConfigDecides": "Tyto stránky se otevřou, ale nemohou nic číst ani ukládat: soubor adminium.config.ts tohoto serveru veřejný přístup aplikace nepovoluje. Nastavte v něm apps.{key}.publicAccess na true a server restartujte.",
+    "customerTrouble": {
+      "title": "Zákazníci tuto aplikaci zatím nemohou používat",
+      "at": "Zákazníci, kteří otevřou {addresses}, uvidí chybu.",
+      "switchOn": "Zapnout veřejné API",
+      "switching": "Zapínání…",
+      "openApiKeys": "Otevřít klíče API",
+      "askAdmin": "Požádejte někoho, kdo na tomto serveru spravuje klíče API, aby ho zapnul.",
+      "notRegistered": "Přepínač je zapnutý, ale tento server byl spuštěn bez veřejného API, takže se zatím nic neposkytuje. Otevřete klíče API a podívejte se, co potřebuje.",
+      "switchedOn": "Veřejné API je zapnuté. Zákazníci teď mohou aplikaci používat."
+    }
   },
   "uninstall": {
     "files": "Soubory aplikace",

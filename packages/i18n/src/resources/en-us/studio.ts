@@ -3648,7 +3648,17 @@ export default {
     "phoneBuild": "A phone app built for a store needs two things from this server: its address as a phone reaches it, and the app’s “phone app” key.",
     "phoneKeys": "Open API keys",
     "customerNotAllowed": "These pages open, but they cannot read or save anything: nobody has allowed the app’s public access yet. Allow it under “Public access” on this page.",
-    "customerConfigDecides": "These pages open, but they cannot read or save anything: this server’s adminium.config.ts does not allow the app’s public access. Set apps.{key}.publicAccess to true there, and restart."
+    "customerConfigDecides": "These pages open, but they cannot read or save anything: this server’s adminium.config.ts does not allow the app’s public access. Set apps.{key}.publicAccess to true there, and restart.",
+    "customerTrouble": {
+      "title": "Customers cannot use this app yet",
+      "at": "Customers who open {addresses} see an error.",
+      "switchOn": "Switch on the public API",
+      "switching": "Switching on…",
+      "openApiKeys": "Open API keys",
+      "askAdmin": "Ask someone who manages API keys on this server to switch it on.",
+      "notRegistered": "The switch is on, but this server was started without a public API, so nothing is served yet. Open API keys to see what it needs.",
+      "switchedOn": "The public API is on. Customers can use this app now."
+    }
   },
   "uninstall": {
     "files": "The app’s files",

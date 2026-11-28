@@ -40,12 +40,18 @@ let sectionStaff: AppSection['staff'] | undefined;
 let removePlan: Record<string, unknown>;
 /** The app runs from the project folder. */
 let fromFolder: boolean;
+/** The system actions the session holds; undefined guesses them from the role. */
+let systemActions: string[] | undefined;
+/** What `PUT /public-api` answers. */
+let publicApiReply: Record<string, unknown>;
 
 beforeEach(async () => {
   await installTestI18n();
   calls = [];
   status = 'installed';
   fromFolder = false;
+  systemActions = undefined;
+  publicApiReply = { enabled: true, registered: true, origins: ['self'], docsEnabled: false };
   sectionStaff = undefined;
   sample = {
     offered: true,
@@ -112,6 +118,7 @@ function stubFetch() {
                 ],
               },
               roles: ['super-admin'],
+              ...(systemActions === undefined ? {} : { systemActions: systemActions as never }),
               ...(sectionStaff === undefined
                 ? {}
                 : { appSections: [{ appKey: 'pos', label: 'Point of Sale', version: '0.2.0', groups: [], staff: sectionStaff }] }),
@@ -215,6 +222,10 @@ function stubFetch() {
       if (url === '/api/v1/apps/pos/disable') return Promise.resolve(jsonResponse(200, { key: 'pos', status: 'disabled' }));
       if (url === '/api/v1/apps/pos/enable') return Promise.resolve(jsonResponse(200, { key: 'pos', status: 'installed' }));
       if (url === '/api/v1/apps/pos/domains') return Promise.resolve(jsonResponse(200, { domains: {} }));
+      if (url === '/api/v1/public-api' && method === 'PUT') {
+        if (publicApiReply.enabled === true) settings = { ...settings, publicAccess: { apiOn: true, granted: true } };
+        return Promise.resolve(jsonResponse(200, publicApiReply));
+      }
       if (url.startsWith('/api/v1/connections')) return Promise.resolve(jsonResponse(200, { connections: [] }));
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: url, requestId: 'r' } }));
     }),
@@ -266,6 +277,59 @@ describe('an app of the project folder whose customer side nobody has opened', (
     await renderPage();
     expect(screen.getByTestId('app-side-customer-trouble').textContent).toContain('Update the app and allow it');
     expect(screen.queryByTestId('app-folder-access')).toBeNull();
+  });
+});
+
+describe('an app whose customer screens are on and cannot answer', () => {
+  it('says so at the top of the page, names the customers’ address, and switches the public API on there', async () => {
+    settings = { ...settings, publicAccess: { apiOn: false, granted: true } };
+    await renderPage();
+    const notice = screen.getByTestId('app-customer-trouble');
+    expect(within(notice).getByText('Customers cannot use this app yet')).toBeTruthy();
+    expect(within(notice).getByText('Customers who open shop.example.test see an error.')).toBeTruthy();
+    expect(notice.textContent).toContain('the public API is switched off');
+    await userEvent.click(within(notice).getByRole('button', { name: 'Switch on the public API' }));
+    await waitFor(() => expect(sent('PUT', '/api/v1/public-api')[0]?.body).toEqual({ enabled: true }));
+    expect(await screen.findByText('The public API is on. Customers can use this app now.')).toBeTruthy();
+    await waitFor(() => expect(screen.queryByTestId('app-customer-trouble')).toBeNull());
+  });
+
+  it('says when the switch is on and the server has no public API at all', async () => {
+    settings = { ...settings, publicAccess: { apiOn: false, granted: true } };
+    publicApiReply = { enabled: false, registered: false, origins: [], docsEnabled: false };
+    await renderPage();
+    await userEvent.click(screen.getByRole('button', { name: 'Switch on the public API' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('started without a public API');
+  });
+
+  it('asks for someone who manages API keys, with no switch, for a reader who may not flip it', async () => {
+    settings = { ...settings, publicAccess: { apiOn: false, granted: true } };
+    // May manage apps, not API keys.
+    systemActions = ['manifests.manage'];
+    await renderPage();
+    const notice = screen.getByTestId('app-customer-trouble');
+    expect(notice.textContent).toContain('Ask someone who manages API keys');
+    expect(within(notice).queryByRole('button')).toBeNull();
+  });
+
+  it('names where the access is allowed, with no API switch, when the install has none', async () => {
+    settings = { ...settings, publicAccess: { apiOn: true, granted: false } };
+    await renderPage();
+    const notice = screen.getByTestId('app-customer-trouble');
+    expect(notice.textContent).toContain('Update the app and allow it');
+    expect(within(notice).queryByRole('button', { name: 'Switch on the public API' })).toBeNull();
+  });
+
+  it('says nothing while the customer screens are off', async () => {
+    settings = { ...settings, off: ['customer'], publicAccess: { apiOn: false, granted: true } };
+    await renderPage();
+    expect(screen.queryByTestId('app-customer-trouble')).toBeNull();
+  });
+
+  it('says nothing when the customer screens can answer', async () => {
+    settings = { ...settings, publicAccess: { apiOn: true, granted: true } };
+    await renderPage();
+    expect(screen.queryByTestId('app-customer-trouble')).toBeNull();
   });
 });
 

@@ -3638,7 +3638,17 @@
     "phoneBuild": "為應用程式商店建置的手機應用程式需要這台伺服器提供兩樣東西：手機連得到的伺服器位址，以及該應用程式的「手機應用程式」金鑰。",
     "phoneKeys": "開啟 API 金鑰",
     "customerNotAllowed": "這些頁面可以開啟，但無法讀取或儲存任何內容：尚未有人允許此應用程式的公開存取。請在本頁的「公開存取」下允許它。",
-    "customerConfigDecides": "這些頁面可以開啟，但無法讀取或儲存任何內容：此伺服器的 adminium.config.ts 不允許此應用程式的公開存取。請在其中將 apps.{key}.publicAccess 設為 true，然後重新啟動。"
+    "customerConfigDecides": "這些頁面可以開啟，但無法讀取或儲存任何內容：此伺服器的 adminium.config.ts 不允許此應用程式的公開存取。請在其中將 apps.{key}.publicAccess 設為 true，然後重新啟動。",
+    "customerTrouble": {
+      "title": "顧客暫時還不能使用此應用程式",
+      "at": "開啟 {addresses} 的顧客會看到錯誤。",
+      "switchOn": "開啟公開 API",
+      "switching": "正在開啟…",
+      "openApiKeys": "開啟 API 金鑰",
+      "askAdmin": "請此伺服器上管理 API 金鑰的人開啟它。",
+      "notRegistered": "開關已開啟，但此伺服器啟動時沒有公開 API，因此尚未提供任何內容。開啟 API 金鑰查看它需要什麼。",
+      "switchedOn": "公開 API 已開啟。顧客現在可以使用此應用程式了。"
+    }
   },
   "uninstall": {
     "files": "應用程式的檔案",
