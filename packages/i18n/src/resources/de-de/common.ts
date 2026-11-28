@@ -368,7 +368,8 @@ export default {
       "failedBody": "Die Liste wird nicht angezeigt, damit sie nicht mit der gefilterten verwechselt wird.",
       "showAll": "Ganze Liste anzeigen",
       "group": "Filter aus dem Link"
-    }
+    },
+    "settingsLoading": "Die Einstellungen werden geladen"
   },
   "mutation": {
     "created": "Datensatz erstellt",
@@ -1513,7 +1514,7 @@ export default {
     },
     "settings": {
       "title": "Einstellungen",
-      "description": "Gruppierte Einstellungszeilen mit Schaltern und Feldern."
+      "description": "Die Einstellungen eines Datensatzes, als Formular."
     },
     "directory": {
       "title": "Verzeichnis",

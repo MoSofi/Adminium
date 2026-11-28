@@ -2058,6 +2058,14 @@ export default {
         "boardColumnsSome": "{count, plural, one {# row is in none of the board’s columns, so it is not shown here.} other {# rows are in none of the board’s columns, so they are not shown here.}}",
         "scheduler": "None of this table’s rows has a person, a date and a shift type yet, so the schedule is empty. A row appears here as soon as it has all three."
       }
+    },
+    "settingsRecord": {
+      "save": "Save",
+      "loading": "Loading the settings",
+      "extraRows": "{count, plural, one {This table holds # more row. Only the first is edited here, and the other is not read as a setting.} other {This table holds # more rows. Only the first is edited here, and the others are not read as settings.}}",
+      "emptyTitle": "Nothing is set yet",
+      "emptyReadOnly": "Someone who may change these settings has to fill them in first.",
+      "empty": "Nothing is set yet. Fill these in and save."
     }
   },
   "pages": {

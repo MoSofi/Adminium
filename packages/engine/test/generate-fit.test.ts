@@ -105,7 +105,7 @@ const CTX = {
   navOrder: 1,
 };
 
-describe('templateFit — the generic half (all ten table-bound templates)', () => {
+describe('templateFit — the generic half (every table-bound template)', () => {
   it('agrees with composition on every table-bound template, table by table', () => {
     // The whole value of the report is that it PREDICTS the refusal. A report
     // that disagreed with the composer would send an operator down a repair
@@ -148,12 +148,17 @@ describe('templateFit — the generic half (all ten table-bound templates)', () 
   });
 
   it('reports a non-table-bound template as unbindable, not as unsatisfied', () => {
-    for (const template of ['page-dashboard', 'page-builder', 'page-wizard', 'page-settings']) {
+    for (const template of ['page-dashboard', 'page-builder', 'page-wizard']) {
       const fit = templateFit(MODEL, 'main.appointments', template);
       // `bindable: false` means "there is no requirement to state", which is a
       // different answer from "this table cannot back it".
       expect(fit).toMatchObject({ bindable: false, satisfied: false, unfilled: [], requirements: [] });
     }
+  });
+
+  it('fits a settings page to any table, as a records page', () => {
+    // The table drawn as one record: composed column by column, so no slot can go unfilled.
+    expect(templateFit(MODEL, 'main.appointments', 'page-settings')).toMatchObject({ bindable: true, satisfied: true, unfilled: [] });
   });
 
   it('explains an unknown table instead of throwing', () => {

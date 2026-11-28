@@ -349,7 +349,8 @@ export default {
       "failedBody": "The list is not shown, so it is not mistaken for the filtered one.",
       "showAll": "Show the whole list",
       "group": "Filters from the link"
-    }
+    },
+    "settingsLoading": "Loading the settings"
   },
   "mutation": {
     "created": "Record created",

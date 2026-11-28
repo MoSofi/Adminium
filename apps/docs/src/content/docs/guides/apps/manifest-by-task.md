@@ -202,11 +202,12 @@ One file per page, in `manifest/pages/`. A page is a `template` over one of the 
 }
 ```
 
-Ten templates read one table, named by `"bindings": { "rows": "<table ref>" }`: `page-crud` (a
+Eleven templates read one table, named by `"bindings": { "rows": "<table ref>" }`: `page-crud` (a
 list with a form), `page-board` (cards in columns, by a status), `page-calendar` (rows by a date),
 `page-scheduler` (a timeline), `page-directory` (people or places as cards), `page-master-detail`
 (a list beside the open record), `page-queue-inbox` (a queue to work through), `page-log-viewer`
-(a log), `page-files` and `page-chat`. `page-dashboard` reads several tables: it takes no
+(a log), `page-files`, `page-chat` and `page-settings` (the table as one record: its row's form
+with Save, for the app's settings; needs Adminium 0.3.80). `page-dashboard` reads several tables: it takes no
 `bindings`, and its cards are in `config.layout`.
 
 - **The ref is shared.** A page's `ref` is its address, `/p/<ref>`, and every app on the same

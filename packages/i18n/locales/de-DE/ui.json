@@ -2198,6 +2198,14 @@
         "boardColumnsSome": "{count, plural, one {# Zeile steht in keiner der Spalten des Boards und wird deshalb hier nicht angezeigt.} other {# Zeilen stehen in keiner der Spalten des Boards und werden deshalb hier nicht angezeigt.}}",
         "scheduler": "Noch keine Zeile dieser Tabelle hat eine Person, ein Datum und eine Schichtart, deshalb ist der Plan leer. Eine Zeile erscheint hier, sobald sie alle drei hat."
       }
+    },
+    "settingsRecord": {
+      "save": "Speichern",
+      "loading": "Die Einstellungen werden geladen",
+      "extraRows": "{count, plural, one {Diese Tabelle enthält # weitere Zeile. Nur die erste wird hier bearbeitet, die andere wird nicht als Einstellung gelesen.} other {Diese Tabelle enthält # weitere Zeilen. Nur die erste wird hier bearbeitet, die anderen werden nicht als Einstellungen gelesen.}}",
+      "emptyTitle": "Noch nichts eingestellt",
+      "emptyReadOnly": "Jemand, der diese Einstellungen ändern darf, muss sie zuerst ausfüllen.",
+      "empty": "Noch nichts eingestellt. Füllen Sie die Felder aus und speichern Sie."
     }
   },
   "frame": {

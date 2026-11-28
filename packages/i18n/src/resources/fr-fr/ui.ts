@@ -2208,6 +2208,14 @@ export default {
         "boardColumnsSome": "{count, plural, one {# ligne n’est dans aucune des colonnes du tableau ; elle n’est donc pas affichée ici.} other {# lignes ne sont dans aucune des colonnes du tableau ; elles ne sont donc pas affichées ici.}}",
         "scheduler": "Aucune ligne de cette table n’a encore de personne, de date et de type de poste, le planning est donc vide. Une ligne apparaît ici dès qu’elle a les trois."
       }
+    },
+    "settingsRecord": {
+      "save": "Enregistrer",
+      "loading": "Chargement des paramètres",
+      "extraRows": "{count, plural, one {Cette table contient # autre ligne. Seule la première est modifiée ici ; l’autre n’est pas lue comme un paramètre.} other {Cette table contient # autres lignes. Seule la première est modifiée ici ; les autres ne sont pas lues comme des paramètres.}}",
+      "emptyTitle": "Rien n’est encore réglé",
+      "emptyReadOnly": "Une personne qui peut modifier ces paramètres doit d’abord les remplir.",
+      "empty": "Rien n’est encore réglé. Remplissez ces champs et enregistrez."
     }
   },
   "frame": {

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
+  Alert,
   Button,
   ConfirmModal,
   Drawer,
@@ -26,7 +27,7 @@ import { RecordDetail } from './RecordDetail.js';
 import { parseRefList } from '../../page-config/file-refs.js';
 import type { FileFieldUpload } from './FileField.js';
 import type { PictureChooser } from '../../pictures/PictureField.js';
-import type { ChildFacts, StateMovesFact } from './RecordForm.js';
+import { RecordForm, type ChildFacts, type StateMovesFact } from './RecordForm.js';
 import { RecordFormDialog } from './RecordFormDialog.js';
 import { editableColumnsOf, editFormDocumentOf, readChildFacts, readRelations, useEditChildren, useEditLinks } from './edit-form.js';
 import {
@@ -127,6 +128,15 @@ export interface PageCrudGridState {
 
 export interface PageCrudProps {
   api: CrudApi;
+  /**
+   * THE TABLE AS ONE RECORD — a settings page (`page-settings` bound to a
+   * table). The page opens straight on its row's form, with Save, and has no
+   * list, search, New or Delete: a table of an app's settings holds one row,
+   * and a list of one row asked the person to find the record they came to
+   * edit. With no row yet, the form makes the first one. With more than one,
+   * it edits the first and says the others are not read.
+   */
+  oneRecord?: boolean | undefined;
   columns: readonly GridColumnSpec[];
   /** Page scope (envelope `source`) — events carry it. */
   source: { connectionId: string | null; table: string };
@@ -330,6 +340,7 @@ export function PageCrud(props: PageCrudProps) {
 
 function PageCrudPage({
   api,
+  oneRecord = false,
   columns,
   source,
   entityName,
@@ -753,6 +764,12 @@ function PageCrudPage({
   // A line-items field whose lines could not be read is left out: saved as no lines, it would remove them.
   const editChildFacts = useMemo(() => readChildFacts(childFacts, unreadChildren), [childFacts, unreadChildren]);
 
+  // One record: the row being edited is always the table's first, read again after each save.
+  const settingsRow = oneRecord ? (list.rows[0] ?? null) : null;
+  useEffect(() => {
+    if (oneRecord) setEditRecord(list.rows[0] ?? null);
+  }, [oneRecord, list.rows]);
+
   /**
    * The bar's own view of each filter: what it is called, and what it offers.
    *
@@ -1109,6 +1126,124 @@ function PageCrudPage({
     );
   };
 
+  if (oneRecord) {
+    const saveLabel = t('ui:templates.settingsRecord.save', 'Save');
+    const formId = 'page-settings-form';
+    const ready = settingsRow === null || (!editChildrenPending && !editLinkRead.pending);
+    return (
+      <div data-part="page-settings" data-testid={testId} className="flex min-h-0 flex-col gap-3">
+        {listError !== null ? (
+          <EmptyState
+            tone={listError.tone}
+            title={listError.title}
+            body={listError.body}
+            actions={
+              listError.retryable ? (
+                <Button size="sm" variant="secondary" onClick={refetch}>
+                  {t('ui:action.retry', 'Retry')}
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (list.loading && list.rows.length === 0) || !ready ? (
+          <div className="flex items-center justify-center py-16">
+            <Spinner label={t('ui:templates.settingsRecord.loading', 'Loading the settings')} />
+          </div>
+        ) : (
+          <section className="w-full max-w-[880px] rounded-lg border border-border bg-surface p-5 shadow-card">
+            {list.rows.length > 1 ? (
+              <Alert
+                tone="warn"
+                data-part="settings-extra-rows"
+                className="mb-4"
+                title={t(
+                  'ui:templates.settingsRecord.extraRows',
+                  '{count, plural, one {This table holds # more row. Only the first is edited here, and the other is not read as a setting.} other {This table holds # more rows. Only the first is edited here, and the others are not read as settings.}}',
+                  { count: list.rows.length - 1 },
+                )}
+              />
+            ) : null}
+            {settingsRow === null && !canCreate ? (
+              <EmptyState
+                title={t('ui:templates.settingsRecord.emptyTitle', 'Nothing is set yet')}
+                body={t('ui:templates.settingsRecord.emptyReadOnly', 'Someone who may change these settings has to fill them in first.')}
+              />
+            ) : settingsRow !== null && !canUpdate ? (
+              <RecordDetail api={api} columns={panelColumns} recordId={rowIdOf(columns, settingsRow)} cellContext={cellContext} />
+            ) : (
+              <>
+                {settingsRow === null ? (
+                  <p className="mb-4 text-sm text-fg-muted">
+                    {t('ui:templates.settingsRecord.empty', 'Nothing is set yet. Fill these in and save.')}
+                  </p>
+                ) : null}
+                {formAlert !== null ? (
+                  <p role="alert" className="mb-4 text-sm text-danger">
+                    {formAlert}
+                  </p>
+                ) : null}
+                <RecordForm
+                  // The form starts again from the row as saved, each time it is read back.
+                  key={settingsRow === null ? 'first' : JSON.stringify(settingsRow)}
+                  formId={formId}
+                  mode={settingsRow === null ? 'create' : 'edit'}
+                  {...(formDocument === null ? {} : { document: formDocument })}
+                  columns={editableColumns}
+                  {...(settingsRow === null
+                    ? {}
+                    : { initialValues: settingsRow, recordId: rowIdOf(columns, settingsRow), initialLinks: editLinks })}
+                  {...(stateMoves === undefined ? {} : { stateMoves })}
+                  {...(settingsRow === null
+                    ? formRelations === undefined
+                      ? {}
+                      : { relations: formRelations }
+                    : editRelations === undefined
+                      ? {}
+                      : { relations: editRelations })}
+                  {...(settingsRow === null
+                    ? childFacts === undefined
+                      ? {}
+                      : { childFacts }
+                    : editChildFacts === undefined
+                      ? {}
+                      : { childFacts: editChildFacts })}
+                  {...(settingsRow === null || editChildren === undefined ? {} : { initialChildren: editChildren })}
+                  errors={settingsRow === null ? createErrors : editErrors}
+                  {...(columnFacts === undefined ? {} : { facts: columnFacts })}
+                  {...(listOptions === undefined ? {} : { listOptions })}
+                  lookup={api.lookup?.bind(api)}
+                  availability={api.availability?.bind(api)}
+                  places={places}
+                  {...(files === undefined ? {} : { uploadFile: files.upload, files: resolvedFiles })}
+                  {...(files?.choose === undefined ? {} : { chooseFile: files.choose })}
+                  {...(files?.maxBytes === undefined ? {} : { maxFileBytes: files.maxBytes })}
+                  {...(currency === undefined ? {} : { currency })}
+                  {...(locale === undefined ? {} : { locale })}
+                  {...(currentUser === undefined ? {} : { currentUser })}
+                  onSubmit={settingsRow === null ? handleCreate : handleUpdate}
+                  footer={
+                    <div className="mt-5 flex justify-end border-t border-border pt-4">
+                      <WriteControl action={settingsRow === null ? 'create' : 'update'}>
+                        <Button type="submit" form={formId}>
+                          {saveLabel}
+                        </Button>
+                      </WriteControl>
+                    </div>
+                  }
+                />
+              </>
+            )}
+          </section>
+        )}
+        <ToastStack
+          {...queue.stackProps}
+          aria-live="polite"
+          dismissLabel={labels?.dismiss ?? t('ui:widgets.feeds.toastStack.dismissLabel', 'Dismiss')}
+        />
+      </div>
+    );
+  }
+
   return (
     <div data-part="page-crud" data-testid={testId} className="flex h-full min-h-0 flex-col">
       {/* ONE card holds toolbar + grid + footer, each pair separated by a
@@ -1445,7 +1580,7 @@ function PageCrudPage({
         * The PEEK below stays a drawer: it is a preview, not a form.
         */}
       <RecordFormDialog
-        open={editRecord !== null && !editChildrenPending && !editLinkRead.pending}
+        open={!oneRecord && editRecord !== null && !editChildrenPending && !editLinkRead.pending}
         onOpenChange={(open) => {
           if (!open) {
             setEditRecord(null);

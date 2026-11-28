@@ -13,7 +13,12 @@ import type { PageEnvelope } from '@adminium/engine/config';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { notificationFeedRow, type NotificationPrefsDto } from '../api/notifications.js';
+import type { BoundCrudApi } from '../api/crud.js';
 import { PageSettingsBinding } from './PageSettingsBinding.js';
+
+// The records page, as the one-record layout is drawn: what it is handed is what is checked here.
+const crudBinding = vi.hoisted(() => vi.fn((props: { oneRecord?: boolean }) => <div data-testid="records-binding" data-one-record={String(props.oneRecord)} />));
+vi.mock('./PageCrudBinding.js', () => ({ PageCrudBinding: crudBinding }));
 import type { PageTemplateProps } from './template-types.js';
 
 const PAGE: PageEnvelope = {
@@ -164,6 +169,24 @@ describe('PageSettingsBinding', () => {
     expect(matrixCell('Scheduled report ready', 'In-app')?.getAttribute('aria-pressed')).toBe(
       'true',
     );
+  });
+});
+
+describe('PageSettingsBinding bound to a table', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    crudBinding.mockClear();
+  });
+
+  it('draws the table as one record, and never reads the notification settings', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const page: PageEnvelope = { ...PAGE, id: 'page_maker-settings', source: { connectionId: 'conn_1', table: 'public.maker_settings' } };
+    renderWithClient(<PageSettingsBinding page={page} adapters={{ ...ADAPTERS, crud: {} as BoundCrudApi }} canUpdate />);
+    const records = await screen.findByTestId('records-binding');
+    expect(records.getAttribute('data-one-record')).toBe('true');
+    expect(crudBinding.mock.calls[0]?.[0]).toMatchObject({ page, canUpdate: true, oneRecord: true });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

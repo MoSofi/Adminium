@@ -358,7 +358,8 @@
       "failedBody": "The list is not shown, so it is not mistaken for the filtered one.",
       "showAll": "Show the whole list",
       "group": "Filters from the link"
-    }
+    },
+    "settingsLoading": "Loading the settings"
   },
   "mutation": {
     "created": "Record created",
@@ -1503,7 +1504,7 @@
     },
     "settings": {
       "title": "Settings",
-      "description": "Preference rows with toggles."
+      "description": "One record’s settings, as a form."
     },
     "directory": {
       "title": "Directory",

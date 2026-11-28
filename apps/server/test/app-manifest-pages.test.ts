@@ -135,6 +135,31 @@ describe('materialiseManifestPages', () => {
     expect(typeof config.config.generatedHash).toBe('string');
   });
 
+  it('composes a settings page of a table as a records page, under its own template, with the app’s form', async () => {
+    const result = await write(
+      manifest([
+        {
+          ref: 'clinic-settings',
+          template: 'page-settings',
+          bindings: { rows: 'visits' },
+          config: { form: { v: 2, sections: [{ id: 's1', fields: [{ column: 'reason', control: 'textarea', span: 2 }] }] } },
+        },
+      ]),
+    );
+    expect(result.created).toEqual(['clinic-settings']);
+    expect(result.warnings).toEqual([]);
+    const page = await pagesRepo(meta).findBySlug(connectionId, 'clinic-settings');
+    const envelope = page?.config as {
+      template: string;
+      source: { table: string };
+      config: { columns: { name: string }[]; form: { sections: { fields: unknown[] }[] } };
+    };
+    expect(envelope.template).toBe('page-settings');
+    expect(envelope.source.table).toBe('main.visits');
+    expect(envelope.config.columns.map((column) => column.name)).toEqual(expect.arrayContaining(['id', 'reason']));
+    expect(envelope.config.form.sections[0]!.fields).toEqual([{ column: 'reason', control: 'textarea', span: 2 }]);
+  });
+
   it('creates an unbound page empty and says so, rather than refusing', async () => {
     const result = await write(manifest([{ ref: 'clinic-list', template: 'page-crud' }]));
     expect(result.created).toEqual(['clinic-list']);

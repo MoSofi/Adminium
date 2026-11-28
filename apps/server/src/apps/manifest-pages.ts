@@ -56,6 +56,7 @@
 
 import {
   composeRequestedPage,
+  composesAsRecords,
   isKnownPageTemplate,
   isTableBoundTemplate,
   pageSourceTable,
@@ -551,7 +552,7 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
     // What a records page says of itself beside its form — the list's filters and the ones it opens with, its columns, the words
     // of its tabs, its bulk actions — bound to the real tables and written BEFORE the page is stamped, so a fresh
     // page does not read as one somebody edited.
-    if (template === 'page-crud' && composed !== null && tableId !== null && page.envelope === undefined) {
+    if (composesAsRecords(template) && composed !== null && tableId !== null && page.envelope === undefined) {
       const current = (envelope['config'] ?? {}) as Record<string, unknown>;
       const bound = bindListConfig(page.config, composed.view, composed.view.table(tableId), names, current);
       for (const warning of bound.warnings) result.warnings.push({ page: page.ref, ...warning });

@@ -368,7 +368,8 @@ export default {
       "failedBody": "不顯示清單，以免被誤認為已篩選的清單。",
       "showAll": "顯示完整清單",
       "group": "來自連結的篩選"
-    }
+    },
+    "settingsLoading": "正在載入設定"
   },
   "mutation": {
     "created": "已建立記錄",
@@ -1513,7 +1514,7 @@ export default {
     },
     "settings": {
       "title": "設定",
-      "description": "分組的偏好設定列，含開關與欄位。"
+      "description": "以表單顯示一筆紀錄的設定。"
     },
     "directory": {
       "title": "通訊錄",

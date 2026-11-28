@@ -72,7 +72,7 @@ const DESCRIPTION_FALLBACK: Record<string, string> = {
   'page-chat': 'Threaded conversations.',
   'page-builder': 'A drag-and-drop document canvas.',
   'page-wizard': 'Guided steps to finish a task.',
-  'page-settings': 'Preference rows with toggles.',
+  'page-settings': 'One record’s settings, as a form.',
 };
 
 /**
