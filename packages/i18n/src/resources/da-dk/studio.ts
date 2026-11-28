@@ -3648,7 +3648,17 @@ export default {
     "phoneBuild": "En telefonapp, der bygges til en butik, skal bruge to ting fra denne server: dens adresse, som en telefon når den, og appens nøgle “telefonapp”.",
     "phoneKeys": "Åbn API-nøgler",
     "customerNotAllowed": "Siderne åbner, men de kan hverken læse eller gemme noget: ingen har endnu tilladt appens offentlige adgang. Tillad den under “Offentlig adgang” på denne side.",
-    "customerConfigDecides": "Siderne åbner, men de kan hverken læse eller gemme noget: serverens adminium.config.ts tillader ikke appens offentlige adgang. Sæt apps.{key}.publicAccess til true dér, og genstart."
+    "customerConfigDecides": "Siderne åbner, men de kan hverken læse eller gemme noget: serverens adminium.config.ts tillader ikke appens offentlige adgang. Sæt apps.{key}.publicAccess til true dér, og genstart.",
+    "customerTrouble": {
+      "title": "Kunder kan ikke bruge denne app endnu",
+      "at": "Kunder, der åbner {addresses}, ser en fejl.",
+      "switchOn": "Slå den offentlige API til",
+      "switching": "Slår til…",
+      "openApiKeys": "Åbn API-nøgler",
+      "askAdmin": "Bed en, der administrerer API-nøgler på denne server, om at slå den til.",
+      "notRegistered": "Kontakten er slået til, men serveren blev startet uden en offentlig API, så intet serveres endnu. Åbn API-nøgler for at se, hvad den mangler.",
+      "switchedOn": "Den offentlige API er slået til. Kunder kan bruge denne app nu."
+    }
   },
   "uninstall": {
     "files": "Appens filer",

@@ -3638,7 +3638,17 @@
     "phoneBuild": "Une application mobile construite pour un store a besoin de deux choses de ce serveur : son adresse telle qu’un téléphone l’atteint, et la clé « application mobile » de l’application.",
     "phoneKeys": "Ouvrir les clés d’API",
     "customerNotAllowed": "Ces pages s’ouvrent, mais elles ne peuvent rien lire ni enregistrer : personne n’a encore autorisé l’accès public de l’application. Autorisez-le sur cette page, sous « Accès public ».",
-    "customerConfigDecides": "Ces pages s’ouvrent, mais elles ne peuvent rien lire ni enregistrer : le fichier adminium.config.ts de ce serveur n’autorise pas l’accès public de l’application. Mettez-y apps.{key}.publicAccess à true, puis redémarrez."
+    "customerConfigDecides": "Ces pages s’ouvrent, mais elles ne peuvent rien lire ni enregistrer : le fichier adminium.config.ts de ce serveur n’autorise pas l’accès public de l’application. Mettez-y apps.{key}.publicAccess à true, puis redémarrez.",
+    "customerTrouble": {
+      "title": "Les clients ne peuvent pas encore utiliser cette app",
+      "at": "Les clients qui ouvrent {addresses} voient une erreur.",
+      "switchOn": "Activer l’API publique",
+      "switching": "Activation…",
+      "openApiKeys": "Ouvrir les clés d’API",
+      "askAdmin": "Demandez à une personne qui gère les clés d’API sur ce serveur de l’activer.",
+      "notRegistered": "L’interrupteur est activé, mais ce serveur a démarré sans API publique : rien n’est encore servi. Ouvrez les clés d’API pour voir ce qu’il lui faut.",
+      "switchedOn": "L’API publique est activée. Les clients peuvent maintenant utiliser cette app."
+    }
   },
   "uninstall": {
     "files": "Les fichiers de l’app",

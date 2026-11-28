@@ -27491,6 +27491,38 @@
     "status": "mt",
     "srcHash": "8bdf5a47e234"
   },
+  "studio.appSettings.customerTrouble.askAdmin": {
+    "status": "mt",
+    "srcHash": "97c06e7cf035"
+  },
+  "studio.appSettings.customerTrouble.at": {
+    "status": "mt",
+    "srcHash": "4906de9d18a1"
+  },
+  "studio.appSettings.customerTrouble.notRegistered": {
+    "status": "mt",
+    "srcHash": "d6ae65152e0b"
+  },
+  "studio.appSettings.customerTrouble.openApiKeys": {
+    "status": "mt",
+    "srcHash": "4423f522827c"
+  },
+  "studio.appSettings.customerTrouble.switchOn": {
+    "status": "mt",
+    "srcHash": "143f31a3d62f"
+  },
+  "studio.appSettings.customerTrouble.switchedOn": {
+    "status": "mt",
+    "srcHash": "7ea49c3eb141"
+  },
+  "studio.appSettings.customerTrouble.switching": {
+    "status": "mt",
+    "srcHash": "dbe5c37a85e1"
+  },
+  "studio.appSettings.customerTrouble.title": {
+    "status": "mt",
+    "srcHash": "4a5929e42706"
+  },
   "studio.appSettings.danger": {
     "status": "mt",
     "srcHash": "963a652eae18"
