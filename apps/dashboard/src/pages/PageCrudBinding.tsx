@@ -90,7 +90,11 @@ export function PageCrudBinding({
   tableLabelPlural,
   removalReason,
   currency,
-}: PageTemplateProps) {
+  oneRecord = false,
+}: PageTemplateProps & {
+  /** The table as one record: the `page-settings` template bound to a table (see `PageSettingsBinding`). */
+  oneRecord?: boolean | undefined;
+}) {
   // Read from the cache, never fetched here: the shell loads the bootstrap
   // before any page renders, and a page must not suspend on it.
   const bootstrap = useQueryClient().getQueryData(bootstrapQuery().queryKey);
@@ -468,6 +472,8 @@ export function PageCrudBinding({
       <PageCrud
         key={appliedToken}
         api={gridApi ?? linkedCrud ?? crud}
+        // One record reads the table as it is: no saved view or search narrows which row is the settings.
+        oneRecord={oneRecord}
         // A form field may start as who is signed in (`initial: current-user`).
         {...(signedIn === undefined ? {} : { currentUser: { id: signedIn.id, name: signedIn.name } })}
         columns={shownColumns}
@@ -508,9 +514,9 @@ export function PageCrudBinding({
         // an unset one leaves the prop absent and the historical USD fallback
         // in place.
         {...(currency === undefined ? {} : { currency })}
-        initialSearch={viewProps.initialSearch}
+        initialSearch={oneRecord ? '' : viewProps.initialSearch}
         defaultSort={viewProps.defaultSort}
-        initialFilters={viewProps.initialFilters}
+        initialFilters={oneRecord ? [] : viewProps.initialFilters}
         {...(viewProps.pageSize === undefined ? {} : { pageSize: viewProps.pageSize })}
         onGridStateChange={captureGridState}
         onSelectionChange={captureSelection}
@@ -541,7 +547,7 @@ export function PageCrudBinding({
               ),
             })}
         {...(bulkActions.length === 0 ? {} : { bulkActions })}
-        {...(pieces.length === 0 || link.data === undefined
+        {...(oneRecord || pieces.length === 0 || link.data === undefined
           ? {}
           : { linkFilters: link.data.filters, onRemoveLinkFilter: dropLinkFilter, onClearLinkFilters: () => dropLinkFilter('all') })}
       />

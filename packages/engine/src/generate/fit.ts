@@ -54,7 +54,7 @@ import {
 } from '@adminium/widgets/generate';
 
 import { classifyModel, type ClassifiedTable } from '../classify/index.js';
-import { isTableBoundTemplate } from '../config-schema/table-bound.js';
+import { composesAsRecords, isTableBoundTemplate } from '../config-schema/table-bound.js';
 import type { DatabaseModel, SemanticTag, TableModel } from '../schema-model.js';
 import { toCandidateModel, toTemplateCandidate } from './archetype.js';
 
@@ -443,7 +443,7 @@ export function templateFit(
   // `page-crud` composes column-by-column rather than slot-by-slot
   // (`buildCrudEnvelope`), so it has no required slot and every available table
   // fits. Saying so beats running a composition that cannot fail.
-  if (template === 'page-crud') {
+  if (composesAsRecords(template)) {
     return { ...empty, bindable: true, satisfied: true };
   }
 

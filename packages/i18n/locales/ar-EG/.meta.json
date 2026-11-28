@@ -7707,6 +7707,10 @@
     "srcHash": "a3fa115d48fd",
     "status": "mt"
   },
+  "common.page.settingsLoading": {
+    "status": "mt",
+    "srcHash": "c94f13b01475"
+  },
   "common.page.tooNew.body": {
     "status": "mt",
     "srcHash": "31a3de69dbbb"
@@ -51110,6 +51114,30 @@
   "ui.templates.settings.unavailableTag": {
     "srcHash": "a1db9d598b40",
     "status": "mt"
+  },
+  "ui.templates.settingsRecord.empty": {
+    "status": "mt",
+    "srcHash": "ee3bd36fdea0"
+  },
+  "ui.templates.settingsRecord.emptyReadOnly": {
+    "status": "mt",
+    "srcHash": "1b9c50979d62"
+  },
+  "ui.templates.settingsRecord.emptyTitle": {
+    "status": "mt",
+    "srcHash": "e0fa824a564d"
+  },
+  "ui.templates.settingsRecord.extraRows": {
+    "status": "mt",
+    "srcHash": "1ab60d1b72f7"
+  },
+  "ui.templates.settingsRecord.loading": {
+    "status": "mt",
+    "srcHash": "c94f13b01475"
+  },
+  "ui.templates.settingsRecord.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
   },
   "ui.toast.dismiss": {
     "srcHash": "dc83cd803134",

@@ -2198,6 +2198,14 @@
         "boardColumnsSome": "{count, plural, other {有 # 行不在看板的任何一列中，因此未显示在这里。}}",
         "scheduler": "此表中还没有任何行同时带有人员、日期和班次类型，因此排班表为空。行一旦三者齐全就会显示在这里。"
       }
+    },
+    "settingsRecord": {
+      "save": "保存",
+      "loading": "正在加载设置",
+      "extraRows": "{count, plural, other {此表还有 # 行。这里只编辑第一行，其他行不会被读取为设置。}}",
+      "emptyTitle": "尚未设置任何内容",
+      "emptyReadOnly": "需要由可以更改这些设置的人先填写。",
+      "empty": "尚未设置任何内容。请填写后保存。"
     }
   },
   "frame": {

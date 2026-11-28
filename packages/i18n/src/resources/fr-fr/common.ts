@@ -368,7 +368,8 @@ export default {
       "failedBody": "La liste n’est pas affichée, pour ne pas la confondre avec la liste filtrée.",
       "showAll": "Afficher toute la liste",
       "group": "Filtres du lien"
-    }
+    },
+    "settingsLoading": "Chargement des paramètres"
   },
   "mutation": {
     "created": "Enregistrement créé",
@@ -1513,7 +1514,7 @@ export default {
     },
     "settings": {
       "title": "Paramètres",
-      "description": "Des lignes de préférences groupées, avec interrupteurs et champs."
+      "description": "Les paramètres d’un enregistrement, sous forme de formulaire."
     },
     "directory": {
       "title": "Annuaire",

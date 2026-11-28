@@ -35,7 +35,7 @@ export {
   type ConfigDocument,
   type ConfigMigration,
 } from './migrations.js';
-export { TABLE_BOUND_TEMPLATES, isTableBoundTemplate } from './table-bound.js';
+export { RECORDS_BODY_TEMPLATES, TABLE_BOUND_TEMPLATES, composesAsRecords, isTableBoundTemplate } from './table-bound.js';
 // Assembled surface: the per-template leaf schemas.
 export {
   COMPILABLE_DATA_SHAPES,

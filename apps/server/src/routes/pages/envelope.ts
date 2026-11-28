@@ -31,7 +31,7 @@
  * origin change silently destructive.
  */
 
-import { templateKind } from '@adminium/engine';
+import { composesAsRecords, templateKind } from '@adminium/engine';
 import { pageEnvelopeSchema } from '@adminium/engine/config';
 
 /** Lucide icon used when the caller picks none, per template family. */
@@ -87,7 +87,8 @@ export interface BuildUserPageInput {
  * hand-built page has not been composed against any manifest version.
  */
 function emptyBodyFor(template: string): Record<string, unknown> {
-  if (template === 'page-crud') {
+  // A settings page is a records page's body drawn as one record.
+  if (composesAsRecords(template)) {
     return {
       templateVersion: 1,
       columns: [],

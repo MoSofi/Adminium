@@ -2849,9 +2849,12 @@ and appears in the app's own sidebar section.
 
 **Templates.** A table-bound template reads one table: `page-crud`, `page-board`,
 `page-calendar`, `page-scheduler`, `page-directory`, `page-master-detail`, `page-queue-inbox`,
-`page-log-viewer`, `page-files` and `page-chat`. Give it `bindings`. A single entry names its table
+`page-log-viewer`, `page-files`, `page-chat` and `page-settings`. Give it `bindings`. A single entry names its table
 whatever its key (`{ "items": "menu_items" }`); with several entries, the one keyed `rows` is the
-page's own table. `page-dashboard` reads from several tables and takes its widgets from
+page's own table. `page-settings` draws its table as one record: the row's form, laid out by
+`config.form` as a `page-crud` form is, with Save and no list. With no row yet the form makes the
+first one. It is meant for the app's settings table (`outbox.settings.table`). Needs Adminium 0.3.80;
+an older one shows the person's notification settings on that page. `page-dashboard` reads from several tables and takes its widgets from
 `config.layout`.
 
 **Config.** `config.form` and `config.layout` name the app's tables and columns by their short

@@ -1216,7 +1216,7 @@ export default {
     },
     "settings": {
       "title": "Settings",
-      "description": "Preference rows with toggles."
+      "description": "One record’s settings, as a form."
     },
     "directory": {
       "title": "Directory",

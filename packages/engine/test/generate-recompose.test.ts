@@ -56,13 +56,22 @@ describe('composeRequestedPage', () => {
   });
 
   it('reports non-table-bound templates rather than blanking them', () => {
-    for (const template of ['page-dashboard', 'page-builder', 'page-wizard', 'page-settings']) {
+    for (const template of ['page-dashboard', 'page-builder', 'page-wizard']) {
       const result = composeRequestedPage(model, someTable, template, CTX);
       expect(isTableBoundTemplate(template)).toBe(false);
       // `bindable: false` is the signal to KEEP the current body — a dashboard's
       // widgets are real work that a template re-pick must not destroy.
       expect(result).toMatchObject({ bindable: false, envelope: null });
     }
+  });
+
+  it('composes a settings page as a records page, under its own template', () => {
+    // The table drawn as one record: the same columns and form a records page edits its row with.
+    const records = composeRequestedPage(model, someTable, 'page-crud', CTX);
+    const settings = composeRequestedPage(model, someTable, 'page-settings', CTX);
+    expect(isTableBoundTemplate('page-settings')).toBe(true);
+    expect(settings).toMatchObject({ bindable: true, envelope: { template: 'page-settings', id: CTX.id } });
+    expect((settings.envelope as { config?: unknown }).config).toEqual((records.envelope as { config?: unknown }).config);
   });
 
   it('explains an unknown table instead of throwing', () => {

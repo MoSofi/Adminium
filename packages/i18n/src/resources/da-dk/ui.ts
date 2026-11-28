@@ -2208,6 +2208,14 @@ export default {
         "boardColumnsSome": "{count, plural, one {# række står ikke i nogen af tavlens kolonner og vises derfor ikke her.} other {# rækker står ikke i nogen af tavlens kolonner og vises derfor ikke her.}}",
         "scheduler": "Ingen af tabellens rækker har en person, en dato og en vagttype endnu, så planen er tom. En række vises her, så snart den har alle tre."
       }
+    },
+    "settingsRecord": {
+      "save": "Gem",
+      "loading": "Indlæser indstillingerne",
+      "extraRows": "{count, plural, one {Denne tabel har # række mere. Kun den første redigeres her, og den anden læses ikke som en indstilling.} other {Denne tabel har # rækker mere. Kun den første redigeres her, og de andre læses ikke som indstillinger.}}",
+      "emptyTitle": "Intet er indstillet endnu",
+      "emptyReadOnly": "En, der må ændre disse indstillinger, skal udfylde dem først.",
+      "empty": "Intet er indstillet endnu. Udfyld felterne, og gem."
     }
   },
   "frame": {

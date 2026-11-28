@@ -18,10 +18,12 @@
  *
  * NOT every template is table-bound. `page-dashboard` composes from a DOMAIN
  * (a cluster of tables) rather than one table and is edited widget-by-widget in
- * the dashboard builder; `page-builder`, `page-wizard` and `page-settings` are
- * tool surfaces whose bodies the renderers ignore. Asking for those returns
+ * the dashboard builder; `page-builder` and `page-wizard` are tool surfaces
+ * whose bodies the renderers ignore. Asking for those returns
  * `bindable: false` with a null envelope, so the caller can keep whatever the
- * page already had rather than blanking it.
+ * page already had rather than blanking it. A `page-settings` bound to a
+ * table composes as a records page does, under its own template: it is the
+ * table drawn as one record.
  */
 
 import {
@@ -33,7 +35,7 @@ import {
 } from '@adminium/widgets/generate';
 
 import type { ClassifiedTable } from '../classify/index.js';
-import { isTableBoundTemplate } from '../config-schema/table-bound.js';
+import { composesAsRecords, isTableBoundTemplate } from '../config-schema/table-bound.js';
 import type { DatabaseModel } from '../schema-model.js';
 import { buildArchetypeEnvelope } from './archetype.js';
 import { buildCrudEnvelope } from './crud.js';
@@ -42,7 +44,7 @@ import { bindableSet } from './fit.js';
 import { applyCalendarColumns, calendarColumnsProblem, calendarEntry, calendarTitleThrough, type CalendarColumns } from './calendar-columns.js';
 import { TITLE_THROUGH_TEMPLATES, applyTitleThrough, titleThroughEntry } from './title-through.js';
 
-export { TABLE_BOUND_TEMPLATES, isTableBoundTemplate } from '../config-schema/table-bound.js';
+export { RECORDS_BODY_TEMPLATES, TABLE_BOUND_TEMPLATES, composesAsRecords, isTableBoundTemplate } from '../config-schema/table-bound.js';
 
 export interface RecomposeContext {
   connectionId: string;
@@ -116,7 +118,7 @@ export function composeRequestedPage(
     return { envelope: null, bindable: true, reason: `table ${tableId} could not be classified` };
   }
 
-  if (template === 'page-crud') {
+  if (composesAsRecords(template)) {
     const envelope = buildCrudEnvelope(entry, {
       connectionId: ctx.connectionId,
       slug: ctx.slug,
@@ -137,7 +139,8 @@ export function composeRequestedPage(
     // id through would leave the document claiming to be a different page than
     // the row holding it. `buildArchetypeEnvelope` already accepts `ctx.id`;
     // this is the crud path catching up.
-    return { bindable: true, reason: '', envelope: { ...envelope, id: ctx.id } };
+    // A settings page is the records page's body under its own template.
+    return { bindable: true, reason: '', envelope: { ...envelope, id: ctx.id, template } };
   }
 
   const board = template === 'page-board' ? ctx.board : undefined;

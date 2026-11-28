@@ -368,7 +368,8 @@ export default {
       "failedBody": "Seznam se nezobrazuje, aby se nezaměnil s filtrovaným.",
       "showAll": "Zobrazit celý seznam",
       "group": "Filtry z odkazu"
-    }
+    },
+    "settingsLoading": "Načítání nastavení"
   },
   "mutation": {
     "created": "Záznam vytvořen",
@@ -1513,7 +1514,7 @@ export default {
     },
     "settings": {
       "title": "Nastavení",
-      "description": "Seskupené řádky předvoleb s přepínači a poli."
+      "description": "Nastavení jednoho záznamu jako formulář."
     },
     "directory": {
       "title": "Adresář",

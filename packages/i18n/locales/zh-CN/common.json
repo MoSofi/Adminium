@@ -358,7 +358,8 @@
       "failedBody": "不显示列表，以免被误认为已筛选的列表。",
       "showAll": "显示完整列表",
       "group": "来自链接的筛选"
-    }
+    },
+    "settingsLoading": "正在加载设置"
   },
   "mutation": {
     "created": "记录已创建",
@@ -1503,7 +1504,7 @@
     },
     "settings": {
       "title": "设置",
-      "description": "分组的偏好设置行，含开关与输入项。"
+      "description": "以表单显示一条记录的设置。"
     },
     "directory": {
       "title": "通讯录",

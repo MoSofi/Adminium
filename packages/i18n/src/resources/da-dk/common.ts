@@ -368,7 +368,8 @@ export default {
       "failedBody": "Listen vises ikke, så den ikke forveksles med den filtrerede.",
       "showAll": "Vis hele listen",
       "group": "Filtre fra linket"
-    }
+    },
+    "settingsLoading": "Indlæser indstillingerne"
   },
   "mutation": {
     "created": "Post oprettet",
@@ -1513,7 +1514,7 @@ export default {
     },
     "settings": {
       "title": "Indstillinger",
-      "description": "Grupperede indstillingsrækker med kontakter og felter."
+      "description": "Én posts indstillinger som en formular."
     },
     "directory": {
       "title": "Katalog",

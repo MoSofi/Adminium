@@ -96,8 +96,10 @@ export {
 } from './dashboard.js';
 export { detectDomains, type Domain } from './domains.js';
 export {
+  RECORDS_BODY_TEMPLATES,
   TABLE_BOUND_TEMPLATES,
   composeRequestedPage,
+  composesAsRecords,
   isTableBoundTemplate,
   type RecomposeContext,
   type RecomposeResult,

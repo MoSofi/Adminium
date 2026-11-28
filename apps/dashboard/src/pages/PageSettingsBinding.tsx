@@ -1,8 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-settings` binding (comp: Notification Settings) — projects the
- * PageSettings template onto the LIVE `/me/notification-prefs` matrix
- * with per-cell autosave:
+ * `page-settings` binding. Two pages share the template:
+ *
+ *  - BOUND TO A TABLE (an app's settings table, a table somebody made a
+ *    settings page of): the table as one record — its row's form, with Save,
+ *    and no list. That is `PageCrudBinding` in its one-record layout, so the
+ *    form is the same one a records page edits the row with: its sections,
+ *    its controls, its files and pictures, its saves of changed fields only.
+ *  - WITH NO TABLE (comp: Notification Settings): the PageSettings template
+ *    projected onto the LIVE `/me/notification-prefs` matrix with per-cell
+ *    autosave:
  *
  *   toggle → optimistic cache flip + dirty dot + "Saving…"
  *          → PUT one event row
@@ -13,9 +20,10 @@
  * arrives `available: false` with the no-SMTP reason and renders as a
  * togglable-but-explained column — the intent is stored either way.
  */
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageSettings, settingsCellId, type SettingsSaveState } from '@adminium/widgets';
+import { Spinner } from '@adminium/ui';
 
 import {
   notificationPrefsQuery,
@@ -59,7 +67,21 @@ const CHANNEL_LABELS: Record<string, { key: string; en: string }> = {
   push: { key: 'notifications.channel.push', en: 'Push' },
 };
 
-export function PageSettingsBinding({ page }: PageTemplateProps) {
+// Loaded only for a page bound to a table: the notification settings never pull the records page in.
+const PageCrudBinding = lazy(async () => ({ default: (await import('./PageCrudBinding.js')).PageCrudBinding }));
+
+export function PageSettingsBinding(props: PageTemplateProps) {
+  if (props.adapters.crud !== null) {
+    return (
+      <Suspense fallback={<Spinner label={t('page.settingsLoading', 'Loading the settings')} />}>
+        <PageCrudBinding {...props} oneRecord />
+      </Suspense>
+    );
+  }
+  return <NotificationSettingsBinding page={props.page} />;
+}
+
+function NotificationSettingsBinding({ page }: Pick<PageTemplateProps, 'page'>) {
   useCommonWords();
   const queryClient = useQueryClient();
   const prefs = useQuery(notificationPrefsQuery());

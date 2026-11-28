@@ -2198,6 +2198,14 @@
         "boardColumnsSome": "{count, plural, one {# řádek není v žádném sloupci tabule, proto se tu nezobrazuje.} few {# řádky nejsou v žádném sloupci tabule, proto se tu nezobrazují.} many {# řádku není v žádném sloupci tabule, proto se tu nezobrazuje.} other {# řádků není v žádném sloupci tabule, proto se tu nezobrazují.}}",
         "scheduler": "Žádný řádek této tabulky zatím nemá osobu, datum a typ směny, proto je rozvrh prázdný. Řádek se tu objeví, jakmile bude mít všechny tři."
       }
+    },
+    "settingsRecord": {
+      "save": "Uložit",
+      "loading": "Načítání nastavení",
+      "extraRows": "{count, plural, one {Tato tabulka má ještě # řádek. Upravuje se zde jen první a ten druhý se jako nastavení nečte.} few {Tato tabulka má ještě # řádky. Upravuje se zde jen první a ostatní se jako nastavení nečtou.} many {Tato tabulka má ještě # řádku. Upravuje se zde jen první a ostatní se jako nastavení nečtou.} other {Tato tabulka má ještě # řádků. Upravuje se zde jen první a ostatní se jako nastavení nečtou.}}",
+      "emptyTitle": "Zatím není nic nastaveno",
+      "emptyReadOnly": "Nejdřív je musí vyplnit někdo, kdo smí tato nastavení měnit.",
+      "empty": "Zatím není nic nastaveno. Vyplňte pole a uložte."
     }
   },
   "frame": {

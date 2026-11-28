@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 4065 entries. */
+/** `namespace:key` — 4070 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -633,6 +633,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:page.linkFilters.group',
   'common:page.linkFilters.pending',
   'common:page.renderError.title',
+  'common:page.settingsLoading',
   'common:page.tooNew.title',
   'common:page.unknownTemplate.title',
   'common:palette.actions',
@@ -3679,6 +3680,10 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'ui:templates.settings.matrixLabel',
   'ui:templates.settings.subtitle',
   'ui:templates.settings.title',
+  'ui:templates.settingsRecord.emptyTitle',
+  'ui:templates.settingsRecord.extraRows',
+  'ui:templates.settingsRecord.loading',
+  'ui:templates.settingsRecord.save',
   'ui:widgets.boards.addCard',
   'ui:widgets.boards.boardCard.emptyTitle',
   'ui:widgets.boards.cardActions',

@@ -2198,6 +2198,14 @@
         "boardColumnsSome": "{count, plural, other {有 # 列不在看板的任何一欄中，因此未顯示在這裡。}}",
         "scheduler": "此資料表中還沒有任何列同時帶有人員、日期和班別類型，因此排班表為空。列一旦三者齊全就會顯示在這裡。"
       }
+    },
+    "settingsRecord": {
+      "save": "儲存",
+      "loading": "正在載入設定",
+      "extraRows": "{count, plural, other {此表還有 # 列。這裡只編輯第一列，其他列不會被讀取為設定。}}",
+      "emptyTitle": "尚未設定任何內容",
+      "emptyReadOnly": "需要由可以變更這些設定的人先填寫。",
+      "empty": "尚未設定任何內容。請填寫後儲存。"
     }
   },
   "frame": {

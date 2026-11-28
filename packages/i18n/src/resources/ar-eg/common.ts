@@ -368,7 +368,8 @@ export default {
       "failedBody": "لا تُعرض القائمة حتى لا يُظن أنها القائمة المصفّاة.",
       "showAll": "عرض القائمة كاملة",
       "group": "عوامل التصفية من الرابط"
-    }
+    },
+    "settingsLoading": "جارٍ تحميل الإعدادات"
   },
   "mutation": {
     "created": "تم إنشاء السجل",
@@ -1513,7 +1514,7 @@ export default {
     },
     "settings": {
       "title": "الإعدادات",
-      "description": "صفوف تفضيلات مجمّعة مع مفاتيح وحقول."
+      "description": "إعدادات سجل واحد في شكل نموذج."
     },
     "directory": {
       "title": "الدليل",
