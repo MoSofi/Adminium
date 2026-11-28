@@ -3638,7 +3638,17 @@
     "phoneBuild": "Eine Handy-App, die für einen Store gebaut wird, braucht zwei Dinge von diesem Server: seine Adresse, wie ein Handy sie erreicht, und den Schlüssel „Handy-App“ der App.",
     "phoneKeys": "API-Schlüssel öffnen",
     "customerNotAllowed": "Diese Seiten öffnen sich, können aber nichts lesen oder speichern: Noch hat niemand den öffentlichen Zugriff der App erlaubt. Erlauben Sie ihn auf dieser Seite unter „Öffentlicher Zugriff“.",
-    "customerConfigDecides": "Diese Seiten öffnen sich, können aber nichts lesen oder speichern: Die adminium.config.ts dieses Servers erlaubt den öffentlichen Zugriff der App nicht. Setzen Sie dort apps.{key}.publicAccess auf true und starten Sie neu."
+    "customerConfigDecides": "Diese Seiten öffnen sich, können aber nichts lesen oder speichern: Die adminium.config.ts dieses Servers erlaubt den öffentlichen Zugriff der App nicht. Setzen Sie dort apps.{key}.publicAccess auf true und starten Sie neu.",
+    "customerTrouble": {
+      "title": "Kunden können diese App noch nicht nutzen",
+      "at": "Kunden, die {addresses} öffnen, sehen einen Fehler.",
+      "switchOn": "Öffentliche API einschalten",
+      "switching": "Wird eingeschaltet…",
+      "openApiKeys": "API-Schlüssel öffnen",
+      "askAdmin": "Bitten Sie jemanden, der auf diesem Server die API-Schlüssel verwaltet, sie einzuschalten.",
+      "notRegistered": "Der Schalter ist an, aber dieser Server wurde ohne öffentliche API gestartet, daher wird noch nichts bereitgestellt. Öffnen Sie die API-Schlüssel, um zu sehen, was er braucht.",
+      "switchedOn": "Die öffentliche API ist an. Kunden können diese App jetzt nutzen."
+    }
   },
   "uninstall": {
     "files": "Die Dateien der App",

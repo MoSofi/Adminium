@@ -3638,7 +3638,17 @@
     "phoneBuild": "为应用商店构建的手机应用需要这台服务器提供两样东西：手机能够访问到的服务器地址，以及该应用的“手机应用”密钥。",
     "phoneKeys": "打开 API 密钥",
     "customerNotAllowed": "这些页面可以打开，但无法读取或保存任何内容：还没有人允许该应用的公开访问。请在本页的“公开访问”下允许它。",
-    "customerConfigDecides": "这些页面可以打开，但无法读取或保存任何内容：此服务器的 adminium.config.ts 不允许该应用的公开访问。请在其中将 apps.{key}.publicAccess 设为 true，然后重启。"
+    "customerConfigDecides": "这些页面可以打开，但无法读取或保存任何内容：此服务器的 adminium.config.ts 不允许该应用的公开访问。请在其中将 apps.{key}.publicAccess 设为 true，然后重启。",
+    "customerTrouble": {
+      "title": "顾客暂时还不能使用此应用",
+      "at": "打开 {addresses} 的顾客会看到错误。",
+      "switchOn": "开启公共 API",
+      "switching": "正在开启…",
+      "openApiKeys": "打开 API 密钥",
+      "askAdmin": "请让此服务器上管理 API 密钥的人开启它。",
+      "notRegistered": "开关已开启，但此服务器启动时没有公共 API，因此尚未提供任何内容。打开 API 密钥查看它需要什么。",
+      "switchedOn": "公共 API 已开启。顾客现在可以使用此应用了。"
+    }
   },
   "uninstall": {
     "files": "应用的文件",

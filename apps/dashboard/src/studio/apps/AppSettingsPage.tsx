@@ -103,7 +103,9 @@ import { SampleDataCard } from './SampleData.js';
 export { SampleDataBanner } from './SampleData.js';
 /** For the page route (`pages/PageRenderer.tsx`), which loads it from here, in this chunk. */
 export { FeaturePageNotice } from './FeaturePageNotice.js';
+export { customerTrouble } from './CustomerTroubleNotice.js';
 import { AppPartsCard } from './AppPartsCard.js';
+import { CustomerTroubleNotice, customerTrouble } from './CustomerTroubleNotice.js';
 import { FolderAccessCard } from './FolderAccessCard.js';
 import { AppIcon, CARD, CardTitle, workspacesHolding, workspacesOf } from './appPageParts.js';
 import { InstallScope, addressOf, splitAddress, useInstallId } from './installScope.js';
@@ -377,6 +379,8 @@ function Loaded({ app, copies }: { app: InstalledApp; copies: readonly Installed
       <div role="status" aria-live="polite">
         {notice === null ? null : <Alert tone="pos" title={notice} />}
       </div>
+      {/* Customer screens that are on and cannot answer: said first, not only inside their row. */}
+      <CustomerTroubleNotice app={app} settings={settings} bootstrap={bootstrap} onChanged={refresh} onNotice={setNotice} />
 
       <div className="flex flex-wrap items-start gap-3.5">
         <div className="flex min-w-0 flex-[1_1_400px] flex-col gap-3.5">
@@ -886,38 +890,6 @@ function DataCard({ app }: { app: InstalledApp }) {
       ) : null}
     </section>
   );
-}
-
-/** Why a customer side that is on cannot answer, or null when it can (or the app asks for no public access). */
-export function customerTrouble(access: AppSettingsView['publicAccess'], appKey = ''): string | null {
-  if (access === undefined) return null;
-  if (!access.granted) {
-    // An app of the project folder is never updated from here: each says the place where its access is allowed.
-    if (access.decides === 'person') {
-      return t(
-        'studio:appSettings.customerNotAllowed',
-        'These pages open, but they cannot read or save anything: nobody has allowed the app’s public access yet. Allow it under “Public access” on this page.',
-      );
-    }
-    if (access.decides === 'config') {
-      return t(
-        'studio:appSettings.customerConfigDecides',
-        'These pages open, but they cannot read or save anything: this server’s adminium.config.ts does not allow the app’s public access. Set apps.{key}.publicAccess to true there, and restart.',
-        { key: appKey },
-      );
-    }
-    return t(
-      'studio:appSettings.customerNoAccess',
-      'These pages open, but they cannot read or save anything: the app was installed without its public access. Update the app and allow it.',
-    );
-  }
-  if (!access.apiOn) {
-    return t(
-      'studio:appSettings.customerApiOff',
-      'These pages open, but they cannot read or save anything: the public API is switched off. Switch it on under Studio › API keys.',
-    );
-  }
-  return null;
 }
 
 export function activityText(action: string, actor: string, subject?: string): string {
