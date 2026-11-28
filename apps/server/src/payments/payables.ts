@@ -37,12 +37,12 @@ import {
   type PayableRef,
 } from '@adminium/meta';
 import { sameAmount, subtractAmounts } from '@adminium/add-on-contracts';
-import { sql } from 'kysely';
 
 import type { ConnectionManager } from '../connections/manager.js';
 import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { fetchByPk } from '../crud/records.js';
+import { settingsColumn } from '../crud/settings-row.js';
 import { sameValue } from '../crud/write-values.js';
 import type { WriteTarget } from '../crud/write-context.js';
 import { isDesignerCurrency } from '../invoices/document.js';
@@ -209,7 +209,7 @@ export interface PayableSources {
   /** The invoice shape a table is built on, and its payments part, or null. */
   shapeOf(connectionId: string, tableName: string): Promise<{ version: number; paymentsTable: string | null } | null>;
   connectionCurrency(connectionId: string): Promise<string | null>;
-  /** A column of a one-row settings table (its id), or null when the table has not exactly one row. */
+  /** A column of a one-row settings table (its id), read from its first row by key (`crud/settings-row.ts`); null when it holds none. */
   setting?(connectionId: string, tableName: string, column: string): Promise<unknown>;
   profile(connectionId: string, tableName: string): Promise<{ id: string; enabled: boolean; mapping: ParsedPayableMapping | null; shape?: ShapePayableMapping | null; ownerApp?: string | null } | null>;
   /** What Adminium keeps as paid on a payable, live payments only. */
@@ -580,9 +580,8 @@ export function createPayableSources(deps: PayableSourceDeps): PayableSources {
     async setting(connectionId, tableName, column) {
       const found = await table(connectionId, tableName);
       if (found === null || !found.table.columns.has(column)) return null;
-      // One row, or no setting at all: two rows would make the answer a guess.
-      const rows = (await found.target.db.selectFrom(found.table.id as never).select(sql.ref(column).as('v')).limit(2).execute()) as { v?: unknown }[];
-      return rows.length === 1 ? (rows[0]!.v ?? null) : null;
+      // The settings row as every reader takes it: the first by key, the one the Settings page edits.
+      return (await settingsColumn(found.target.db, found.table.id, column)) ?? null;
     },
     async profile(connectionId, tableName) {
       const profile = await payableProfilesRepo(deps.meta).byTable(connectionId, tableName);

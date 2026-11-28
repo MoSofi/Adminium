@@ -3490,26 +3490,27 @@ export function settingReferences(m: {
   return out;
 }
 
-/**
- * A setting is read from a table holding ONE row — or it reads whichever row
- * the database returns first (another guest's arrival time). One-row: the
- * app's settings table (its outbox's `settings.table`), or a table standing
- * alone — no foreign key of its own, none of another table pointing at it,
- * and no states, limits or bookings, as a venue's rules are kept. Anything
- * else is refused; and on the server a table found holding more rows is read
- * as having no setting at all.
- */
-function settingTableIssues(m: {
+/** What {@link oneRowTables} and the settings check read of a manifest: loose, so the server can ask a stored one. */
+type OneRowManifest = {
   requiredSchema: { tables: readonly RequiredTableShape[] };
   publicAccess?: readonly unknown[] | undefined;
   publicKeys?: unknown;
   outbox?: { settings?: { table: string } | undefined } | undefined;
   addOn?: { settingsTable?: string | undefined } | undefined;
-}): ReferenceIssue[] {
+};
+
+/**
+ * Whether a manifest may read settings from a table: the app's settings
+ * table (its outbox's `settings.table`) and an add-on's `settingsTable` by
+ * their own word (the install makes the row, and it may link to others), or a
+ * table standing alone — no foreign key of its own, none of another table
+ * pointing at it, and no states, limits or bookings, as a venue's rules are
+ * kept.
+ */
+function oneRowOf(m: OneRowManifest): (ref: string) => boolean {
   const tables = m.requiredSchema.tables;
   const settingsTable = m.outbox?.settings?.table;
-  const oneRow = (ref: string): boolean => {
-    // An add-on's settings table is one row by its own word: the install makes the row, and it may link to others.
+  return (ref) => {
     if (ref === settingsTable || ref === m.addOn?.settingsTable) return true;
     const table = tables.find((t) => t.ref === ref);
     if (table === undefined) return true; // a table the manifest lacks is refused where the rule is checked
@@ -3517,6 +3518,38 @@ function settingTableIssues(m: {
     if (table.columns.some((column) => column.type === 'fk')) return false;
     return !tables.some((other) => other.columns.some((column) => column.type === 'fk' && column.references === ref));
   };
+}
+
+/**
+ * The tables a manifest keeps to ONE row, by its own refs: its settings table
+ * (`outbox.settings.table`), an add-on's `settingsTable`, and every other
+ * table one of its settings is read from (which the check below lets through
+ * only when it stands alone). A second row in any of them makes the readers
+ * disagree on which row is "the" settings, so the server refuses a create
+ * there while the table holds a row (`crud/write-service.ts`). A table the
+ * manifest does not declare is left out.
+ */
+export function oneRowTables(m: OneRowManifest): string[] {
+  const declared = new Set(m.requiredSchema.tables.map((table) => table.ref));
+  const oneRow = oneRowOf(m);
+  const out = new Set<string>();
+  const settingsTable = m.outbox?.settings?.table;
+  if (settingsTable !== undefined) out.add(settingsTable);
+  if (m.addOn?.settingsTable !== undefined) out.add(m.addOn.settingsTable);
+  for (const ref of settingReferences(m)) if (oneRow(ref.table)) out.add(ref.table);
+  return [...out].filter((ref) => declared.has(ref));
+}
+
+/**
+ * A setting is read from a table holding ONE row — or it reads whichever row
+ * the database returns first (another guest's arrival time). One-row: the
+ * app's settings table (its outbox's `settings.table`), or a table standing
+ * alone ({@link oneRowOf}). Anything else is refused; and on the server a
+ * create in a one-row table that already holds its row is refused, and every
+ * reader takes the row with the lowest key (`crud/settings-row.ts`).
+ */
+function settingTableIssues(m: OneRowManifest): ReferenceIssue[] {
+  const oneRow = oneRowOf(m);
   return settingReferences(m)
     .filter((ref) => !oneRow(ref.table))
     .map((ref) => ({

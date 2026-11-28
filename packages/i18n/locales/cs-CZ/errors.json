@@ -5,6 +5,7 @@
   "PAGE_FORBIDDEN": "K úpravě této stránky nemáte oprávnění.",
   "NOT_FOUND": "Tento zdroj neexistuje nebo byl odstraněn.",
   "CONFLICT": "Tato změna je v konfliktu s aktuálním stavem. Obnovte stránku a zkuste to znovu.",
+  "ONE_ROW_TABLE": "Tato tabulka obsahuje nastavení aplikace: má jen jeden řádek. Upravte tento řádek.",
   "UNIQUE_VIOLATION": "Tato hodnota se již používá.",
   "VALIDATION_FAILED": "Některá pole vyžadují úpravu, než bude možné uložit.",
   "RATE_LIMITED": "Příliš mnoho požadavků — chvíli počkejte a zkuste to znovu.",

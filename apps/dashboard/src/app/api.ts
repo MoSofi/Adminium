@@ -27,6 +27,7 @@
  */
 import { reloadIfAsleep } from './asleep.js';
 import { hasRefusalWords, isRefusal, loadRefusalWords, refusalText } from './refusals.js';
+import { t } from '../i18n/t.js';
 
 export class ApiError extends Error {
   override readonly name = 'ApiError';
@@ -38,12 +39,23 @@ export class ApiError extends Error {
 
   constructor(status: number, code: string, message: string, requestId: string | null, details?: unknown) {
     // A refusal the server says in English is said in the person's words, once they are in (`refusals.ts`).
-    super(refusalText(code, details) ?? message);
+    super(refusalText(code, details) ?? readersWords(code, message));
     this.status = status;
     this.code = code;
     this.requestId = requestId;
     this.details = details;
   }
+}
+
+/**
+ * A refusal whose words are in the eager `errors` namespace, said in the
+ * reader's language wherever a screen shows `error.message`: a create in a
+ * table an app keeps to one row (its settings), from a records page, a file
+ * brought in or a form.
+ */
+function readersWords(code: string, message: string): string {
+  if (code === 'ONE_ROW_TABLE') return t('errors:ONE_ROW_TABLE', 'This table holds the app’s settings: it has one row. Edit that row.');
+  return message;
 }
 
 interface ErrorEnvelope {

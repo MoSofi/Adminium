@@ -16,6 +16,7 @@ import type { CapacitySetting, TableCapacityRule } from '../connections/effectiv
 import type { SourceDatabase } from '../connections/manager.js';
 import { withNamedLocks, type LockBusy } from './capacity/locks.js';
 import { readInstant } from './moments.js';
+import { settingsColumn } from './settings-row.js';
 import type { ResolvedTable } from './identifiers.js';
 import { venueClock, wallTimeToInstant } from './venue-time.js';
 
@@ -54,13 +55,9 @@ export function minutesOf(value: unknown): number | null {
   return match === null ? null : Number(match[1]) * 60 + Number(match[2]);
 }
 
+/** A setting of a booking limit: the settings row's column, the row taken as every reader takes it (`settings-row.ts`). */
 export async function settingOf(db: Db, setting: CapacitySetting): Promise<unknown> {
-  const row = (await db
-    .selectFrom(setting.table)
-    .select(sql<unknown>`${sql.ref(setting.column)}`.as('value'))
-    .limit(1)
-    .executeTakeFirst()) as { value?: unknown } | undefined;
-  return row?.value;
+  return settingsColumn(db, setting.table, setting.column);
 }
 
 export async function numberOf(db: Db, value: number | CapacitySetting | undefined): Promise<number | null> {

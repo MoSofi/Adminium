@@ -811,6 +811,8 @@ describe('a strip of days', () => {
       expect(rows).toHaveLength(days);
       return statements;
     };
+    // The settings row's key is read from the catalog once per pool (`crud/settings-row.ts`): read before counting.
+    await measure(1);
     const short = await measure(2);
     const long = await measure(31);
     await counted.destroy();

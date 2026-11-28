@@ -21143,6 +21143,10 @@
     "srcHash": "4be93bc8a0dd",
     "status": "mt"
   },
+  "errors.ONE_ROW_TABLE": {
+    "status": "mt",
+    "srcHash": "2e0a19d8b307"
+  },
   "errors.PAGE_FORBIDDEN": {
     "srcHash": "6d7c8d073bf3",
     "status": "mt"

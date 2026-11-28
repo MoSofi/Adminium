@@ -104,14 +104,14 @@ describe.each(LEGS)("a moment's time of day kept on the row — %s", (dialect, a
     expect((await stayRow(s['id']))['status']).toBe('no_show');
   });
 
-  it.runIf(available)('reads no setting from a settings table holding two rows, and reads it again once it holds one', async () => {
+  it.runIf(available)('reads the first settings row by key from a table holding two rows, as every other reader does', async () => {
     at('2026-11-01T09:00:00Z');
     const [second] = await h.rows(`select count(*) as n from ${h.real('settings')}`);
     expect(Number(second!['n'])).toBe(1);
     const extra = await w.create('settings', { arrive_from: '09:00' });
     const s = await stay({});
-    // Neither 15:00 nor 09:00: which row is "the" settings row is anybody's guess, so the house's time is not known.
-    expect(await expected(s['id'])).toBeNull();
+    // 15:00, the row the Settings page edits: never the stray row's 09:00, and never nothing (`crud/settings-row.ts`).
+    expect(await expected(s['id'])).toBe('2026-11-02T15:00:00.000Z');
     await h.rows(`delete from ${h.real('settings')} where id = ${String(extra['id'])}`);
     await w.update('stays', s['id'], { arrive: '2026-11-03' });
     expect(await expected(s['id'])).toBe('2026-11-03T15:00:00.000Z');

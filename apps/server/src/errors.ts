@@ -251,6 +251,8 @@ export class ConflictError extends AppError {
       | 'NIGHTLY_RATE_UNREADABLE'
       // More child rows follow the changed row than one write moves (`details.table`, `count`).
       | 'FOLLOW_TOO_MANY'
+      // A create in a table an app keeps to one row (its settings) that already holds it (`details.table`).
+      | 'ONE_ROW_TABLE'
       // A desk's save came to another figure than the price it showed (`details.column`, `total`): nothing kept.
       | 'PRICE_CHANGED'
       // An add-on with tables, several databases, and none named: `details.connections` lists them.

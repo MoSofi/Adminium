@@ -326,7 +326,7 @@ code:
 | `VALIDATION_FAILED` with `details.reason` `BOOKING_OUT_OF_HOURS`, `BOOKING_OUT_OF_RANGE`, `BOOKING_NOT_OFFERED`, or a `CAPACITY_*` reason | `400` `PUBLIC_WRITE_REFUSED`, `{ column, reason }` |
 | `VALIDATION_FAILED` on a column the entry writes, for a reason a guest is told | `400` `PUBLIC_WRITE_REFUSED`, `{ column, reason }` |
 | A project hook's refusal | `400` `PUBLIC_WRITE_REJECTED` |
-| Anything else: `STATE_MOVE_REFUSED`, `RECORD_LOCKED`, `DELETE_REFUSED`, `BALANCE_EXCEEDED`, `FOLLOW_TOO_MANY`, `NIGHTLY_RATE_UNREADABLE`, `UNIQUE_VIOLATION`, `FK_VIOLATION`, `CONFLICT` | `400` `PUBLIC_WRITE_REFUSED` |
+| Anything else: `STATE_MOVE_REFUSED`, `RECORD_LOCKED`, `DELETE_REFUSED`, `BALANCE_EXCEEDED`, `FOLLOW_TOO_MANY`, `NIGHTLY_RATE_UNREADABLE`, `ONE_ROW_TABLE`, `UNIQUE_VIOLATION`, `FK_VIOLATION`, `CONFLICT` | `400` `PUBLIC_WRITE_REFUSED` |
 
 On a create with child rows, each public answer about a child row adds `child`, `index` and
 `path`.
@@ -365,6 +365,7 @@ role-bound key answers with the staff envelope:
 | `ROW_CHANGED` | 409 | A column the form loaded (`seen`) holds another value now. Nothing was kept; read the row again. | `column`, `expected`, `retry` |
 | `DOCUMENT_NOT_FOR_ROW` | 409 | The app's document kind is only for some rows (its `where`), and this row is not one of them: money given back has no receipt. Nothing was drawn. | `kind` |
 | `NIGHTLY_RATE_UNREADABLE` | 409 | A [price by the night](/reference/manifest/#prices-by-the-night) reads a rate rule that cannot be read. Correct the rule. | `table`, `key`, `column` |
+| `ONE_ROW_TABLE` | 409 | A create in a table an app keeps to one row (its settings table, or a table its settings are read from) that already holds its row, or a batch of more than one row there. Nothing was kept: change the row that is there. | `table` |
 | `COLUMN_FORBIDDEN` | 403 | A column the caller's role does not read, reads masked, or may not change. | `table`, `column`, `reason` |
 | `TABLE_FORBIDDEN` | 403 | The caller's role lacks the table permission the write needs, on the table or a child table. Also a write no role may make: rows only Adminium writes (`reason: adminium-writes`), a payment taken online, which only a refund changes (`online-payment`), and a column only a payment fills (`payment-column`, with `column`). | `permission`, `reason`, `column` |
 | `PAYMENT_REFUND_NOT_ALLOWED` | 403 | A write that makes, or turns into, a row of an app's refund table that sends money back (its `refunds.when`), by someone who may not refund payments (the install's refund right, or the app's own). | `table` |

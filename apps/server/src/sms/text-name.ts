@@ -16,6 +16,7 @@
 import { appOutboxesRepo, type MetaDb } from '@adminium/meta';
 
 import type { ConnectionManager } from '../connections/manager.js';
+import { settingsRow } from '../crud/settings-row.js';
 import { businessName } from '../privacy/business.js';
 import { createSmsAccountStore } from './account-store.js';
 
@@ -43,7 +44,7 @@ export async function appTextName(meta: MetaDb, manager: Pick<ConnectionManager,
     const settings = (JSON.parse(stored.definition) as { settings?: { table: string; textName?: string } }).settings;
     if (settings?.textName === undefined) return null;
     const { db } = await manager.data(connectionId);
-    const row = (await db.selectFrom(settings.table as never).selectAll().limit(1).executeTakeFirst()) as Record<string, unknown> | undefined;
+    const row = await settingsRow(db, settings.table, [settings.textName]);
     return oneLine(row?.[settings.textName]);
   } catch {
     return null;

@@ -34,6 +34,7 @@ import type { SourceDatabase } from '../connections/manager.js';
 import { compileFilter } from '../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
+import { settingsColumn } from '../crud/settings-row.js';
 import { sameValue } from '../crud/write-values.js';
 import { claimPredicateFor, combinePredicates, type PublicSessionContext } from './claim.js';
 import { mandatoryAt } from './relative-filters.js';
@@ -218,12 +219,8 @@ export async function judgeCounts(
 export async function judgeSumMax(db: Db, name: string, sumMax: NonNullable<ScopeChild['sumMax']>, rows: readonly Row[]): Promise<void> {
   let limit: unknown = sumMax.max;
   if (typeof sumMax.max !== 'number') {
-    const found = (await db
-      .selectFrom(sumMax.max.table)
-      .select(sql<unknown>`${sql.ref(sumMax.max.column)}`.as('value'))
-      .limit(1)
-      .executeTakeFirst()) as { value?: unknown } | undefined;
-    limit = found?.value;
+    // The settings row as every reader takes it: the first by key.
+    limit = await settingsColumn(db, sumMax.max.table, sumMax.max.column);
   }
   if (limit === null || limit === undefined) return;
   // Added up exactly, at more places than any amount a guest types.

@@ -20,7 +20,7 @@
  * undoes, or fails, the booking it confirms.
  */
 import type { FastifyRequest } from 'fastify';
-import { sql, type Kysely } from 'kysely';
+import type { Kysely } from 'kysely';
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 
 import type { CapacitySetting, EffectiveCapacityRule } from '../connections/effective-schema.js';
@@ -28,6 +28,7 @@ import type { SourceDatabase } from '../connections/manager.js';
 import { slotInstant } from '../crud/capacity-guard.js';
 import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
+import { settingsRow } from '../crud/settings-row.js';
 import { BOOKING_CONFIRMATION_TEMPLATE_KEY, enqueueEmail } from '../email/send.js';
 import { formatTag } from '../i18n/bcp47.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
@@ -56,12 +57,8 @@ const text = (value: unknown) => (value === null || value === undefined ? '' : S
 
 async function oneRow(db: Db, table: string, columns: readonly string[]): Promise<Row> {
   if (columns.length === 0) return {};
-  const row = (await db
-    .selectFrom(table)
-    .select(columns.map((column) => sql<unknown>`${sql.ref(column)}`.as(column)))
-    .limit(1)
-    .executeTakeFirst()) as Row | undefined;
-  return row ?? {};
+  // The settings row as every reader takes it: the first by key.
+  return (await settingsRow(db, table, columns)) ?? {};
 }
 
 async function hoursOf(db: Db, value: number | CapacitySetting | undefined): Promise<string> {

@@ -31,6 +31,7 @@ import type { SourceDatabase } from '../../connections/manager.js';
 import type { ResolvedTable } from '../identifiers.js';
 import type { Row } from '../mask.js';
 import { readDay, readInstant } from '../moments.js';
+import { settingsRow } from '../settings-row.js';
 import { venueClock } from '../venue-time.js';
 import type { WriteOrigin } from '../write-context.js';
 import { stateColumn, type Level, type Link, type Rule, type Size } from './rules.js';
@@ -48,7 +49,7 @@ export class Reads {
   async setting(setting: CapacitySetting): Promise<unknown> {
     let found = this.#settings.get(setting.table);
     if (found === undefined) {
-      this.#settings.set(setting.table, (found = this.db.selectFrom(setting.table).selectAll().limit(1).executeTakeFirst()));
+      this.#settings.set(setting.table, (found = settingsRow(this.db, setting.table)));
     }
     const row = (await found) as Row | undefined;
     return row?.[setting.column];

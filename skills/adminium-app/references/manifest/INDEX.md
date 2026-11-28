@@ -25,7 +25,7 @@
 | `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 7834 |
 | `references/manifest/requiredschema--column-rules-8.md` | requiredSchema — Column rules (part 8) | 7842 |
 | `references/manifest/requiredschema--column-rules-9.md` | requiredSchema — Column rules (part 9) | 7540 |
-| `references/manifest/requiredschema--column-rules-10.md` | requiredSchema — Column rules (part 10) | 7006 |
+| `references/manifest/requiredschema--column-rules-10.md` | requiredSchema — Column rules (part 10) | 7384 |
 | `references/manifest/requiredschema--column-rules-11.md` | requiredSchema — Column rules (part 11) | 7715 |
 | `references/manifest/requiredschema--column-rules-12.md` | requiredSchema — Column rules (part 12) | 7815 |
 | `references/manifest/requiredschema--column-rules-13.md` | requiredSchema — Column rules (part 13) | 6978 |

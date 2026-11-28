@@ -19,12 +19,13 @@
  * What a moment is compared WITH is the write's clock (`write-clock.ts`), read
  * inside the transaction after the locks.
  */
-import { sql, type Kysely } from 'kysely';
+import type { Kysely } from 'kysely';
 import type { HoursEdge, Moment, MomentAmount, MomentOffset, PlainMoment, WallTime } from '@adminium/manifest';
 
 import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
+import { settingsColumn } from './settings-row.js';
 import { venueClock, wallTimeToInstant } from './venue-time.js';
 
 /*
@@ -79,12 +80,18 @@ export interface MomentContext {
 }
 
 /**
- * A setting reader over a handle, each setting read once: the ONE row of the
- * settings table, as the write's own handle sees it. What cannot be read is
- * undefined — a moment then has none, and a move waiting for a setting is
- * refused. A table holding more than one row has no setting to read: which
- * row would be "the" settings is anybody's guess (another guest's arrival
- * time, say), so none of them is read.
+ * A setting reader over a handle, each setting read once: the settings row,
+ * as the write's own handle sees it. What cannot be read is undefined — a
+ * moment then has none, and a move waiting for a setting is refused.
+ *
+ * The row is the first by key (`settings-row.ts`), as every other reader
+ * takes it. A table holding more than one row used to have no setting here
+ * at all, while the rules, the emails and the Settings page each read a row
+ * of it: the page showed a time that looked in force and every move waiting
+ * on it was refused, with nothing to say why. Now a create there is refused
+ * while it holds its row, and a table that holds more anyway (rows from
+ * before, or from outside Adminium) is read by the row the page edits and
+ * warns about the rest.
  */
 export function momentSettings(db: Kysely<SourceDatabase>): MomentSettings {
   const memo = new Map<string, Promise<unknown>>();
@@ -92,13 +99,7 @@ export function momentSettings(db: Kysely<SourceDatabase>): MomentSettings {
     const key = `${setting.table}\u0000${setting.column}`;
     let found = memo.get(key);
     if (found === undefined) {
-      found = db
-        .selectFrom(setting.table)
-        .select(sql<unknown>`${sql.ref(setting.column)}`.as('value'))
-        .limit(2)
-        .execute()
-        .then((rows) => (rows.length === 1 ? ((rows[0] as { value?: unknown }).value ?? undefined) : undefined))
-        .catch(() => undefined);
+      found = settingsColumn(db, setting.table, setting.column).catch(() => undefined);
       memo.set(key, found);
     }
     return found;

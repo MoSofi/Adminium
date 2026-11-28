@@ -161,6 +161,7 @@ import { resolveColumnOptions, resolveEnumLabels, type EffectiveColumn } from '.
 import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import { slotInstant } from '../crud/capacity-guard.js';
 import { pkLabel } from '../crud/records.js';
+import { settingsRow } from '../crud/settings-row.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { rowPictures, type ReadRow } from './row-pictures.js';
 import type { Row } from '../crud/mask.js';
@@ -914,7 +915,7 @@ function keptBefore(box: LiveOutbox, view: SnapshotView, row: Row): { table: Res
 async function houseReplyTo(box: LiveOutbox, db: Kysely<SourceDatabase>): Promise<string | null> {
   const settings = box.definition.settings;
   if (settings?.replyTo === undefined) return null;
-  const record = (await db.selectFrom(settings.table as never).select(settings.replyTo as never).limit(1).executeTakeFirst()) as Row | undefined;
+  const record = await settingsRow(db, settings.table, [settings.replyTo]);
   return replyToOf(record?.[settings.replyTo]);
 }
 
@@ -1124,7 +1125,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const settings = box.definition.settings;
     let practiceName: unknown;
     if (settings !== undefined) {
-      const record = (await db.selectFrom(settings.table as never).selectAll().limit(1).executeTakeFirst()) as Row | undefined;
+      const record = await settingsRow(db, settings.table);
       // The app's own settings row: its phone is the practice's, not a person's. None yet: each is empty.
       await put('practice', view.table(settings.table), record ?? {}, true);
       if (record !== undefined && settings.name !== undefined) practiceName = record[settings.name];
@@ -2327,7 +2328,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const { vars } = await variables(box, { ...ctx, forms, labels, blankOf: heldElsewhere(box, ctx, '', addressed) }, row, addressed, null, null);
 
     const settings = box.definition.settings;
-    const house = settings === undefined ? undefined : ((await ctx.db.selectFrom(settings.table as never).selectAll().limit(1).executeTakeFirst()) as Row | undefined);
+    const house = settings === undefined ? undefined : await settingsRow(ctx.db, settings.table);
     const line = (column: string | undefined): string | null => {
       const value = column === undefined ? undefined : house?.[column];
       const text = typeof value === 'string' ? value.replaceAll(/\s+/g, ' ').trim() : '';
@@ -2754,7 +2755,7 @@ export async function appContact(
     const settings = (JSON.parse(stored.definition) as LiveOutbox['definition']).settings;
     if (settings === undefined || (settings.name === undefined && settings.phone === undefined)) return none;
     const { db } = await manager.data(connectionId);
-    const row = (await db.selectFrom(settings.table as never).selectAll().limit(1).executeTakeFirst()) as Row | undefined;
+    const row = await settingsRow(db, settings.table);
     // One line of text each: a stray line break would split the sentence it sits in.
     const text = (column: string | undefined): string | null => {
       const value = column === undefined ? undefined : row?.[column];

@@ -25,7 +25,7 @@ code:
 | `VALIDATION_FAILED` with `details.reason` `BOOKING_OUT_OF_HOURS`, `BOOKING_OUT_OF_RANGE`, `BOOKING_NOT_OFFERED`, or a `CAPACITY_*` reason | `400` `PUBLIC_WRITE_REFUSED`, `{ column, reason }` |
 | `VALIDATION_FAILED` on a column the entry writes, for a reason a guest is told | `400` `PUBLIC_WRITE_REFUSED`, `{ column, reason }` |
 | A project hook's refusal | `400` `PUBLIC_WRITE_REJECTED` |
-| Anything else: `STATE_MOVE_REFUSED`, `RECORD_LOCKED`, `DELETE_REFUSED`, `BALANCE_EXCEEDED`, `FOLLOW_TOO_MANY`, `NIGHTLY_RATE_UNREADABLE`, `UNIQUE_VIOLATION`, `FK_VIOLATION`, `CONFLICT` | `400` `PUBLIC_WRITE_REFUSED` |
+| Anything else: `STATE_MOVE_REFUSED`, `RECORD_LOCKED`, `DELETE_REFUSED`, `BALANCE_EXCEEDED`, `FOLLOW_TOO_MANY`, `NIGHTLY_RATE_UNREADABLE`, `ONE_ROW_TABLE`, `UNIQUE_VIOLATION`, `FK_VIOLATION`, `CONFLICT` | `400` `PUBLIC_WRITE_REFUSED` |
 
 On a create with child rows, each public answer about a child row adds `child`, `index` and
 `path`.

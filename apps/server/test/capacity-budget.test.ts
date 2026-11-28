@@ -37,6 +37,8 @@ for (const [dialect, available] of LEGS) {
 
     const counted = async <T>(table: string, ask: (db: World['db'], target: Awaited<ReturnType<World['target']>>) => Promise<T>) => {
       const target = await w!.target(table);
+      // Asked once first: a settings table's key is read from the catalog once per pool (`crud/settings-row.ts`), never per question.
+      await ask(target.db, target);
       const counter = new Counting();
       const db = target.db.withPlugin(counter);
       await ask(db, { ...target, db });

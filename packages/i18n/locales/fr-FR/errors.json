@@ -5,6 +5,7 @@
   "PAGE_FORBIDDEN": "Vous n’avez pas la permission de modifier cette page.",
   "NOT_FOUND": "Cette ressource n’existe pas ou a été supprimée.",
   "CONFLICT": "Cette modification entre en conflit avec l’état actuel. Actualisez et réessayez.",
+  "ONE_ROW_TABLE": "Cette table contient les réglages de l’app : elle n’a qu’une ligne. Modifiez cette ligne.",
   "UNIQUE_VIOLATION": "Cette valeur est déjà utilisée.",
   "VALIDATION_FAILED": "Certains champs demandent votre attention avant l’enregistrement.",
   "RATE_LIMITED": "Trop de requêtes — patientez un instant et réessayez.",
