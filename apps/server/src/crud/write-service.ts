@@ -1767,8 +1767,12 @@ export interface RecordWriteService {
     target: WriteTarget,
     context: WriteContext,
     rows: readonly Row[],
-    /** `stored`: for a change, the row each one changes, by index (a link sent back as it stands is no change). */
-    opts?: Pick<BeforeEachOptions, 'capacity' | 'quote'> & { stored?: readonly (Row | null)[] },
+    /**
+     * `stored`: for a change, the row each one changes, by index (a link sent back as it stands is no change).
+     * `fillsHeldRow`: a create's values worked out to fill the row a one-row table already holds (sample data's
+     * `@fillEmpty`), never written as a row of their own: not refused for the row that is there.
+     */
+    opts?: Pick<BeforeEachOptions, 'capacity' | 'quote'> & { stored?: readonly (Row | null)[]; fillsHeldRow?: true },
   ): Promise<{ rows: (CheckedRow | null)[]; issues: (FieldIssues | null)[] }>;
   create(input: CreateRecordInput): Promise<Row>;
   /** A create with its child rows, every row or none; or a quote of one (`write-tree.ts`). */
@@ -1901,6 +1905,9 @@ export interface RecordWriteService {
 /** Where a person is behind a write, so a move back can be asked about a paid label. */
 const PAID_LABEL_ORIGINS: ReadonlySet<WriteOrigin> = new Set<WriteOrigin>(['dashboard', 'bulk', 'public', 'action', 'undo']);
 
+/** What a create in a table kept to one row is told ({@link WriteServiceOptions.oneRow}); the dashboard says it in the reader's language. */
+export const ONE_ROW_REFUSAL = "This table holds the app's settings: it has one row. Edit that row.";
+
 export interface WriteServiceOptions {
   /** Read on every write, so a reload swaps the hooks for the next one. */
   hooks?: (() => RecordHooks) | undefined;
@@ -2003,6 +2010,18 @@ export interface WriteServiceOptions {
    * Without it, no table is.
    */
   ownRecords?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
+  /**
+   * Whether an installed app or add-on keeps a table to ONE row: its settings
+   * table, or a table its settings are read from (`oneRowTables` in
+   * `@adminium/manifest`). A create there is refused while the table holds a
+   * row, and a batch of more than one row is refused outright, whoever writes
+   * and whichever door it came through (a save, a tree, a file brought in, a
+   * rule's step, an API key): a second row would make the readers disagree on
+   * which row is the settings. Without it, no table is. `askedJustNow`, as
+   * for {@link landingPages}: {@link ownRecords} read what is installed on
+   * this write a moment before.
+   */
+  oneRow?: ((connectionId: string, tableId: string, askedJustNow?: boolean) => Promise<boolean>) | undefined;
   /**
    * Whether a table's rows are Adminium's own record that no person removes
    * either (a chat add-on's conversations, messages and choices): a person's
@@ -2342,6 +2361,17 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (!(await opts.ownRecords(target.connectionId, target.table.id))) return;
     const sealed = (await opts.sealedRecords?.(target.connectionId, target.table.id)) === true;
     throw new ForbiddenError(sealed ? 'Only Adminium writes these rows. You can read them.' : 'Only Adminium writes these rows. You can read and delete them.', 'TABLE_FORBIDDEN', { table: target.table.id, reason: 'adminium-writes' });
+  };
+
+  /**
+   * A create of `count` rows in a table kept to one row ({@link WriteServiceOptions.oneRow}): refused while the
+   * table holds a row, read through the write's own handle, and refused outright for more than one.
+   */
+  const refuseSecondRow = async (target: Pick<WriteTarget, 'connectionId' | 'table' | 'db'>, context: WriteContext, count: number): Promise<void> => {
+    if (opts.oneRow === undefined || count === 0) return;
+    if (!(await opts.oneRow(target.connectionId, target.table.id, opts.ownRecords !== undefined && !writtenByAdminium(context)))) return;
+    const held = count > 1 || (await target.db.selectFrom(target.table.id).select(sql<number>`1`.as('one')).limit(1).executeTakeFirst()) !== undefined;
+    if (held) throw new ConflictError(ONE_ROW_REFUSAL, 'ONE_ROW_TABLE', { table: target.table.id });
   };
 
   /** A person's delete of a table only Adminium removes rows from ({@link WriteServiceOptions.sealedRecords}): refused, by name. */
@@ -3967,6 +3997,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     refuseUnbuiltTable(target);
     await refuseHeldWrite(target.db, 'create');
     await refuseOwnRecords(target, context);
+    await refuseSecondRow(target, context, 1);
     await refuseReviewWrite(target, context, 'create');
     await refusePaymentRows('create', target, context, [{ values: input.values, stored: async () => null }]);
     const given = await sealLanding('create', target, context, input.values, async () => null);
@@ -4494,6 +4525,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       await refuseHeldWrite(target.db, action);
       if (action !== 'delete') await refuseOwnRecords(target, context);
       else await refuseSealedDelete(target, context);
+      if (action === 'create' && checkOpts?.fillsHeldRow !== true) await refuseSecondRow(target, context, given.length);
       await refuseReviewWrite(target, context, action === 'delete' ? 'delete' : 'bulk');
       const heldOf = (values: Row, index: number) => async () => checkOpts?.stored?.[index] ?? (action === 'create' ? null : await fetchMatched(target, values));
       await refusePaymentRows(action, target, context, given.map((values, index) => ({ values, stored: heldOf(values, index) })));
@@ -4826,6 +4858,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // A table only Adminium writes takes no row of a person's tree, at its root or below.
       for (const row of everyRow) await refuseHeldWrite(row.target.db, 'create');
       for (const row of everyRow) await refuseOwnRecords(row.target, context);
+      // A table kept to one row takes one at most, and none while it holds its row.
+      const perTable = new Map<string, { target: WriteTarget; count: number; node: TreeNode }>();
+      for (const row of everyRow) {
+        const seen = perTable.get(row.target.table.id);
+        if (seen === undefined) perTable.set(row.target.table.id, { target: row.target, count: 1, node: row.node });
+        else seen.count += 1;
+      }
+      for (const one of perTable.values()) await at(one.node, () => refuseSecondRow(one.target, context, one.count));
       for (const row of everyRow) await refuseReviewWrite(row.target, context, 'create');
       for (const row of everyRow) await refusePaymentRows('create', row.target, context, [{ values: row.node.values, stored: async () => null }]);
       // A child table a before hook runs for cannot take rows here: a hook may write through its own connection, which waits on this transaction.
@@ -5861,6 +5901,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       await refuseHeldWrite(target.db, action);
       if (action !== 'delete') await refuseOwnRecords(target, context);
       else await refuseSealedDelete(target, context);
+      if (action === 'create') await refuseSecondRow(target, context, givenRows.length);
       await refuseReviewWrite(target, context, action === 'delete' ? 'delete' : 'bulk');
       const heldOf = (row: (typeof givenRows)[number]) => async () => (row.record !== undefined ? row.record : row.match === undefined ? null : ((await fetchByPk(target.db, target.table, row.match)) ?? null));
       await refusePaymentRows(

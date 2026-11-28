@@ -77,6 +77,7 @@ import { addDays, busyIn, keyOf, lastBookableDay } from '../crud/booking-guard.j
 import { slotInstant, type GuardTarget } from '../crud/capacity-guard.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
+import { settingsColumn } from '../crud/settings-row.js';
 import { fetchByPk } from '../crud/records.js';
 import { venueClock, wallTimeToInstant } from '../crud/venue-time.js';
 import { pkOfRowKey, rowKeyOf } from '../payments/payables.js';
@@ -271,8 +272,8 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
     const name = bound.rule.sync.calendarName;
     if (typeof name === 'string') return name;
     const db = bound.source.db;
-    const row = (await db.selectFrom(name.table).selectAll().limit(1).executeTakeFirst()) as Row | undefined;
-    const held = row?.[name.column];
+    // The settings row as every reader takes it: the first by key.
+    const held = await settingsColumn(db, name.table, name.column);
     return typeof held === 'string' && held.trim() !== '' ? held.trim().slice(0, 100) : 'Bookings';
   }
 

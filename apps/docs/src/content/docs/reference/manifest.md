@@ -1059,9 +1059,13 @@ rather than taking a made-up value. An update never refills it.
 A `{ "table", "column" }` setting, wherever a rule reads one (a default, a limit's size, a move's
 condition, a moment's time), names a table that holds **one row**: the outbox's
 [`settings.table`](#outbox), or a table that stands alone, with no foreign key of its own, none
-pointing at it, and no states, limits or booking. Adminium reads that row when the rule runs. A
-moment, a state condition or a stamp's amount that finds two rows there reads nothing rather than
-guess which one is meant.
+pointing at it, and no states, limits or booking. Adminium reads that row when the rule runs.
+Adminium keeps such a table to its one row: a create there is refused while it holds a row
+(`409 ONE_ROW_TABLE`), whether it comes from a records page, a file brought in, a rule, the
+Designer or an API key, and a second shop is a second install on another database. A table
+that holds more rows anyway (rows made before Adminium 0.3.80, or written straight in the
+database) is read by its row with the lowest primary key, by every rule, email, text and switch,
+and that is the row a Settings page edits.
 
 #### Copies that follow
 

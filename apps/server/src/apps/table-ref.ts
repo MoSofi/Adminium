@@ -15,7 +15,7 @@
  *
  * This is the ONE place that writes or reads the form. Nobody else splits it.
  */
-import { isAddOnManifest, validateManifest, type AddOnManifest } from '@adminium/manifest';
+import { isAddOnManifest, oneRowTables, validateManifest, type AddOnManifest } from '@adminium/manifest';
 import { appTablesRepo, manifestsRepo, realTableOf, type AppTableRecord, type ManifestStatus, type MetaDb } from '@adminium/meta';
 
 import { realOfTable, tableIdModelOf, tableIdOrNull, tableOfReal, type LooseTableIdModel, type TableIdEntry } from '../installs/table-id.js';
@@ -110,6 +110,23 @@ export interface AddOnInstalls {
   tableOfRef(connectionId: string, tableRef: string): string | null;
   /** Whether a feature of an app is on: every add-on it needs is installed here, attached to the app and switched on for it. */
   featureOn(connectionId: string, appKey: string, featureId: string): boolean;
+  /**
+   * Whether an installed app or add-on keeps a table to ONE row: its settings
+   * table, or a table its settings are read from (`oneRowTables` in
+   * `@adminium/manifest`). Absent: no table is.
+   */
+  oneRow?(connectionId: string, tableId: string): boolean;
+}
+
+/** The manifest's one-row tables, by its own refs; none for a stored document that does not read. */
+function oneRowRefsOf(document: unknown): string[] {
+  const tables = (document as { requiredSchema?: { tables?: unknown } } | null)?.requiredSchema?.tables;
+  if (!Array.isArray(tables)) return [];
+  try {
+    return oneRowTables(document as Parameters<typeof oneRowTables>[0]);
+  } catch {
+    return [];
+  }
 }
 
 const NO_SECRETS = {
@@ -137,9 +154,19 @@ export async function loadAddOnInstalls(meta: MetaDb, models: ModelOf): Promise<
   const addOns = new Map<string, InstalledAddOn>();
   const features = new Map<string, readonly string[]>();
   const at = (connectionId: string, key: string): string => `${connectionId} ${key}`;
+  /** Each connection's one-row tables, by id: an app's or an add-on's settings table, wherever it was made or taken. */
+  const oneRow = new Map<string, Set<string>>();
   for (const entry of manifests) {
     const connectionId = entry.row.connectionId;
     if (connectionId === null) continue;
+    const index = indexes.get(connectionId);
+    for (const ref of index === undefined ? [] : oneRowRefsOf(entry.document)) {
+      const record = index!.records.find((candidate) => candidate.appKey === entry.row.manifestKey && candidate.ref === ref && (candidate.state === 'created' || candidate.state === 'adopted'));
+      const tableId = record === undefined ? null : tableIdOrNull(index!, realTableOf(record));
+      if (tableId === null) continue;
+      if (!oneRow.has(connectionId)) oneRow.set(connectionId, new Set());
+      oneRow.get(connectionId)!.add(tableId);
+    }
     if (entry.row.kind === 'add-on') {
       const read = validateManifest(entry.document);
       const sound = read.ok && isAddOnManifest(read.manifest);
@@ -185,6 +212,7 @@ export async function loadAddOnInstalls(meta: MetaDb, models: ModelOf): Promise<
         return addOn !== undefined && addOn.status === 'installed' && addOn.hosts.get(appKey) === true;
       });
     },
+    oneRow: (connectionId, tableId) => oneRow.get(connectionId)?.has(tableId) === true,
   };
   return installs;
 }

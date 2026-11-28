@@ -18,15 +18,18 @@ function source() {
 describe('settings switches', () => {
   it('read off with no row, no column or no table, and on only when the row says so', async () => {
     const db = source();
-    await db.schema.createTable('settings').addColumn('online_on', 'integer').execute();
+    await db.schema.createTable('settings').addColumn('code', 'text', (c) => c.primaryKey()).addColumn('online_on', 'integer').execute();
     const switches = createSwitches(async () => db);
     expect(await switches.isOn('c1', 'settings', 'online_on')).toBe(false);
     expect(await switches.isOn('c1', 'settings', 'missing')).toBe(false);
     expect(await switches.isOn('c1', 'nowhere', 'online_on')).toBe(false);
-    await db.insertInto('settings' as never).values({ online_on: 1 } as never).execute();
+    await db.insertInto('settings' as never).values({ code: 'm', online_on: 1 } as never).execute();
     expect(await createSwitches(async () => db).isOn('c1', 'settings', 'online_on')).toBe(true);
-    // A second row that is off switches it off, whichever row a database hands back first.
-    await db.insertInto('settings' as never).values({ online_on: 0 } as never).execute();
+    // A stray second row is not read: the settings row is the first by key, the one the Settings page edits.
+    await db.insertInto('settings' as never).values({ code: 'z', online_on: 0 } as never).execute();
+    expect(await createSwitches(async () => db).isOn('c1', 'settings', 'online_on')).toBe(true);
+    // …whichever row the database hands back first: one with a lower key, written last, is the one read.
+    await db.insertInto('settings' as never).values({ code: 'a', online_on: 0 } as never).execute();
     expect(await createSwitches(async () => db).isOn('c1', 'settings', 'online_on')).toBe(false);
     await db.destroy();
   });

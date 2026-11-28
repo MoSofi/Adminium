@@ -3,7 +3,8 @@
  * WHICH TABLES AN INSTALLED ADD-ON HOLDS A WRITE TO, as the write service
  * asks it ({@link WriteServiceOptions}): a forms add-on's answers and files,
  * a chat add-on's conversations, a lead source add-on's people found and
- * its fields' sources, and a landing pages add-on's pages.
+ * its fields' sources, and a landing pages add-on's pages. And which tables
+ * an installed app or add-on keeps to one row (its settings).
  *
  * What is installed is read from the meta store (one query, the install
  * stamp) only where it must be: once for a person's write, by the
@@ -19,7 +20,7 @@ import { leadsOwnTable } from '../leads/installs.js';
 import { reviewTableKind } from '../reviews/tables.js';
 import type { WriteServiceOptions } from './write-service.js';
 
-export function addOnWriteJudges(installs: Pick<AddOnInstallsKeeper, 'fresh' | 'current'>): Required<Pick<WriteServiceOptions, 'ownRecords' | 'sealedRecords' | 'landingPages' | 'reviewTables'>> {
+export function addOnWriteJudges(installs: Pick<AddOnInstallsKeeper, 'fresh' | 'current'> & Partial<Pick<AddOnInstallsKeeper, 'recent'>>): Required<Pick<WriteServiceOptions, 'ownRecords' | 'sealedRecords' | 'landingPages' | 'reviewTables' | 'oneRow'>> {
   return {
     // A forms add-on's answers and their files, a chat add-on's own tables, and an add-on's people found and its
     // fields' sources (the engine writes them as a person is kept, told and erased, `leads/`): written by Adminium alone.
@@ -38,5 +39,9 @@ export function addOnWriteJudges(installs: Pick<AddOnInstallsKeeper, 'fresh' | '
     landingPages: async (connectionId, tableId, askedJustNow) => landingPagesTable(askedJustNow === true ? installs.current() : await installs.fresh(), connectionId, tableId),
     // A reviews add-on's tables: a person moderates a review, one at a time; the totals move with it.
     reviewTables: async (connectionId, tableId, askedJustNow) => reviewTableKind(askedJustNow === true ? installs.current() : await installs.fresh(), connectionId, tableId),
+    // An app's or an add-on's settings table, and any table its settings are read from: one row, whoever writes.
+    // What `ownRecords` read on this write is asked again; else what was read less than a second ago answers.
+    oneRow: async (connectionId, tableId, askedJustNow) =>
+      (askedJustNow === true ? installs.current() : await (installs.recent?.() ?? installs.fresh())).oneRow?.(connectionId, tableId) === true,
   };
 }

@@ -115,6 +115,7 @@ export {
   type RequiredColumn,
   type RequiredTableShape,
   type ShapeDefinition,
+  oneRowTables,
 } from './schema.js';
 export { EVERY_COLUMN, appGrantsIssues, appGrantsSchema, declaresAppGrants, holdWider, roleTableHold, type AppGrants, type RoleAddOnAction, type RoleTableHold, type RoleTableNarrowed, type RoleTableResult, type RoleTableSkip } from './app-grants.js';
 export { ROLE_ADD_ON_ACTIONS, roleAddOnTableSchema, roleAddOnTablesSchema, roleLimitSchema, roleLimitsSchema, type RoleAddOnTable, type RoleLimit } from './roles.js';

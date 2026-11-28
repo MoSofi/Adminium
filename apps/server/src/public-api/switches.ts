@@ -13,17 +13,24 @@
  *
  * Fail-safe: no row, no column, a row that is off, or a read that fails
  * reads as OFF.
+ *
+ * The row is the settings row as every reader takes it: the first by key,
+ * the one the Settings page edits (`crud/settings-row.ts`). It used to be
+ * on only when every row was on; with a stray second row the owner then
+ * switched the shop on and it stayed off, with nothing on the page to say
+ * why. A create in the settings table is refused while it holds its row.
  */
-import { sql, type Kysely } from 'kysely';
+import type { Kysely } from 'kysely';
 
 import type { SourceDatabase } from '../connections/manager.js';
+import { settingsRow } from '../crud/settings-row.js';
 import { sameValue } from '../crud/write-values.js';
 
 /** How long a switch's answer is trusted. */
 export const SWITCH_TTL_MS = 15_000;
 
 export interface Switches {
-  /** On: every row holds true — or, given `values`, one of those values (a choice: "nothing", "optional", "required"). */
+  /** On: the settings row holds true — or, given `values`, one of those values (a choice: "nothing", "optional", "required"). */
   isOn(connectionId: string, table: string, column: string, values?: readonly string[]): Promise<boolean>;
   /** A row of `table` was written: its switches are read again on the next ask. A table is named by its id or its bare name. */
   forget(connectionId: string, table: string): void;
@@ -39,10 +46,10 @@ export function createSwitches(dbFor: (connectionId: string) => Promise<Kysely<S
       let on = false;
       try {
         const db = await dbFor(connectionId);
-        // Every row, not the first one a database happens to hand back: on only
-        // when there is a row and none is off.
-        const rows = (await db.selectFrom(table as never).select(sql.ref(column).as('v')).limit(50).execute()) as { v?: unknown }[];
-        on = rows.length > 0 && rows.every((row) => (values === undefined ? sameValue(true, row.v) : typeof row.v === 'string' && values.includes(row.v)));
+        // The first row by key, not the first one a database happens to hand back.
+        const row = await settingsRow(db, table, [column]);
+        const v = row?.[column];
+        on = row !== undefined && (values === undefined ? sameValue(true, v) : typeof v === 'string' && values.includes(v));
       } catch {
         on = false;
       }

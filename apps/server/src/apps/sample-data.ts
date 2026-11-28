@@ -98,6 +98,7 @@ import { applyOverrides, type EffectiveModel } from '../connections/effective-sc
 import { runIntrospection } from '../connections/introspect.js';
 import type { ConnectionManager, DataHandle, SourceDatabase } from '../connections/manager.js';
 import { SnapshotView, type ResolvedTable } from '../crud/identifiers.js';
+import { settingsRow } from '../crud/settings-row.js';
 import { literalDefault, tableRulesFor } from '../crud/column-rules.js';
 import { countersPastTheTable, isUniqueViolation } from '../crud/decided-columns.js';
 import { labelColumnFor } from '../crud/labels.js';
@@ -2190,7 +2191,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
              * point at theirs, which the sample never takes as its own.
              */
             if (row['@onlyIfEmpty'] === true) {
-              const existing = (await db.selectFrom(resolved.id as never).selectAll().limit(1).executeTakeFirst()) as Row | undefined;
+              // The settings row as every reader takes it: the first by key (`crud/settings-row.ts`).
+              const existing = await settingsRow(db, resolved.id);
               if (existing !== undefined) {
                 const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, existing[column]]));
                 const named = row['@label'];
@@ -2202,7 +2204,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
                 if (row['@fillEmpty'] === true) {
                   const empty = Object.keys(values).filter((column) => !resolved.primaryKey.includes(column) && resolved.columns.has(column) && values[column] !== null && values[column] !== undefined && (existing[column] === null || existing[column] === undefined));
                   if (empty.length > 0) {
-                    const checked = await writes.check('create', target, context, [values], { capacity: 'unchecked' });
+                    const checked = await writes.check('create', target, context, [values], { capacity: 'unchecked', fillsHeldRow: true });
                     const good = checked.rows[0];
                     if (good === null || good === undefined) {
                       throw new ValidationFailedError(`A sample row for "${table.ref}" was refused.`, { reason: 'SAMPLE_ROW_REFUSED', table: table.ref, issues: checked.issues[0] });

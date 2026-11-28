@@ -15,6 +15,7 @@ export default {
   "PAGE_FORBIDDEN": "你没有编辑此页面的权限。",
   "NOT_FOUND": "该资源不存在或已被移除。",
   "CONFLICT": "该更改与当前状态冲突。请刷新后重试。",
+  "ONE_ROW_TABLE": "此表保存应用的设置：只有一行。请编辑这一行。",
   "UNIQUE_VIOLATION": "该值已被使用。",
   "VALIDATION_FAILED": "部分字段需要修改后才能保存。",
   "RATE_LIMITED": "请求过多——请稍等片刻再试。",

@@ -99,6 +99,7 @@ import { slotInstant, withNamedLock } from '../crud/capacity-guard.js';
 import { withNamedLocks } from '../crud/capacity/locks.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
+import { settingsRow } from '../crud/settings-row.js';
 import type { RecordWriteService } from '../crud/write-service.js';
 import { bindWriteValue, normalizeWriteValue, sameValue } from '../crud/write-values.js';
 import { asInstant } from '../automations/conditions.js';
@@ -430,8 +431,10 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
 
   /**
    * The settings row's switch, as the public switches read theirs: on only
-   * when there is a row and none is off — a practice with no settings row
-   * sends nothing it did not mean to.
+   * when there is a row and it is on — a practice with no settings row sends
+   * nothing it did not mean to. The row is the first by key, the one the
+   * Settings page edits (`crud/settings-row.ts`): a stray second row neither
+   * switches it on nor off.
    */
   async function switchedOn(db: Kysely<SourceDatabase>, box: LiveOutbox, gate: OutboxProducer['gate']): Promise<boolean> {
     // A feature of the app: on while every add-on it needs is attached and switched on (a receipt, with Invoices & Receipts).
@@ -441,8 +444,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     // The outbox's own switch, or the producer's (each studio notice has one).
     const at = typeof gate === 'object' ? gate.setting : box.definition.settings?.enabled === undefined ? undefined : { table: box.definition.settings.table, column: box.definition.settings.enabled };
     if (at === undefined) return true;
-    const rows = (await db.selectFrom(at.table as never).select(at.column as never).limit(50).execute()) as Row[];
-    return rows.length > 0 && rows.every((row) => sameValue(true, row[at.column]));
+    const row = await settingsRow(db, at.table, [at.column]);
+    return row !== undefined && sameValue(true, row[at.column]);
   }
 
   const zoneOf = async (connectionId: string): Promise<string> => (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? 'UTC';
@@ -726,9 +729,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       const fallback =
         before.lead.fallback === undefined
           ? null
-          : (((await db.selectFrom(before.lead.fallback.table as never).select(before.lead.fallback.column as never).limit(1).executeTakeFirst()) as Row | undefined)?.[
-              before.lead.fallback.column
-            ] ?? null);
+          : ((await settingsRow(db, before.lead.fallback.table, [before.lead.fallback.column]))?.[before.lead.fallback.column] ?? null);
       for (const row of rows) {
         if (!holds(before.where, row)) continue;
         const person = await rowOf(db, view, before.lead.table, row[before.lead.via]);

@@ -19,6 +19,7 @@ import type { RuleSetting } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import type { SoftLink, TableRules } from './column-rules.js';
 import type { Row } from './mask.js';
+import { settingsColumn } from './settings-row.js';
 import type { WriteAction } from './write-context.js';
 
 /** What the write service reads from the meta store for a rule, for one write's database. */
@@ -54,12 +55,8 @@ type Db = Kysely<SourceDatabase>;
 /** A setting's value now: the settings row's column, or the add-on's setting; undefined when there is none. */
 export async function settingValue(db: Db, setting: RuleSetting, reader: RuleSettingsReader | undefined): Promise<unknown> {
   if ('addOn' in setting) return reader?.addOnSetting(setting.addOn, setting.setting);
-  const row = (await db
-    .selectFrom(setting.table)
-    .select(sql<unknown>`${sql.ref(setting.column)}`.as('value'))
-    .limit(1)
-    .executeTakeFirst()) as { value?: unknown } | undefined;
-  return row?.value ?? undefined;
+  // The settings row as every reader takes it: the first by key (`settings-row.ts`).
+  return settingsColumn(db, setting.table, setting.column);
 }
 
 /**

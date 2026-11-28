@@ -15,6 +15,7 @@ export default {
   "PAGE_FORBIDDEN": "You don’t have permission to edit this page.",
   "NOT_FOUND": "That resource doesn’t exist or was removed.",
   "CONFLICT": "That change conflicts with the current state. Refresh and try again.",
+  "ONE_ROW_TABLE": "This table holds the app’s settings: it has one row. Edit that row.",
   "UNIQUE_VIOLATION": "That value is already in use.",
   "VALIDATION_FAILED": "Some fields need attention before this can be saved.",
   "RATE_LIMITED": "Too many requests — wait a moment and try again.",
